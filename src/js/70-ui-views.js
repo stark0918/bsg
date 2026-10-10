@@ -262,19 +262,20 @@ function boxScore(m){
 }
 function fieldSVG(bases){
   const occ=[!!bases[0],!!bases[1],!!bases[2]];
-  const base=(x,y,on,label)=>`<g><rect x="${x-14}" y="${y-14}" width="28" height="28" rx="4" transform="rotate(45 ${x} ${y})" fill="${on?"#f2c14e":"#e8e2d0"}" stroke="#5b5b4a" stroke-width="2"/>${on?`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="15" fill="#3a2b00">${label}</text>`:""}</g>`;
+  const base=(x,y,on,label)=>`<g><rect x="${x-14}" y="${y-14}" width="28" height="28" rx="4" transform="rotate(45 ${x} ${y})" fill="${on?"#7fd6ea":"#0d1e30"}" stroke="${on?"#eaf6ff":"#35597a"}" stroke-width="2"${on?' filter="url(#hglow)"':""}/>${on?`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="15" fill="#06202b" font-weight="700">${label}</text>`:""}</g>`;
   return `<svg viewBox="0 0 220 210" class="field-svg" preserveAspectRatio="xMidYMid meet">
-    <rect width="220" height="210" fill="#0f2b1c"/>
-    <path d="M110 196 L201 105 L110 14 L19 105 Z" fill="#3f7a3f" stroke="#dfe8c8" stroke-width="3"/>
-    <path d="M110 196 L110 130 L188 105 Z" fill="#4c8a4c" opacity="0.5"/>
-    <text x="110" y="66" text-anchor="middle" font-size="11" fill="#dfe8c8">2B</text>
-    <text x="46" y="112" text-anchor="middle" font-size="11" fill="#dfe8c8">3B</text>
-    <text x="176" y="112" text-anchor="middle" font-size="11" fill="#dfe8c8">1B</text>
+    <defs><filter id="hglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <rect width="220" height="210" fill="#0d1a2a"/>
+    <path d="M110 196 L201 105 L110 14 L19 105 Z" fill="#122c45" stroke="#57c8e6" stroke-width="2"/>
+    <path d="M110 196 L110 130 L188 105 Z" fill="#1b3f60" opacity="0.6"/>
+    <text x="110" y="66" text-anchor="middle" font-size="11" fill="#8fb0cc">2B</text>
+    <text x="46" y="112" text-anchor="middle" font-size="11" fill="#8fb0cc">3B</text>
+    <text x="176" y="112" text-anchor="middle" font-size="11" fill="#8fb0cc">1B</text>
     ${base(19,105,occ[2],3)}
     ${base(110,14,occ[1],2)}
     ${base(201,105,occ[0],1)}
-    <rect x="96" y="182" width="28" height="16" rx="3" transform="rotate(45 110 190)" fill="#e8e2d0" stroke="#5b5b4a" stroke-width="2"/>
-    <text x="110" y="205" text-anchor="middle" font-size="10" fill="#dfe8c8">本壘</text>
+    <rect x="96" y="182" width="28" height="16" rx="3" transform="rotate(45 110 190)" fill="#0d1e30" stroke="#35597a" stroke-width="2"/>
+    <text x="110" y="205" text-anchor="middle" font-size="10" fill="#8fb0cc">本壘</text>
   </svg>`;
 }
 
