@@ -368,10 +368,28 @@ function currentBatter(m){const lu=m.lineups[offenseSide(m)];return lu[m.batterI
 function defenseSide(m){return m.half==="top"?"away":"home";}
 function offenseSide(m){return m.half==="top"?"away":"home";}
 function playerIsOffense(m){const s=S.season.playerTeam;return m.half==="top"?m.awayId===s:m.homeId===s;}
-function getBat(m,pid){if(!m.stats[pid])m.stats[pid]={ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};return m.stats[pid];}
+function getBat(m,pid){if(!m.stats[pid])m.stats[pid]={ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0};return m.stats[pid];}
 function batAdd(m,pid,d){const s=getBat(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
-function getPit(m,pid){if(!m.pstats[pid])m.pstats[pid]={outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0};return m.pstats[pid];}
+function getPit(m,pid){if(!m.pstats[pid])m.pstats[pid]={outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0};return m.pstats[pid];}
 function pitAdd(m,pid,d){const s=getPit(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
+/* 球季累計（含其他球團） */
+function mergeBatLine(pid,s){const ps=S.season.playerStats;const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
+function mergePitLine(pid,s){const ps=S.season.playerStats;const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
+function playerById(pid){const mm=/^([a-z]+)([bp])(\d+)$/.exec(pid);if(!mm)return null;const t=getTeam(mm[1]);return mm[2]==="b"?t.batters[+mm[3]]:t.pitchers[+mm[3]];}
+function splitInt(total,weights){
+  const n=weights.length,sum=weights.reduce((a,b)=>a+b,0)||1;
+  const raw=weights.map(w=>Math.max(0,total)*w/sum);
+  const out=raw.map(x=>Math.floor(x));
+  let rem=total-out.reduce((a,b)=>a+b,0);
+  const frac=raw.map((x,i)=>[x-Math.floor(x),i]).sort((a,b)=>b[0]-a[0]);
+  let k=0;while(rem>0&&k<500){out[frac[k%n][1]]++;rem--;k++;}
+  return out;
+}
+function weightedIndex(weights){
+  let t=0;for(const w of weights)t+=Math.max(0,w);let r=Math.random()*t;
+  for(let i=0;i<weights.length;i++){r-=Math.max(0,weights[i]);if(r<=0)return i;}
+  return weights.length-1;
+}
 function addRuns(m,side,n){if(n<=0)return;m.score[side]+=n;m.line[side][m.inning-1]+=n;}
 
 function buildLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
@@ -391,6 +409,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
     pitchers:{away:{obj:awayStarter,pitches:0},home:{obj:homeStarter,pitches:0}},
+    starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
@@ -583,6 +602,7 @@ function doSteal(m){
   const p=clamp(0.60+(runner.speed-60)/160-(eff.velocity-60)/400,0.35,0.88);
   if(chance(p)){
     m.bases[from]=null;m.bases[to]=runner;
+    batAdd(m,runner.id,{sb:1});
     m.log.push({t:`　★ 盜壘成功！${runner.name} 用速度搶下${to===2?"三壘":"二壘"}！`,c:"hit"});
   }else{
     m.bases[from]=null;m.outs++;
@@ -692,17 +712,69 @@ function applyRecord(awayId,homeId,ra,rh){
   else if(rh>ra){r[homeId].w++;r[awayId].l++;}
   else{r[awayId].t++;r[homeId].t++;}
 }
+function synthBatting(teamId,runs){
+  const b=getTeam(teamId).batters.slice(0,9);
+  const ps=b.map(p=>({pid:p.id,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
+  ps.forEach(x=>x.ab=ri(3,5));
+  const totalAB=ps.reduce((a,x)=>a+x.ab,0);
+  const H=clamp(Math.round(runs*1.15+4.6+rf(-1.5,1.5)),runs,Math.min(15,totalAB));
+  const powW=b.map(p=>Math.pow(Math.max(1,p.power-30),2));
+  let hr=clamp(Math.round(runs*rf(0.12,0.45)),0,runs);
+  hr=Math.min(hr,H);
+  for(let i=0;i<hr;i++){let idx=weightedIndex(powW),tries=0;while(ps[idx].h>=ps[idx].ab&&tries<9){idx=weightedIndex(powW);tries++;}ps[idx].hr++;ps[idx].h++;}
+  const w=b.map(p=>0.8+Math.max(0,p.meet-40)*0.008+Math.max(0,p.power-40)*0.003);
+  const add=splitInt(H-hr,w);
+  let extra=0;
+  ps.forEach((x,i)=>{const room=Math.max(0,x.ab-x.h);const give=Math.min(add[i],room);x.h+=give;extra+=add[i]-give;});
+  while(extra>0){const i=weightedIndex(w);if(ps[i].h<ps[i].ab){ps[i].h++;extra--;}else break;}
+  const rw=b.map(p=>0.8+Math.max(0,p.meet-40)*0.006+Math.max(0,p.speed-40)*0.004);
+  const rs=splitInt(runs,rw);ps.forEach((x,i)=>x.r+=rs[i]);
+  const wr=b.map(p=>0.8+Math.max(0,p.power-40)*0.01+Math.max(0,p.meet-40)*0.004);
+  const rbi=splitInt(runs,wr);ps.forEach((x,i)=>x.rbi+=rbi[i]);
+  const bbT=ri(1,5);for(let i=0;i<bbT;i++)ps[weightedIndex(b.map(p=>p.eye))].bb++;
+  const kT=ri(4,11);for(let i=0;i<kT;i++)ps[weightedIndex(b.map(p=>Math.max(1,110-p.meet)))].k++;
+  const sbT=ri(0,3);for(let i=0;i<sbT;i++)ps[weightedIndex(b.map(p=>Math.max(1,p.speed-48)))].sb++;
+  return ps;
+}
+function synthPitching(teamId,runsAllowed,oppHits,won,close){
+  const t=getTeam(teamId);
+  const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
+  const starter=sp[ri(0,sp.length-1)];
+  const outs=Math.min(27,ri(15,25));
+  const rest=27-outs;
+  const starterLine={pid:starter.id,outs:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:outs*ri(3,4),w:0,l:0,sv:0};
+  const list=[starterLine];
+  let relLine=null;
+  if(rest>0){
+    const rel=rp.length?rp[ri(0,rp.length-1)]:starter;
+    relLine={pid:rel.id,outs:rest,h:Math.max(0,oppHits-starterLine.h),r:Math.max(0,runsAllowed-starterLine.r),er:Math.max(0,runsAllowed-starterLine.er),bb:ri(0,2),k:ri(1,4),pp:rest*ri(3,4),w:0,l:0,sv:0};
+    list.push(relLine);
+  }
+  const last=list[list.length-1];
+  if(won){ last.w=1; if(close&&list.length>1&&last.outs>=3&&last.outs<9)last.sv=1; }
+  else starterLine.l=1;
+  return list;
+}
+function synthGameStats(awayId,homeId,ra,rh){
+  const margin=Math.abs(ra-rh);
+  const awayBat=synthBatting(awayId,ra), homeBat=synthBatting(homeId,rh);
+  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3);
+  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3);
+  awayBat.forEach(s=>mergeBatLine(s.pid,s));
+  homeBat.forEach(s=>mergeBatLine(s.pid,s));
+  awayPit.forEach(s=>mergePitLine(s.pid,s));
+  homePit.forEach(s=>mergePitLine(s.pid,s));
+}
 function mergePlayerStats(m){
-  const tid=S.season.playerTeam;
-  const ps=S.season.playerStats;
-  for(const pid in m.stats){ if(pid.indexOf(tid+"b")===0){const s=m.stats[pid];const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];} }
-  for(const pid in m.pstats){ if(pid.indexOf(tid+"p")===0){const s=m.pstats[pid];const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];} }
-  // 勝敗投手
+  for(const pid in m.stats)mergeBatLine(pid,m.stats[pid]);
+  for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid]);
+  // 勝敗投手：獲勝方先發勝投、落敗方先發敗投（寫入球季累計）
   if(m.winner){
-    const wSide=m.winner;
-    // 先發/後援簡化：最後投球且獲勝方 → 勝投
-    const wTeam=wSide==="home"?m.homeId:m.awayId;
-    if(wTeam===tid){/* 玩家隊，找最後上場投手 */ }
+    const wSide=m.winner,lSide=wSide==="home"?"away":"home";
+    const ps=S.season.playerStats.pit;
+    const wId=m.starters[wSide].id,lId=m.starters[lSide].id;
+    if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
+    if(ps[lId])ps[lId].l=(ps[lId].l||0)+1;
   }
 }
 function processGameEnd(m){
@@ -717,6 +789,7 @@ function processGameEnd(m){
     const r=quickSim(x.away,x.home);
     x.played=true;x.score=r;
     applyRecord(x.away,x.home,r.a,r.b);
+    synthGameStats(x.away,x.home,r.a,r.b);
   });
   S.season.day++;
   saveGame();
@@ -734,7 +807,7 @@ function loadGame(){
 function hasSave(){try{return !!localStorage.getItem(SAVEKEY);}catch(e){return false;}}
 
 /* ---------- 遊戲狀態 ---------- */
-const S={screen:"title",season:null,match:null,flash:""};
+const S={screen:"title",season:null,match:null,flash:"",leadCat:"avg"};
 
 function newSeason(playerTeam){
   S.season={
@@ -794,6 +867,7 @@ function render(){
   else if(S.screen==="roster")app.innerHTML=viewRoster();
   else if(S.screen==="schedule")app.innerHTML=viewSchedule();
   else if(S.screen==="standings")app.innerHTML=viewStandings();
+  else if(S.screen==="leaders")app.innerHTML=viewLeaders();
   else if(S.screen==="help")app.innerHTML=viewHelp();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
@@ -900,8 +974,10 @@ function viewHub(){
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
-      <button class="btn blk" data-act="help">？ 說明</button>
+      <button class="btn blk" data-act="leaders">📈 球員排行</button>
     </div>
+    <div class="hr"></div>
+    <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
     <div class="hr"></div>
     <button class="btn sm blk" data-act="saveNow">💾 手動存檔</button>
     <button class="btn sm blk" data-act="toTitle">回主選單（自動存檔）</button>
@@ -1098,21 +1174,22 @@ function viewRoster(){
     return `<tr><td class="name">${esc(b.name)}${b.bench?' <span class="pill off">替</span>':''}</td>
       <td>${esc(b.posLabel)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
       <td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td>
-      <td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td></tr>`;
+      <td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr>`;
   }).join("");
   const pitRows=t.pitchers.map(p=>{
     const s=ps.pit[p.id];
     return `<tr><td class="name">${esc(p.name)}</td><td>${esc(p.role)}</td><td class="num">${s?s.g:0}</td>
       <td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td>
-      <td class="num">${s?s.h:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
+      <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td>
+      <td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
   }).join("");
   return `<div class="panel">
     <h2>${esc(t.name)}　陣容與本季成績</h2>
     <div class="topbar" style="color:#3a3527"><div class="muted">（投手數據為本季累計）</div><div></div></div>
     <h3>野手</h3>
-    <table class="grid"><tr><th>球員</th><th>守位</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${batRows}</table>
+    <table class="grid"><tr><th>球員</th><th>守位</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>${batRows}</table>
     <h3>投手</h3>
-    <table class="grid"><tr><th>球員</th><th>角色</th><th>出賽</th><th>局數</th><th>防禦率</th><th>被安</th><th>失分</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
+    <table class="grid"><tr><th>球員</th><th>角色</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
     <div class="hr"></div>
     <button class="btn blk" data-act="backHub">← 回球季總部</button>
   </div>`;
@@ -1152,6 +1229,51 @@ function viewStandings(){
     <div class="hr"></div><button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
 
+/* ----- 球員排行 ----- */
+function leadersList(kind){
+  const ps=S.season.playerStats;
+  if(kind==="era"||kind==="w"||kind==="k"||kind==="sv"){
+    const arr=[];
+    for(const pid in ps.pit){const s=ps.pit[pid],p=playerById(pid);if(p)arr.push({p,pid,s});}
+    if(kind==="era")return arr.filter(x=>x.s.outs>=15).sort((a,b)=>(a.s.er*27/a.s.outs)-(b.s.er*27/b.s.outs)).map(x=>({...x,val:fmtERA(x.s.er,x.s.outs)}));
+    if(kind==="w") return arr.sort((a,b)=>b.s.w-a.s.w||b.s.k-a.s.k).map(x=>({...x,val:x.s.w+" 勝"}));
+    if(kind==="k") return arr.sort((a,b)=>b.s.k-a.s.k).map(x=>({...x,val:x.s.k}));
+    return arr.sort((a,b)=>b.s.sv-a.s.sv).map(x=>({...x,val:x.s.sv}));
+  }
+  const arr=[];
+  for(const pid in ps.bat){const s=ps.bat[pid],p=playerById(pid);if(p)arr.push({p,pid,s});}
+  const minAB=5;
+  switch(kind){
+    case "hr": return arr.sort((a,b)=>b.s.hr-a.s.hr).map(x=>({...x,val:x.s.hr}));
+    case "rbi":return arr.sort((a,b)=>b.s.rbi-a.s.rbi).map(x=>({...x,val:x.s.rbi}));
+    case "h":  return arr.sort((a,b)=>b.s.h-a.s.h).map(x=>({...x,val:x.s.h}));
+    case "sb": return arr.sort((a,b)=>b.s.sb-a.s.sb).map(x=>({...x,val:x.s.sb}));
+    case "r":  return arr.sort((a,b)=>b.s.r-a.s.r).map(x=>({...x,val:x.s.r}));
+    default:   return arr.filter(x=>x.s.ab>=minAB).sort((a,b)=>(b.s.h/b.s.ab)-(a.s.h/a.s.ab)).map(x=>({...x,val:fmtAvg(x.s.h/x.s.ab)}));
+  }
+}
+function viewLeaders(){
+  const cat=S.leadCat||"avg";
+  const cats=[["avg","打擊率"],["hr","全壘打"],["rbi","打點"],["h","安打"],["sb","盜壘"],["r","得分"],["era","防禦率"],["w","勝投"],["k","三振"],["sv","救援"]];
+  const list=leadersList(cat).slice(0,15);
+  const rows=list.map((x,i)=>{
+    const tid=x.pid.replace(/[bp]\d+$/,"");
+    const team=getTeam(tid);
+    const isMine=tid===S.season.playerTeam;
+    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${esc(x.p.name)}</td>
+      <td class="name"><span class="swatch" style="background:${team.c1}"></span>${esc(team.short)}</td>
+      <td>${esc(x.p.posLabel||x.p.role)}</td><td class="num" style="font-weight:700">${x.val}</td></tr>`;
+  }).join("");
+  const tabs=cats.map(c=>`<button class="btn sm ${c[0]===cat?"gold":""}" data-act="leadCat" data-arg="${c[0]}">${c[1]}</button>`).join("");
+  const empty=`<tr><td colspan="5" class="muted">尚無資料，請先打完至少一場比賽。</td></tr>`;
+  return `<div class="panel"><h2>球員排行</h2>
+    <div class="actions">${tabs}</div>
+    <table class="grid"><tr><th>#</th><th>球員</th><th>球隊</th><th>位置</th><th>成績</th></tr>${rows||empty}</table>
+    <div class="muted" style="font-size:11px;margin-top:6px">打擊率需滿 5 打數、防禦率需滿 5 局才列入排行；黃底為你的球員。</div>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
+}
+
 /* ----- 說明 ----- */
 function viewHelp(){
   return `<div class="panel help">
@@ -1167,6 +1289,8 @@ function viewHelp(){
       <dd><b>盜壘</b>：以跑者速度挑戰捕手。<b>代打</b>：換上替補野手。<b>換投手</b>：從牛棚派上後援投手。</dd>
       <dt>■ 加速遊玩</dt>
       <dd>不想每一球都下指令時，可用「自動完成本局」或「快速模擬全場」。</dd>
+      <dt>■ 成績與排行</dt>
+      <dd>「陣容與成績」看你的球員逐人累計；「球員排行」看全聯盟的打擊率、全壘打、打點、安打、盜壘、得分、防禦率、勝投、三振、救援前十名。其他球團的比賽以快速模擬進行，也會產生個人成績。</dd>
       <dt>■ 存檔</dt>
       <dd>每場比賽結束會自動存入瀏覽器（localStorage）。主選單可「繼續球季」。</dd>
     </dl>
@@ -1192,6 +1316,8 @@ const ACT={
   roster(){S.screen="roster";render();},
   schedule(){S.screen="schedule";render();},
   standings(){S.screen="standings";render();},
+  leaders(){S.screen="leaders";render();},
+  leadCat(c){S.leadCat=c;render();},
   saveNow(){saveGame();flash("已存檔");render();},
   play(){startMatch();if(S.match)render();},
   simPlay(){
