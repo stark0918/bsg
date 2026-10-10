@@ -12,6 +12,7 @@ function viewTitle(){
     <button class="btn green blk" data-act="newgame">⚾ 新球季開始（選擇球隊）</button>
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
+    ${(hasSave()||(CAREER.history&&CAREER.history.length))?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     ${hasSave()?`<button class="btn blk" data-act="wipe">✕ 刪除存檔</button>`:""}
   </div>
   <div class="panel">
@@ -26,7 +27,7 @@ function viewTitle(){
 function viewNewGame(){
   return `<div class="panel">
     <h2>選擇你要率領的球隊</h2>
-    <p class="muted">六支球團各有優劣（＋為整體評價）。選定後展開 10 場例行賽。</p>
+    <p class="muted">${TEAM_DEFS.length} 支球團各有優劣（＋為整體評價）。選定後展開 ${(TEAM_DEFS.length-1)*2} 場例行賽，爭取前四名晉級季後賽。</p>
     ${TEAM_DEFS.map(t=>{
       const tc=getTeam(t.id);
       const ov=Math.round(avg(tc.batters.slice(0,9).map(b=>b.meet*0.5+b.power*0.3+b.speed*0.2)));
@@ -55,14 +56,9 @@ function viewHub(){
   const myRec=s.records[s.playerTeam];
   let main="";
   if(!g){
-    const champ=st[0];
-    main=`<div class="panel"><h2>🏆 例行賽結束</h2>
-      <p class="center">最終排名第 <b class="bignum">${myRank}</b> 名<br>
-      戰績 ${myRec.w} 勝 ${myRec.l} 敗 ${myRec.t} 和</p>
-      <p class="center">優勝球團：<b>${teamBadge(champ.id)}</b>（${champ.w}勝${champ.l}敗）</p>
-      <p class="muted center" style="font-size:12px">開始新球季後，全聯盟球員將 +1 歲並成長／老化；39 歲以上退休，由新人遞補。</p>
-      <button class="btn red blk" data-act="newgame">開始新球季</button>
-      <button class="btn blk" data-act="toTitle">回主選單</button></div>`;
+    ensurePlayoff();
+    playoffProgress();
+    main=playoffHubMain(S.season.playoff);
     return hubFrame(team,st,myRank,myRec,main);
   }
   const oppId=g.away===s.playerTeam?g.home:g.away;
@@ -81,7 +77,10 @@ function viewHub(){
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
+      <button class="btn blk" data-act="records">📕 單場紀錄</button>
+      <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
     </div>
+    ${(s.news&&s.news.length)?`<div class="hr"></div><div class="news">${s.news.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div>`:""}
     <div class="hr"></div>
     <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
     <div class="hr"></div>
@@ -120,15 +119,20 @@ function viewGame(){
   const eff=pitcherEffective(P.obj,P.pitches);
   const team=esc(getTeam(S.season.playerTeam).name);
 
-  // 記分板
-  const cols=Math.max(9,m.inning);
+  // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
+  const cols=Math.max(1,m.inning);
+  const cellPlayed=(side,i)=>{   // i 為 0 起算的局
+    if(i+1>m.inning)return false;
+    if(i+1<m.inning)return true;
+    return m.half==="top"?side==="away":true;
+  };
   let head="<tr><th>球隊</th>";
   for(let i=1;i<=cols;i++)head+=`<th>${i}</th>`;
   head+="<th>R</th><th>H</th><th>E</th></tr>";
   const row=(id,key)=>{
     const isP=id===S.season.playerTeam;
     let r=`<tr class="${isP?"player":""}"><td class="team">${esc(getTeam(id).short)} ${esc(getTeam(id).name)}${isP?"＊":""}</td>`;
-    for(let i=0;i<cols;i++)r+=`<td>${m.line[key][i]||0}</td>`;
+    for(let i=0;i<cols;i++)r+=`<td>${cellPlayed(key,i)?(m.line[key][i]||0):""}</td>`;
     r+=`<td class="rhe">${m.score[key]}</td><td class="rhe">${m.hits[key]}</td><td class="rhe">${m.errs[key]}</td></tr>`;
     return r;
   };
@@ -149,7 +153,7 @@ function viewGame(){
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
-      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}</span></div>
+      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
     ${rbar("球速",P.obj.velocity)}${rbar("控球",P.obj.control)}${rbar("變化",P.obj.breaking)}${rbar("體力",P.obj.stamina)}
   </div>`;
 
@@ -199,6 +203,7 @@ function viewGame(){
       win===null?"和局收場":`比賽結束　${esc(getTeam(win==="home"?m.homeId:m.awayId).name)} 獲勝`;
     result=`<div class="panel"><h2>${title}</h2>
       <p class="center">最終比數　<b class="bignum">${esc(getTeam(m.awayId).name)} ${m.score.away} － ${m.score.home} ${esc(getTeam(m.homeId).name)}</b></p>
+      ${m.hero?`<p class="center" style="margin-top:8px">◆ Player of the Game：${teamBadge(teamOfPlayer({id:m.hero.pid}))}　<b>${esc(m.hero.name)}</b>　${m.hero.isPit?`<span class="pill on">三振 ${m.hero.s.k} 次</span>`:`<span class="pill on">安打 ${m.hero.s.h}／打點 ${m.hero.s.rbi}</span>`}</p>`:""}
       ${boxScore(m)}
       <div class="hr"></div>
       <button class="btn green blk" data-act="backToHub">▶ 回到球季總部</button>
@@ -206,8 +211,10 @@ function viewGame(){
   }
 
   return `<div class="panel">
+    ${S.ballFlash?`<div class="playball">⚾ PLAY BALL！</div>`:""}
     <div class="topbar"><div>你的球隊：<b>${team}</b></div><div class="turn">${m.over?"比賽結束":(off?"▶ 你的進攻（下達打擊戰術）":"▶ 你的守備（下達配球）")}</div></div>
     ${scoreboard}
+    ${m.splash?`<div class="splash ${m.splash.c}">${esc(m.splash.t)}</div>`:""}
     <div class="fieldwrap" style="margin-top:10px">
       ${field}
       <div class="cond">${count}${matchup}</div>
@@ -277,14 +284,14 @@ function viewRoster(){
   const batRows=t.batters.map(b=>{
     const s=ps.bat[b.id];
     const ab=s?s.ab:0,h=s?s.h:0;
-    return `<tr><td class="name"><span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>
+    return `<tr><td class="name">${playerAvatar(b,20)}<span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>
       <td>${esc(b.posLabel)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
       <td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td>
       <td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr>`;
   }).join("");
   const pitRows=t.pitchers.map(p=>{
     const s=ps.pit[p.id];
-    return `<tr><td class="name"><span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td><td>${esc(p.role)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${s?s.g:0}</td>
+    return `<tr><td class="name">${playerAvatar(p,20)}<span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td><td>${esc(p.role)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${s?s.g:0}</td>
       <td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td>
       <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td>
       <td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
@@ -339,8 +346,8 @@ function viewAbilities(){
   if(S.abilPitSort==="age")pitsF.sort((a,b)=>a.p.age-b.p.age);
   else if(S.abilPitSort!=="orig"&&pkeys[S.abilPitSort]){const f=pkeys[S.abilPitSort];pitsF.sort((a,b)=>f(b.p)-f(a.p));}
   const teamCell=x=>isAll?`<td class="name"><span class="swatch" style="background:${getTeam(x.tid).c1}"></span>${esc(getTeam(x.tid).short)}</td>`:"";
-  const batRows=batsF.map(x=>{const b=x.p;return `<tr><td class="name"><span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>${teamCell(x)}<td>${esc(b.posLabel)}</td><td class="num">${b.age}${ageNote(b.age)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${b.meet}</td><td class="num">${b.power}</td><td class="num">${b.eye}</td><td class="num">${b.speed}</td><td class="num">${b.defense}</td></tr>`;}).join("");
-  const pitRows=pitsF.map(x=>{const p=x.p;return `<tr><td class="name"><span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td>${teamCell(x)}<td>${esc(p.role)}</td><td class="num">${p.age}${ageNote(p.age)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${p.velocity}</td><td class="num">${p.control}</td><td class="num">${p.breaking}</td><td class="num">${p.stamina}</td></tr>`;}).join("");
+  const batRows=batsF.map(x=>{const b=x.p;return `<tr><td class="name">${playerAvatar(b,18)}<span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>${teamCell(x)}<td>${esc(b.posLabel)}</td><td class="num">${b.age}${ageNote(b.age)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${b.meet}</td><td class="num">${b.power}</td><td class="num">${b.eye}</td><td class="num">${b.speed}</td><td class="num">${b.defense}</td></tr>`;}).join("");
+  const pitRows=pitsF.map(x=>{const p=x.p;return `<tr><td class="name">${playerAvatar(p,18)}<span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td>${teamCell(x)}<td>${esc(p.role)}</td><td class="num">${p.age}${ageNote(p.age)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${p.velocity}</td><td class="num">${p.control}</td><td class="num">${p.breaking}</td><td class="num">${p.stamina}</td></tr>`;}).join("");
   const teamCol=isAll?"<th>球隊</th>":"";
   const btSort=S.abilBatSort||"overall", ptSort=S.abilPitSort||"overall";
   const bsortBtns=[["overall","綜合"],["meet","打擊"],["power","力量"],["eye","選球"],["speed","速度"],["defense","守備"],["age","年齡"],["orig","原本"]]
@@ -392,6 +399,7 @@ function viewPlayer(){
   const overall=playerOverall(p);
   return `<div class="panel"><h2>球員資料</h2>
     <div class="matchup">
+      ${playerAvatar(p,56)}
       <div style="margin-bottom:6px"><span class="who">${esc(p.name)}</span><span class="pos">${esc(roleLabel)}</span>
         <span class="muted" style="font-size:12px">　${teamBadge(tid)}${p.bench?' <span class="pill off">替補</span>':''}　<span class="age">${p.age} 歲${ageNote(p.age)}</span></span>
         <span style="float:right">綜合 <span class="grade g-${gradeOf(overall)}">${gradeOf(overall)}</span> <b style="font-family:Consolas,monospace">${overall}</b></span></div>
@@ -507,7 +515,7 @@ function viewHelp(){
     <h2>遊戲說明</h2>
     <dl>
       <dt>■ 玩法概要</dt>
-      <dd>你率領一支球團打 10 場例行賽。每場比賽為經典 9 局（延長至 12 局，仍平手則和局）。你在自己的進攻與守備回合下達戰術，電腦對手也會見招拆招。</dd>
+      <dd>你率領一支球團打 ${(TEAM_DEFS.length-1)*2} 場例行賽（共 ${TEAM_DEFS.length} 隊）。每場比賽為經典 9 局（例行賽延長至 12 局，仍平手則和局；季後賽則延長至分出勝負）。你在自己的進攻與守備回合下達戰術，電腦對手也會見招拆招。得點、全壘打與三振會有熱血的字幕演出與音效，投手球速也會即時顯示。</dd>
       <dt>■ 打擊戰術</dt>
       <dd><b>正常揮擊</b>：穩定。<b>強力揮擊</b>：長打與全壘打大增，但三振也變多。<b>耐心等球</b>：拉高保送，安打率略降。<b>犧牲短打</b>：護送跑者推進，打者多數出局。<b>打帶跑</b>：跑者提前起跑，靠安打多搶壘，但打者揮空時跑者可能被觸殺。</dd>
       <dt>■ 守備／配球</dt>
@@ -519,9 +527,19 @@ function viewHelp(){
       <dt>■ 選手能力</dt>
       <dd>主選單的「🧮 選手能力」可看全聯盟各隊球員的能力數值（打者：打擊、力量、選球、速度、守備；投手：球速、控球、變化、體力），也能切換球隊偵察對手，或切到「🌐 全聯盟」跨隊比較。可用按鈕<b>依能力或年齡排序</b>、<b>依守位篩選</b>，以及<b>只顯示先發／替補</b>。比賽畫面中，目前打者與投手的數值也會即時以長條圖顯示。點球員名字可開啟個人資料卡。</dd>
       <dt>■ 年齡與成長</dt>
-      <dd>每位球員都有年齡。欄位中的箭頭是年齡趨勢：<b style="color:#1f8f4a">▲ 成長期</b>（22 歲以下，能力易上升）、<b>– 巔峰</b>、<b style="color:#b5533a">▼ 衰退期</b>（34 歲以上，能力易下滑）。每當你打完一季並<b>開始新球季</b>，全聯盟球員會 +1 歲並成長／老化；39 歲以上退休，由新人遞補。成長結果會自動保存在瀏覽器，跨球季累積。</dd>
+      <dd>每位球員都有年齡。欄位中的箭頭是年齡趨勢：<b style="color:#1f8f4a">▲ 成長期</b>（22 歲以下，能力易上升）、<b>– 巔峰</b>、<b style="color:#b5533a">▼ 衰退期</b>（34 歲以上，能力易下滑）。每當你打完一季並<b>開始新球季</b>，全聯盟球員會 +1 歲並成長／老化；39 歲以上退休，缺口由<b>新人選秀</b>補上。成長結果會自動保存在瀏覽器，跨球季累積。</dd>
       <dt>■ 成績與排行</dt>
-      <dd>「陣容與成績」看你的球員逐人累計；「球員排行」看全聯盟的打擊率、全壘打、打點、安打、盜壘、得分、防禦率、勝投、三振、救援前十五名，榜上會顯示<b>出賽場數</b>。為避免小樣本刷榜，入榜需達<b>出賽門檻</b>（隨賽程調整：野手約需半數出賽、投手需 1～2 場，打擊率另需 5 打數、防禦率另需最多 5 局）。其他球團的比賽以快速模擬進行，也會產生個人成績。</dd>
+      <dd>「陣容與成績」看你的球員逐人累計；「球員排行」看全聯盟的打擊率、全壘打、打點、安打、盜壘、得分、防禦率、勝投、三振、救援前十五名，榜上會顯示<b>出賽場數</b>。<b>季後賽期間</b>同樣可從總部開啟這些排行與名冊。「單場紀錄」則保存本季與史上（含季後賽）的單場最高紀錄，如單場全壘打、打點、奪三振與最長比賽。為避免小樣本刷榜，入榜需達<b>出賽門檻</b>（隨賽程調整：野手約需半數出賽、投手需 1～2 場，打擊率另需 5 打數、防禦率另需最多 5 局）。其他球團的比賽以快速模擬進行，也會產生個人成績。</dd>
+      <dt>■ 單場英雄</dt>
+      <dd>每場比賽結束會選出「Player of the Game」，頒給此役表現最亮眼的球員，並顯示於賽後結果畫面。</dd>
+      <dt>■ 遊戲紀錄</dt>
+      <dd>從標題畫面或球季總部的「📜 遊戲紀錄」可回顧三種紀錄：<b>逐場賽果</b>（本季每場比賽的對戰與比數）、<b>跨季生涯</b>（每一季的戰績、名次與總冠軍）與<b>生涯里程碑</b>（跨季累計的全壘打、安打、三振、勝投等前 10 名）。</dd>
+      <dt>■ 個人獎項</dt>
+      <dd>整個球季（含季後賽）結束後，會舉行<b>頒獎典禮</b>：最優秀選手（MVP）、最佳投手、新人王，以及打擊王／全壘打王／打點王／盜壘王／得分王、防禦率王／勝投王／三振王／救援王。可從總部開啟「🏆 頒獎典禮」查看。</dd>
+      <dt>■ 新人選秀</dt>
+      <dd>球季結束、有球員退休（39 歲以上）時，會展開<b>新人選秀</b>：依例行賽戰績由差到佳決定指名順序，輪到你的球團時可從 4 名候補中指名 1 人補強，其他球團會自動挑選。選進的新人會成為下一季的戰力。</dd>
+      <dt>■ 季後賽</dt>
+      <dd>例行賽結束後，由<b>前四名</b>晉級季後賽。先打<b>準決賽（1 對 4、2 對 3，3 戰 2 勝）</b>，勝隊再打<b>冠軍戰（5 戰 3 勝）</b>。較高種子擁有較多主場（依系列賽的第 1、3、5 戰在高種子主場）。你的球隊的系列賽可用即時戰術或快速模擬進行；其他對戰會自動模擬。季後賽戰績<b>不列入例行賽排名</b>，打完總冠軍後頒獎並展開新人選秀，接著才結算年齡成長。</dd>
       <dt>■ 存檔</dt>
       <dd>每場比賽結束會自動存入瀏覽器（localStorage）。主選單可「繼續球季」。</dd>
     </dl>

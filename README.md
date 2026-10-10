@@ -27,10 +27,16 @@ src/
   outname.txt          # 產出的檔名
   js/
     00-tools.js        # 基本工具：$、clamp、隨機、格式化、亂數種子(hashStr/mulberry32)
-    10-data.js         # 名稱池、球隊定義、生涯(年齡與成長) CAREER
+    05-sound.js        # 熱血音效：WebAudio 合成（PLAY BALL、全壘打、三振、奪冠等）
+    10-data.js         # 名稱池、球隊定義(8隊)、生涯(年齡與成長) CAREER
     20-roster.js       # 球員產生與 getTeam（依隊伍種子，決定性）
-    30-engine.js       # 投打模型、壘上推進、打席處理、CPU AI、玩家戰術、回合控制
-    40-season.js       # 賽程、快速模擬、個人成績合成/合併、賽季結束處理
+    30-engine.js       # 投打模型、壘上推進、打席處理、球速與演出、單場英雄、CPU AI、玩家戰術
+    40-season.js       # 賽程、快速模擬、個人成績合成/合併、賽結束處理、聯盟快報
+    45-playoff.js      # 季後賽：前4名籤表、準決賽/冠軍戰（best-of）、模擬與推進
+    46-history.js      # 遊戲紀錄：逐場賽果、跨季生涯摘要、生涯里程碑
+    47-records.js      # 單場紀錄簿（本季＋生涯，含季後賽）
+    48-draft.js        # 新人選秀：依戰績決定指名順序、玩家互動指名
+    49-awards.js       # 個人獎項：MVP、最佳投手、新人王、各項王
     50-state.js        # 存檔、遊戲狀態 S、新球季、舊存檔遷移、排名計算
     60-ui-core.js      # render() 與假 CGI 網址列
     70-ui-views.js     # 各畫面：標題/選隊/總部/比賽/陣容/能力/資料卡/賽程/排名/排行/說明

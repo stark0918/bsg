@@ -11,12 +11,14 @@ const TEAM_DEFS=[
   {id:"aurora", name:"極光熊", short:"熊", c1:"#2a7de1", c2:"#0b3d78", stadium:"極光巨蛋",   str:-1},
   {id:"thunder",name:"雷神虎", short:"虎", c1:"#e5a11a", c2:"#7a5406", stadium:"雷神山球場", str:-3},
   {id:"phantom",name:"幻影獅", short:"獅", c1:"#4a5b6b", c2:"#1c2530", stadium:"幻影圓頂",   str:-5},
+  {id:"emerald",name:"翡翠鹿", short:"鹿", c1:"#2ecc71", c2:"#145a32", stadium:"翡翠森球場", str:2},
+  {id:"tangerine",name:"橙狐", short:"狐", c1:"#e67e22", c2:"#7a3b00", stadium:"橙田球場",   str:-2},
 ];
 
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
 const CAREERKEY="gekikuukan_career_v1";
-let CAREER={seasons:0,pending:false,ov:{}};
-function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r){const d=JSON.parse(r);CAREER=Object.assign({seasons:0,pending:false,ov:{}},d);CAREER.ov=CAREER.ov||{};}}catch(e){}}
+let CAREER={seasons:0,pending:false,ov:{},records:{}};
+function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r){const d=JSON.parse(r);CAREER=Object.assign({seasons:0,pending:false,ov:{},records:{}},d);CAREER.ov=CAREER.ov||{};CAREER.records=CAREER.records||{};CAREER.history=CAREER.history||[];CAREER.career=CAREER.career||{bat:{},pit:{}};}}catch(e){}}
 function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
 function baseAge(id){return 19+(hashStr("age-"+id)%20);}      // 19~38
 function applyOv(p){
@@ -47,6 +49,7 @@ function advanceCareer(){
       let trend=0;
       if(o.age>=39){                      // 退休 → 新人
         o.age=ri(19,22);o.name=randName();
+        if(CAREER.career){delete CAREER.career.bat[p.id];delete CAREER.career.pit[p.id];}
         keys.forEach(k=>{const v=Math.round(clamp(50+rf(-9,9)+(def.str||0),30,76));trend+=v-(p[k]||50);o[k]=v;});
       }else{
         keys.forEach(k=>{const v=Math.round(clamp((p[k]||50)+ageDelta(o.age),20,99));trend+=v-(p[k]||50);o[k]=v;});

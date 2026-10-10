@@ -67,12 +67,34 @@ function nextPlayerGame(){
 }
 function startMatch(){
   const g=nextPlayerGame();
-  if(!g)return;
+  if(!g){ ensurePlayoff(); startPlayoffMatch(); return; }  // 例行賽結束 → 季後賽
   const dayIdx=S.season.day;
   const away=getTeam(g.away),home=getTeam(g.home);
   S.match=newMatch(g.home,g.away,dayIdx,starterOf(home,dayIdx),starterOf(away,dayIdx));
   S.match.playerSide=playerTeamSide(S.match);
   S.screen="game";
+  S.ballFlash=Date.now();
+  setTimeout(()=>{if(S.ballFlash)S.ballFlash=0;},1500);
+  SFX.charge();
+}
+function startPlayoffMatch(){
+  const po=S.season.playoff;
+  if(!po)return false;
+  const pg=playoffNextGame();
+  if(!pg)return false;
+  const s=pg.series, gameNo=pg.gameNo;
+  const hiHost=homeIsHi(gameNo);
+  const home=hiHost?s.hi:s.lo, away=hiHost?s.lo:s.hi;
+  const dayIdx=S.season.schedule.length+1+playoffGameCount();
+  const m=newMatch(home,away,dayIdx,starterOf(getTeam(home),dayIdx),starterOf(getTeam(away),dayIdx));
+  m.noTie=true;                                  // 季後賽不可和局
+  m.po={stage:po.stage,si:pg.si,gameNo:gameNo};
+  m.playerSide=playerTeamSide(m);
+  S.match=m;S.screen="game";
+  S.ballFlash=Date.now();
+  setTimeout(()=>{if(S.ballFlash)S.ballFlash=0;},1500);
+  SFX.charge();
+  return true;
 }
 function playerTeamSide(m){
   return m.awayId===S.season.playerTeam?"away":"home";

@@ -141,6 +141,11 @@ table.grid td.num{font-family:Consolas,monospace}
 .plink{cursor:pointer;color:#14508c;text-decoration:underline;text-underline-offset:2px}
 .plink:hover{color:var(--accent)}
 .abilnote{font-size:12px;color:var(--muted);background:#fffdf5;border:1px dashed var(--line);border-radius:3px;padding:6px 8px;margin:8px 0}
+.news{background:#101a12;color:#cfe8d6;border:2px solid #000;border-radius:3px;padding:6px 10px;font-size:12px}
+.news p{margin:2px 0}
+.news p:before{content:"▸ ";color:#ffc23f}
+.daysep td{background:#101a12;color:#ffc23f;font-weight:700;letter-spacing:.1em;font-size:12px}
+.daysep td:before{content:"▸ "}
 .grade{display:inline-block;font-weight:900;font-family:Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:3px;color:#fff}
 .g-S{background:#b11414}.g-A{background:#c9701a}.g-B{background:#1f8f4a}.g-C{background:#5a6552}.g-D{background:#8a8171}
 
@@ -155,6 +160,32 @@ table.grid td.num{font-family:Consolas,monospace}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:620px){.two{grid-template-columns:1fr}.logo{font-size:22px}}
 .bignum{font-family:"Consolas",monospace;font-weight:900;font-size:20px;color:var(--led)}
+
+/* 熱血演出 */
+.playball{
+  position:relative;text-align:center;font-size:26px;font-weight:900;color:#ffe07a;letter-spacing:.3em;
+  background:#101a12;border:2px solid #000;border-radius:4px;padding:8px;margin:10px 0;
+  animation:pb 1.3s ease-out;
+  text-shadow:0 2px 0 #8e1410, 0 0 14px #ffd23f;
+}
+@keyframes pb{0%{transform:scale(2.2);opacity:0}35%{transform:scale(1);opacity:1}80%{opacity:1}100%{opacity:0}}
+.splash{pointer-events:none;text-align:center;position:relative;font-size:24px;font-weight:900;margin:6px 0 0;animation:sp .95s ease-out;letter-spacing:.15em}
+.splash.hr{color:#fff;background:#8e1410;text-shadow:0 2px 0 #000}
+.splash.k{color:#8fd0ff;background:#12334f}
+.splash.hit{color:#1f8f4a;background:#e6f2dc}
+.splash.bb{color:#8a8171;background:#e6e0d0}
+.splash.out{color:#6b6455}
+@keyframes sp{0%{transform:scale(1.7);opacity:0}30%{transform:scale(1.05);opacity:1}75%{opacity:1}100%{opacity:.15}}
+.speed{color:#ffd76a;font-family:Consolas,monospace;font-weight:700}
+.confetti{position:relative;height:0;overflow:visible}
+.confetti i{position:absolute;top:-14px;width:9px;height:15px;opacity:.95;border-radius:2px;animation:cf 2.6s linear infinite}
+@keyframes cf{from{transform:translateY(-8px) rotate(0deg);opacity:.95}to{transform:translateY(80px) rotate(340deg);opacity:0}}
+
+/* 選秀 */
+.cand{background:#fffdf5}
+.cand-top{display:flex;align-items:center;gap:9px}
+.cand .bars{margin:6px 0}
+.cand .btn{margin-top:6px}
 </style>
 </head>
 <body>

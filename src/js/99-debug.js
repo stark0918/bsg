@@ -13,5 +13,6 @@ window.GK = {
   getTeam, playerById, playerOverall, gradeOf, gradeBadge, ageNote,
   advanceCareer, applyOv, leadersList, leadersQualify,
   processGameEnd, startMatch, autoGame, quickSim, teamStrength,
-  render, viewAbilities, ACT
+  ensurePlayoff, playoffProgress, playoffNextGame, playoffSimAll, startPlayoffMatch,
+  finalizeSeason, logGame, viewHistory, render, viewAbilities, ACT
 };

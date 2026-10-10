@@ -8,10 +8,16 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 # -> ui-core -> ui-views -> actions -> main -> debug
 $order = @(
   "00-tools.js",
+  "05-sound.js",
   "10-data.js",
   "20-roster.js",
   "30-engine.js",
   "40-season.js",
+  "45-playoff.js",
+  "46-history.js",
+  "47-records.js",
+  "48-draft.js",
+  "49-awards.js",
   "50-state.js",
   "60-ui-core.js",
   "70-ui-views.js",

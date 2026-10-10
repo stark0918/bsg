@@ -97,6 +97,7 @@ function synthGameStats(awayId,homeId,ra,rh){
   homeBat.forEach(s=>mergeBatLine(s.pid,s));
   awayPit.forEach(s=>mergePitLine(s.pid,s));
   homePit.forEach(s=>mergePitLine(s.pid,s));
+  return {away:{bat:awayBat,pit:awayPit},home:{bat:homeBat,pit:homePit}};
 }
 function mergePlayerStats(m){
   for(const pid in m.stats)mergeBatLine(pid,m.stats[pid]);
@@ -112,19 +113,54 @@ function mergePlayerStats(m){
 }
 function processGameEnd(m){
   if(m._processed)return;m._processed=true;
+  if(m.po){recordPlayoffResult(m);return;}   // 季後賽：只更新籤表，不動例行賽排名
+  m.hero=gameHero(m);
   const day=S.season.schedule[m.dayIndex];
   const g=day.find(x=>x.away===m.awayId&&x.home===m.homeId);
   if(g){g.played=true;g.score={a:m.score.away,h:m.score.home};}
   applyRecord(m.awayId,m.homeId,m.score.away,m.score.home);
   mergePlayerStats(m);
+  const when="第"+(m.dayIndex+1)+"日";
+  checkMatchRecords(m,when);
+  logGame(m.dayIndex+1,"",m.awayId,m.homeId,m.score.away,m.score.home);
   day.forEach(x=>{
     if(x.played)return;
     const r=quickSim(x.away,x.home);
     x.played=true;x.score={a:r.a,h:r.b};
     applyRecord(x.away,x.home,r.a,r.b);
-    synthGameStats(x.away,x.home,r.a,r.b);
+    logGame(m.dayIndex+1,"",x.away,x.home,r.a,r.b);
+    const L=synthGameStats(x.away,x.home,r.a,r.b);
+    checkLineRecords(L.away,x.away,when);
+    checkLineRecords(L.home,x.home,when);
+    checkSimTeamRecords(x.away,x.home,r.a,r.b,when);
   });
   S.season.day++;
-  if(S.season.day>=S.season.schedule.length){CAREER.pending=true;saveCareer();}
+  leagueNews(m.dayIndex);
+  if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表
   saveGame();
+}
+/* 每日聯盟快報：首位攻防與你的排名變動 */
+function leagueNews(dayIdx){
+  const se=S.season;
+  const st=standingsList();
+  const top=st[0],second=st[1];
+  const my=se.playerTeam;
+  const myRank=st.findIndex(x=>x.id===my)+1;
+  const prev=se.prevMyRank;
+  let line="";
+  if(prev!==undefined&&prev<9){
+    if(myRank<prev)line=`◎ 你的${getTeam(my).name}升至第 ${myRank} 名！`;
+    else if(myRank>prev)line=`◎ 你的${getTeam(my).name}滑落至第 ${myRank} 名…`;
+  }
+  if(!line&&myRank===1)line=`◎ 你的${getTeam(my).name}攻佔/續保首位！`;
+  if(!line&&second){
+    const gap=Number(second.gb);
+    if(gap!=null&&gap<=1.0)line=`◎ ${dayIdx+1}日終了：首位 ${getTeam(top.id).name}，第2名 ${getTeam(second.id).name} 僅差 ${gap} 場！`;
+    else line=`◎ ${dayIdx+1}日終了：首位 ${getTeam(top.id).name}（${top.w}勝）`;
+  }
+  if(!line)line=`◎ ${dayIdx+1}日終了：首位 ${getTeam(top.id).name}（${top.w}勝）`;
+  se.news=se.news||[];se.news.push({day:dayIdx+1,text:line});
+  if(se.news.length>5)se.news.shift();
+  se.prevMyRank=myRank;
+  if(!S.flash)S.flash=line;
 }

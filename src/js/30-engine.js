@@ -126,7 +126,7 @@ function weightedIndex(weights){
   for(let i=0;i<weights.length;i++){r-=Math.max(0,weights[i]);if(r<=0)return i;}
   return weights.length-1;
 }
-function addRuns(m,side,n){if(n<=0)return;m.score[side]+=n;m.line[side][m.inning-1]+=n;}
+function addRuns(m,side,n){if(n<=0)return;m.score[side]+=n;if(m.line[side].length<m.inning)m.line[side].length=m.inning;m.line[side][m.inning-1]=(m.line[side][m.inning-1]||0)+n;}
 
 function buildLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
 function starterOf(team,day){const sp=team.pitchers.filter(p=>p.starter);return sp[(day+hashStr(team.id))%sp.length];}
@@ -171,6 +171,7 @@ function playPA(m,offT,defT){
 
   const thrown=ri(1,4)+ri(0,2);
   P.pitches+=thrown;
+  m.pitchSpeed=Math.round(138+P.obj.velocity*0.35+ri(-3,3));   // 球速（熱血演出）
   pitAdd(m,P.obj.id,{pp:thrown});
 
   let ev;
@@ -253,10 +254,31 @@ function playPA(m,offT,defT){
   m.batterIdx[offSide]++;
   m.balls=0;m.strikes=0;
 
+  // 熱血演出：記錄上一打席結果與大字形
+  m.lastKind=ev;
+  m.lastRuns=runs;
+  if(ev==="HR")m.splash={t:"全壘打！！",c:"hr"};
+  else if(ev==="K")m.splash={t:"三振！",c:"k"};
+  else if(ev==="3B")m.splash={t:"三壘安打！",c:"hit"};
+  else if(ev==="2B")m.splash={t:"二壘安打！",c:"hit"};
+  else if(ev==="1B"||ev==="BUNTHIT")m.splash={t:"安打！",c:"hit"};
+  else if(ev==="BB")m.splash={t:"保送",c:"bb"};
+  else if(ev==="HBP")m.splash={t:"觸身球",c:"bb"};
+  else if(ev==="SAC")m.splash={t:"犧牲觸擊",c:"out"};
+
   // 再見安打判定
   if(m.half==="bottom"&&m.inning>=9&&m.score.home>m.score.away){
-    m.over=true;m.winner="home";m.walkoff=true;
+    m.over=true;m.winner="home";m.walkoff=true;m.splash={t:"再見！",c:"hr"};
   }
+}
+/* 單場英雄（Player of the Game） */
+function gameHero(m){
+  let best=null,bv=-1;
+  for(const pid in m.stats){const s=m.stats[pid],p=playerById(pid);const v=s.h*2+s.hr*3+s.rbi*1.2+s.sb*0.6+(s.r||0)*0.8;
+    if(v>bv){bv=v;best={pid,name:p?p.name:pid,isPit:false,s};}}
+  for(const pid in m.pstats){const s=m.pstats[pid],p=playerById(pid);const v=s.k*2.2+(s.outs||0)*0.5-s.er*1.5+(s.w||0)*3;
+    if(v>bv){bv=v;best={pid,name:p?p.name:pid,isPit:true,s};}}
+  return best;
 }
 
 function makeCount(ev){
@@ -283,13 +305,13 @@ function endHalf(m){
   m.outs=0;m.bases=[null,null,null];m.balls=0;m.strikes=0;
   const finished=m.half;
   if(finished==="top"){
-    if(m.inning>=9&&m.score.home>m.score.away){m.over=true;m.winner="home";return;}
-    if(m.inning>=9&&m.score.home!==m.score.away){m.over=true;m.winner="home";return;}
+    if(m.inning>=9&&m.score.home>m.score.away){m.over=true;m.winner="home";return;}  // 主隊領先才不用打九局下
     m.half="bottom";
     m.log.push({t:`◆ ${m.inning}局下　${sideName(m,"home")}的進攻`,c:"inn"});
   }else{
     if(m.inning>=9&&m.score.home!==m.score.away){m.over=true;m.winner=m.score.home>m.score.away?"home":"away";return;}
-    if(m.inning>=12){m.over=true;m.winner=null;return;}
+    if(m.inning>=18){m.over=true;m.winner=m.score.home>m.score.away?"home":(m.score.home<m.score.away?"away":null);return;}
+    if(m.inning>=12&&!m.noTie){m.over=true;m.winner=null;return;}
     m.inning++;m.half="top";
     m.log.push({t:`◆ ${m.inning}局上　${sideName(m,"away")}的進攻`,c:"inn"});
   }

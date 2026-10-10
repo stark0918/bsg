@@ -12,6 +12,10 @@ function render(){
   else if(S.screen==="schedule")app.innerHTML=viewSchedule();
   else if(S.screen==="standings")app.innerHTML=viewStandings();
   else if(S.screen==="leaders")app.innerHTML=viewLeaders();
+  else if(S.screen==="records")app.innerHTML=viewRecords();
+  else if(S.screen==="history")app.innerHTML=viewHistory();
+  else if(S.screen==="awards")app.innerHTML=viewAwards();
+  else if(S.screen==="draft")app.innerHTML=viewDraft();
   else if(S.screen==="help")app.innerHTML=viewHelp();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
@@ -29,9 +33,36 @@ function renderCGI(){
   }
   c.textContent="http://gekikuukan.local/cgi-bin/"+q;
 }
-function teamBadge(id){
+function emblemSVG(t,s){
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:3px" aria-hidden="true">
+    <path d="M12 1.6 L20.6 4.4 V11 c0 5.5-3.7 9.6-8.6 11.1 C6.9 20.6 3.4 16.5 3.4 11 V4.4 Z" fill="${t.c1}" stroke="${t.c2}" stroke-width="1.1"/>
+    <path d="M6.2 6 h11.6 v6.4 a5.8 5.8 0 0 1-11.6 0 Z" fill="#fff" opacity="0.12"/>
+    <text x="12" y="15.3" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff" stroke="${t.c2}" stroke-width="0.3">${t.short.slice(0,2)}</text>
+  </svg>`;
+}
+function teamBadge(id,size){
   const t=getTeam(id);
-  return `<span class="swatch" style="background:${t.c1}"></span>${esc(t.name)}`;
+  return `${emblemSVG(t,size||18)}<span class="tname">${esc(t.name)}</span>`;
+}
+function teamOfPlayer(p){return String(p.id||"").replace(/[bp]\d+$/,"");}
+function playerAvatar(p,size){
+  const s=size||34;
+  const h=hashStr(p.id||"x");
+  const t=getTeam(p.teamId||teamOfPlayer(p));
+  const c=t?t.c1:"#8a93a5";
+  const skins=["#F6CF9F","#E8B27E","#C98E5A","#8D5A35","#F3DFC8"];
+  const hairs=["#262019","#4a2f1c","#101010","#6e4c2c","#8a8a8a","#a63d32"];
+  const skin=skins[h%skins.length],hair=hairs[(h>>4)%hairs.length];
+  const band=(h>>9)%3; // 0 瀏海 1 髮帶 2 鴨舌帽
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="vertical-align:-4px" aria-hidden="true">
+    <circle cx="12" cy="13.4" r="7.6" fill="${skin}"/>
+    ${band===2?`<path d="M4.6 7.4 C4.6 3.2 8.4 2 12 2 c3.6 0 7.4 1.2 7.4 5.4 V8.4 H4.6 Z" fill="${c}"/><path d="M4.6 7.8 H19.4 a1.7 1.7 0 0 1 1.6 1.6 c0 1.1-1.4 1.5-3 1.5 H6 c-1.6 0-3-.4-3-1.5 a1.7 1.7 0 0 1 1.6-1.6 Z" fill="${c}" opacity="0.85"/>`:
+      band===1?`<path d="M4.8 6.6 H19.2 V9.2 H4.8 Z" fill="${c}"/>`:
+      `<path d="M4.8 7 C4.8 3.8 7.4 3 12 3 c4.6 0 7.2 .8 7.2 3.8 v0.4 c-2-1.2-4.6-1.8-7.2-1.8 S7.2 5.4 5.2 6.6 Z" fill="${hair}"/>`}
+    <circle cx="9" cy="13" r="1.35" fill="#fff"/><circle cx="15" cy="13" r="1.35" fill="#fff"/>
+    <circle cx="9" cy="13" r="0.62" fill="#261f1a"/><circle cx="15" cy="13" r="0.62" fill="#261f1a"/>
+    <path d="M10.6 16.4 c0.9 .9 1.9 .9 2.8 0" stroke="#a04a2e" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+  </svg>`;
 }
 function rbar(label,v){
   const col=v>=75?"#2e9e4f":v>=58?"#c9a227":"#b5533a";
