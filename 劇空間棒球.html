@@ -704,6 +704,7 @@ function quickSim(aId,bId){
   while(sa===sb&&x<6){if(chance(0.5))sa++;else sb++;x++;}
   return {a:sa,b:sb};
 }
+function gameScore(g){const s=g&&g.score;if(!s)return {a:0,h:0};return {a:s.a||0,h:(s.h!=null?s.h:(s.b!=null?s.b:0))};}
 function applyRecord(awayId,homeId,ra,rh){
   const r=S.season.records;
   [awayId,homeId].forEach(id=>{if(!r[id])r[id]={w:0,l:0,t:0,rs:0,ra:0};});
@@ -787,7 +788,7 @@ function processGameEnd(m){
   day.forEach(x=>{
     if(x.played)return;
     const r=quickSim(x.away,x.home);
-    x.played=true;x.score=r;
+    x.played=true;x.score={a:r.a,h:r.b};
     applyRecord(x.away,x.home,r.a,r.b);
     synthGameStats(x.away,x.home,r.a,r.b);
   });
@@ -816,9 +817,44 @@ function newSeason(playerTeam){
     schedule:makeSchedule(),
     records:{},
     playerStats:{bat:{},pit:{}},
+    statSchema:2,
     started:Date.now()
   };
   TEAM_DEFS.forEach(t=>S.season.records[t.id]={w:0,l:0,t:0,rs:0,ra:0});
+  saveGame();
+}
+/* 讓舊存檔也能顯示全聯盟球員排行：補齊欄位，並為已完成但當時未記錄的比賽補生成個人成績 */
+function migrateSeasonStats(){
+  const se=S.season;
+  if(!se||se.statSchema===2)return;
+  const ps=se.playerStats||(se.playerStats={bat:{},pit:{}}); ps.bat=ps.bat||{}; ps.pit=ps.pit||{};
+  const hasPlayerBat=Object.keys(ps.bat).some(k=>k.indexOf(se.playerTeam+"b")===0);
+  const bf=["g","ab","h","hr","rbi","bb","k","r","sb"];
+  const pf=["g","outs","h","r","er","bb","k","pp","w","l","sv"];
+  for(const pid in ps.bat){const d=ps.bat[pid];bf.forEach(k=>{if(typeof d[k]!=="number")d[k]=Number(d[k])||0;});}
+  for(const pid in ps.pit){const d=ps.pit[pid];pf.forEach(k=>{if(typeof d[k]!=="number")d[k]=Number(d[k])||0;});}
+  const playedDays=Math.min(se.day||0,(se.schedule||[]).length);
+  for(let i=0;i<playedDays;i++){
+    (se.schedule[i]||[]).forEach(g=>{
+      if(!g.played||!g.score)return;
+      const sc=gameScore(g),ra=sc.a,rh=sc.h;
+      const invA=g.away===se.playerTeam,invH=g.home===se.playerTeam;
+      if((!invA&&!invH)||!hasPlayerBat){
+        synthGameStats(g.away,g.home,ra,rh);
+      }else{
+        const oppId=invA?g.home:g.away;
+        const oppRuns=invA?rh:ra,myRuns=invA?ra:rh;
+        const ob=synthBatting(oppId,oppRuns);
+        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3);
+        ob.forEach(s=>mergeBatLine(s.pid,s));
+        op.forEach(s=>mergePitLine(s.pid,s));
+        const sp=starterOf(getTeam(se.playerTeam),i);
+        const line=ps.pit[sp.id]||(ps.pit[sp.id]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0});
+        if(myRuns>oppRuns)line.w=(line.w||0)+1;else if(myRuns<oppRuns)line.l=(line.l||0)+1;
+      }
+    });
+  }
+  se.statSchema=2;
   saveGame();
 }
 function nextPlayerGame(){
@@ -859,6 +895,7 @@ function standingsList(){
 
 /* ---------- 畫面渲染 ---------- */
 function render(){
+  if(S.season&&S.season.statSchema!==2)migrateSeasonStats();
   const app=$("#app");
   if(S.screen==="title")app.innerHTML=viewTitle();
   else if(S.screen==="newgame")app.innerHTML=viewNewGame();
@@ -1202,7 +1239,7 @@ function viewSchedule(){
     const games=day.map(g=>{
       const isMine=g.away===s.playerTeam||g.home===s.playerTeam;
       let sc="－ vs －";
-      if(g.played){sc=`${g.score.a} : ${g.score.h}`;}
+      if(g.played){const cs=gameScore(g);sc=`${cs.a} : ${cs.h}`;}
       return `<tr class="${isMine?"me":""}"><td class="name">${teamBadge(g.away)}</td>
         <td class="num">@</td><td class="name">${teamBadge(g.home)}</td>
         <td class="num">${g.played?sc:"未開打"}</td></tr>`;
