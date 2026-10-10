@@ -1439,18 +1439,29 @@ function viewStandings(){
 }
 
 /* ----- 球員排行 ----- */
+/* 入榜門檻：依本季已賽場數動態調整，避免小樣本刷榜 */
+function leadersQualify(){
+  const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
+  return {
+    gp,
+    bat: Math.max(1,Math.ceil(gp*0.5)),          // 野手：約半數出賽
+    pit: Math.min(2,gp)||1,                       // 投手：至少 1~2 場出賽
+    eraOuts: Math.min(15,Math.max(3,gp*4))        // 防禦率：隨賽程增加至 15 局(5局)
+  };
+}
 function leadersList(kind){
   const ps=S.season.playerStats;
+  const q=leadersQualify();
   if(kind==="era"||kind==="w"||kind==="k"||kind==="sv"){
     const arr=[];
-    for(const pid in ps.pit){const s=ps.pit[pid],p=playerById(pid);if(p)arr.push({p,pid,s});}
-    if(kind==="era")return arr.filter(x=>x.s.outs>=15).sort((a,b)=>(a.s.er*27/a.s.outs)-(b.s.er*27/b.s.outs)).map(x=>({...x,val:fmtERA(x.s.er,x.s.outs)}));
+    for(const pid in ps.pit){const s=ps.pit[pid],p=playerById(pid);if(p&&(s.g||0)>=q.pit)arr.push({p,pid,s});}
+    if(kind==="era")return arr.filter(x=>(x.s.outs||0)>=q.eraOuts).sort((a,b)=>(a.s.er*27/a.s.outs)-(b.s.er*27/b.s.outs)).map(x=>({...x,val:fmtERA(x.s.er,x.s.outs)}));
     if(kind==="w") return arr.sort((a,b)=>b.s.w-a.s.w||b.s.k-a.s.k).map(x=>({...x,val:x.s.w+" 勝"}));
     if(kind==="k") return arr.sort((a,b)=>b.s.k-a.s.k).map(x=>({...x,val:x.s.k}));
     return arr.sort((a,b)=>b.s.sv-a.s.sv).map(x=>({...x,val:x.s.sv}));
   }
   const arr=[];
-  for(const pid in ps.bat){const s=ps.bat[pid],p=playerById(pid);if(p)arr.push({p,pid,s});}
+  for(const pid in ps.bat){const s=ps.bat[pid],p=playerById(pid);if(p&&(s.g||0)>=q.bat)arr.push({p,pid,s});}
   const minAB=5;
   switch(kind){
     case "hr": return arr.sort((a,b)=>b.s.hr-a.s.hr).map(x=>({...x,val:x.s.hr}));
@@ -1464,6 +1475,7 @@ function leadersList(kind){
 function viewLeaders(){
   const cat=S.leadCat||"avg";
   const cats=[["avg","打擊率"],["hr","全壘打"],["rbi","打點"],["h","安打"],["sb","盜壘"],["r","得分"],["era","防禦率"],["w","勝投"],["k","三振"],["sv","救援"]];
+  const q=leadersQualify();
   const list=leadersList(cat).slice(0,15);
   const rows=list.map((x,i)=>{
     const tid=x.pid.replace(/[bp]\d+$/,"");
@@ -1471,14 +1483,18 @@ function viewLeaders(){
     const isMine=tid===S.season.playerTeam;
     return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${esc(x.p.name)}</td>
       <td class="name"><span class="swatch" style="background:${team.c1}"></span>${esc(team.short)}</td>
-      <td>${esc(x.p.posLabel||x.p.role)}</td><td class="num" style="font-weight:700">${x.val}</td></tr>`;
+      <td>${esc(x.p.posLabel||x.p.role)}</td><td class="num">${x.s.g||0}</td><td class="num" style="font-weight:700">${x.val}</td></tr>`;
   }).join("");
   const tabs=cats.map(c=>`<button class="btn sm ${c[0]===cat?"gold":""}" data-act="leadCat" data-arg="${c[0]}">${c[1]}</button>`).join("");
-  const empty=`<tr><td colspan="5" class="muted">尚無資料，請先打完至少一場比賽。</td></tr>`;
+  const isPitCat=(cat==="era"||cat==="w"||cat==="k"||cat==="sv");
+  const qualifyNote=isPitCat
+    ? `投手需出賽滿 <b>${q.pit}</b> 場${cat==="era"?`、且投滿 <b>${fmtIP(q.eraOuts)}</b> 局`:""}`
+    : `野手需出賽滿 <b>${q.bat}</b> 場${cat==="avg"?"、且滿 5 打數":""}`;
+  const empty=`<tr><td colspan="6" class="muted">尚無符合資格的資料（本季已賽 ${q.gp} 場）。請先打完更多比賽。</td></tr>`;
   return `<div class="panel"><h2>球員排行</h2>
     <div class="actions">${tabs}</div>
-    <table class="grid"><tr><th>#</th><th>球員</th><th>球隊</th><th>位置</th><th>成績</th></tr>${rows||empty}</table>
-    <div class="muted" style="font-size:11px;margin-top:6px">打擊率需滿 5 打數、防禦率需滿 5 局才列入排行；黃底為你的球員。</div>
+    <table class="grid"><tr><th>#</th><th>球員</th><th>球隊</th><th>位置</th><th>出賽</th><th>成績</th></tr>${rows||empty}</table>
+    <div class="muted" style="font-size:11px;margin-top:6px">入榜門檻隨賽程調整：${qualifyNote}。本季已賽 ${q.gp} 場；黃底為你的球員。</div>
     <div class="hr"></div>
     <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
@@ -1503,7 +1519,7 @@ function viewHelp(){
       <dt>■ 年齡與成長</dt>
       <dd>每位球員都有年齡。欄位中的箭頭是年齡趨勢：<b style="color:#1f8f4a">▲ 成長期</b>（22 歲以下，能力易上升）、<b>– 巔峰</b>、<b style="color:#b5533a">▼ 衰退期</b>（34 歲以上，能力易下滑）。每當你打完一季並<b>開始新球季</b>，全聯盟球員會 +1 歲並成長／老化；39 歲以上退休，由新人遞補。成長結果會自動保存在瀏覽器，跨球季累積。</dd>
       <dt>■ 成績與排行</dt>
-      <dd>「陣容與成績」看你的球員逐人累計；「球員排行」看全聯盟的打擊率、全壘打、打點、安打、盜壘、得分、防禦率、勝投、三振、救援前十名。其他球團的比賽以快速模擬進行，也會產生個人成績。</dd>
+      <dd>「陣容與成績」看你的球員逐人累計；「球員排行」看全聯盟的打擊率、全壘打、打點、安打、盜壘、得分、防禦率、勝投、三振、救援前十五名，榜上會顯示<b>出賽場數</b>。為避免小樣本刷榜，入榜需達<b>出賽門檻</b>（隨賽程調整：野手約需半數出賽、投手需 1～2 場，打擊率另需 5 打數、防禦率另需最多 5 局）。其他球團的比賽以快速模擬進行，也會產生個人成績。</dd>
       <dt>■ 存檔</dt>
       <dd>每場比賽結束會自動存入瀏覽器（localStorage）。主選單可「繼續球季」。</dd>
     </dl>
