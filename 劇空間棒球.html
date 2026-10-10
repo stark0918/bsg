@@ -138,6 +138,11 @@ table.grid td.num{font-family:Consolas,monospace}
 .teamcard .nm{font-weight:900;font-size:16px}
 .teamcard .meta{font-size:11px;color:var(--muted)}
 .swatch{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid #0007;vertical-align:-2px;margin-right:6px}
+.plink{cursor:pointer;color:#14508c;text-decoration:underline;text-underline-offset:2px}
+.plink:hover{color:var(--accent)}
+.abilnote{font-size:12px;color:var(--muted);background:#fffdf5;border:1px dashed var(--line);border-radius:3px;padding:6px 8px;margin:8px 0}
+.grade{display:inline-block;font-weight:900;font-family:Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:3px;color:#fff}
+.g-S{background:#b11414}.g-A{background:#c9701a}.g-B{background:#1f8f4a}.g-C{background:#5a6552}.g-D{background:#8a8171}
 
 .overlay{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}
 .overlay.on{display:flex}
@@ -902,6 +907,8 @@ function render(){
   else if(S.screen==="hub")app.innerHTML=viewHub();
   else if(S.screen==="game")app.innerHTML=viewGame();
   else if(S.screen==="roster")app.innerHTML=viewRoster();
+  else if(S.screen==="abilities")app.innerHTML=viewAbilities();
+  else if(S.screen==="player")app.innerHTML=viewPlayer();
   else if(S.screen==="schedule")app.innerHTML=viewSchedule();
   else if(S.screen==="standings")app.innerHTML=viewStandings();
   else if(S.screen==="leaders")app.innerHTML=viewLeaders();
@@ -930,6 +937,12 @@ function rbar(label,v){
   const col=v>=75?"#2e9e4f":v>=58?"#c9a227":"#b5533a";
   return `<div class="rrow"><span class="rlab">${label}</span><span class="rbar"><i style="width:${v}%;background:${col}"></i></span><b>${v}</b></div>`;
 }
+function playerOverall(p){
+  if(p.role!==undefined)return Math.round(p.velocity*0.30+p.control*0.28+p.breaking*0.27+p.stamina*0.15);
+  return Math.round(p.meet*0.34+p.power*0.30+p.eye*0.14+p.speed*0.11+p.defense*0.11);
+}
+function gradeOf(v){return v>=88?"S":v>=78?"A":v>=66?"B":v>=54?"C":"D";}
+function gradeBadge(p){const v=playerOverall(p),g=gradeOf(v);return `<span class="grade g-${g}" title="綜合 ${v}">${g}</span>`;}
 
 /* ----- 標題 ----- */
 function viewTitle(){
@@ -1009,6 +1022,7 @@ function viewHub(){
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
+      <button class="btn blk" data-act="abilities">🧮 選手能力</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
@@ -1208,27 +1222,86 @@ function viewRoster(){
   const batRows=t.batters.map(b=>{
     const s=ps.bat[b.id];
     const ab=s?s.ab:0,h=s?s.h:0;
-    return `<tr><td class="name">${esc(b.name)}${b.bench?' <span class="pill off">替</span>':''}</td>
-      <td>${esc(b.posLabel)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
+    return `<tr><td class="name"><span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>
+      <td>${esc(b.posLabel)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
       <td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td>
       <td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr>`;
   }).join("");
   const pitRows=t.pitchers.map(p=>{
     const s=ps.pit[p.id];
-    return `<tr><td class="name">${esc(p.name)}</td><td>${esc(p.role)}</td><td class="num">${s?s.g:0}</td>
+    return `<tr><td class="name"><span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td><td>${esc(p.role)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${s?s.g:0}</td>
       <td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td>
       <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td>
       <td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
   }).join("");
   return `<div class="panel">
     <h2>${esc(t.name)}　陣容與本季成績</h2>
-    <div class="topbar" style="color:#3a3527"><div class="muted">（投手數據為本季累計）</div><div></div></div>
+    <div class="abilnote">💡 點<b>球員名字</b>可看完整能力數值與本季成績；「綜合」為能力評級（S/A/B/C/D）。</div>
     <h3>野手</h3>
-    <table class="grid"><tr><th>球員</th><th>守位</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>${batRows}</table>
+    <table class="grid"><tr><th>球員</th><th>守位</th><th>綜合</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>${batRows}</table>
     <h3>投手</h3>
-    <table class="grid"><tr><th>球員</th><th>角色</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
+    <table class="grid"><tr><th>球員</th><th>角色</th><th>綜合</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
     <div class="hr"></div>
+    <button class="btn blk" data-act="abilities">🧮 選手能力數值一覽</button>
     <button class="btn blk" data-act="backHub">← 回球季總部</button>
+  </div>`;
+}
+
+/* ----- 選手能力數值 ----- */
+function viewAbilities(){
+  const ids=TEAM_DEFS.map(t=>t.id);
+  const sel=(S.abilTeam&&ids.indexOf(S.abilTeam)>=0)?S.abilTeam:S.season.playerTeam;
+  const t=getTeam(sel);
+  const tabs=ids.map(id=>`<button class="btn sm ${id===sel?"gold":""}" data-act="abilTeam" data-arg="${id}">${esc(getTeam(id).short||getTeam(id).name)}</button>`).join("");
+  const batRows=t.batters.map(b=>`<tr class="${b.bench?"":""}"><td class="name"><span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td><td>${esc(b.posLabel)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${b.meet}</td><td class="num">${b.power}</td><td class="num">${b.eye}</td><td class="num">${b.speed}</td><td class="num">${b.defense}</td></tr>`).join("");
+  const pitRows=t.pitchers.map(p=>`<tr><td class="name"><span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td><td>${esc(p.role)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${p.velocity}</td><td class="num">${p.control}</td><td class="num">${p.breaking}</td><td class="num">${p.stamina}</td></tr>`).join("");
+  const isMine=sel===S.season.playerTeam;
+  return `<div class="panel"><h2>選手能力數值</h2>
+    <div class="actions">${tabs}</div>
+    <div class="muted" style="font-size:12px;margin:4px 0 8px">${isMine?"▸ 你的球隊":"▸ 偵察敵隊"}　<span class="swatch" style="background:${t.c1}"></span>${esc(t.name)}</div>
+    <h3>野手</h3>
+    <table class="grid"><tr><th>球員</th><th>守位</th><th>綜合</th><th>打擊</th><th>力量</th><th>選球</th><th>速度</th><th>守備</th></tr>${batRows}</table>
+    <h3>投手</h3>
+    <table class="grid"><tr><th>球員</th><th>角色</th><th>綜合</th><th>球速</th><th>控球</th><th>變化</th><th>體力</th></tr>${pitRows}</table>
+    <div class="abilnote">數值 0～99。打擊→安打率、力量→長打/全壘打、選球→保送、速度→盜壘與跑壘、守備→守備處理。球速→三振、控球→壓低保送、變化→製造滾地球、體力→可投局數。點名字看完整資料卡。</div>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
+}
+
+/* ----- 球員資料卡 ----- */
+function viewPlayer(){
+  const pid=S.selPlayer,p=pid?playerById(pid):null;
+  if(!p)return `<div class="panel"><h2>球員資料</h2><div class="muted">找不到球員資料。</div><div class="hr"></div><button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
+  const tid=pid.replace(/[bp]\d+$/,""),team=getTeam(tid),isPit=(p.role!==undefined);
+  const ps=S.season&&S.season.playerStats;
+  let bars,statsTable,roleLabel;
+  if(isPit){
+    roleLabel=p.role;
+    bars=rbar("球速",p.velocity)+rbar("控球",p.control)+rbar("變化",p.breaking)+rbar("體力",p.stamina);
+    const s=ps&&ps.pit[pid];
+    statsTable=`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>
+      <tr><td class="num">${s?s.g:0}</td><td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td><td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr></table>`;
+  }else{
+    roleLabel=p.posLabel;
+    bars=rbar("打擊",p.meet)+rbar("力量",p.power)+rbar("選球",p.eye)+rbar("速度",p.speed)+rbar("守備",p.defense);
+    const s=ps&&ps.bat[pid],ab=s?s.ab:0,h=s?s.h:0;
+    statsTable=`<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>
+      <tr><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td><td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr></table>`;
+  }
+  const overall=playerOverall(p);
+  return `<div class="panel"><h2>球員資料</h2>
+    <div class="matchup">
+      <div style="margin-bottom:6px"><span class="who">${esc(p.name)}</span><span class="pos">${esc(roleLabel)}</span>
+        <span class="muted" style="font-size:12px">　${teamBadge(tid)}${p.bench?' <span class="pill off">替補</span>':''}</span>
+        <span style="float:right">綜合 <span class="grade g-${gradeOf(overall)}">${gradeOf(overall)}</span> <b style="font-family:Consolas,monospace">${overall}</b></span></div>
+      ${bars}
+    </div>
+    <h3>本季成績</h3>${statsTable}
+    <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
+    <div class="hr"></div>
+    <button class="btn" data-act="roster">← 回陣容</button>
+    <button class="btn" data-act="abilities">選手能力一覽</button>
+    <button class="btn" data-act="backHub">回球季總部</button>
   </div>`;
 }
 
@@ -1326,6 +1399,8 @@ function viewHelp(){
       <dd><b>盜壘</b>：以跑者速度挑戰捕手。<b>代打</b>：換上替補野手。<b>換投手</b>：從牛棚派上後援投手。</dd>
       <dt>■ 加速遊玩</dt>
       <dd>不想每一球都下指令時，可用「自動完成本局」或「快速模擬全場」。</dd>
+      <dt>■ 選手能力</dt>
+      <dd>主選單的「🧮 選手能力」可看全聯盟各隊球員的能力數值（打者：打擊、力量、選球、速度、守備；投手：球速、控球、變化、體力），也能切換球隊偵察對手。比賽畫面中，目前打者與投手的數值也會即時以長條圖顯示。點球員名字可開啟個人資料卡。</dd>
       <dt>■ 成績與排行</dt>
       <dd>「陣容與成績」看你的球員逐人累計；「球員排行」看全聯盟的打擊率、全壘打、打點、安打、盜壘、得分、防禦率、勝投、三振、救援前十名。其他球團的比賽以快速模擬進行，也會產生個人成績。</dd>
       <dt>■ 存檔</dt>
@@ -1351,6 +1426,9 @@ const ACT={
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},
+  abilities(){S.screen="abilities";render();},
+  abilTeam(id){S.abilTeam=id;render();},
+  player(id){S.selPlayer=id;S.screen="player";render();},
   schedule(){S.screen="schedule";render();},
   standings(){S.screen="standings";render();},
   leaders(){S.screen="leaders";render();},
