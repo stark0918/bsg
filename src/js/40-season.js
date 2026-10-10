@@ -46,27 +46,31 @@ function applyRecord(awayId,homeId,ra,rh){
   else{r[awayId].t++;r[homeId].t++;}
 }
 function synthBatting(teamId,runs){
-  const b=getTeam(teamId).batters.slice(0,9);
-  const ps=b.map(p=>({pid:p.id,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
-  ps.forEach(x=>x.ab=ri(3,5));
+  const t=getTeam(teamId);
+  // 先發 9 人，並隨機讓 0~2 名替補代打上場（讓替補在模擬比賽也有上場機會）
+  const roster=t.batters.slice(0,9).slice();
+  const bench=t.batters.filter(x=>x.bench);
+  const subN=bench.length?ri(0,2):0;
+  for(let i=0;i<subN&&bench.length;i++)roster.push(bench.splice(ri(0,bench.length-1),1)[0]);
+  const ps=roster.map(p=>({pid:p.id,ab:p.bench?ri(1,2):ri(3,5),h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
   const totalAB=ps.reduce((a,x)=>a+x.ab,0);
   const H=clamp(Math.round(runs*1.15+4.6+rf(-1.5,1.5)),runs,Math.min(15,totalAB));
-  const powW=b.map(p=>Math.pow(Math.max(1,p.power-30),2));
+  const powW=roster.map(p=>Math.pow(Math.max(1,p.power-30),2));
   let hr=clamp(Math.round(runs*rf(0.12,0.45)),0,runs);
   hr=Math.min(hr,H);
   for(let i=0;i<hr;i++){let idx=weightedIndex(powW),tries=0;while(ps[idx].h>=ps[idx].ab&&tries<9){idx=weightedIndex(powW);tries++;}ps[idx].hr++;ps[idx].h++;}
-  const w=b.map(p=>0.8+Math.max(0,p.meet-40)*0.008+Math.max(0,p.power-40)*0.003);
+  const w=roster.map(p=>0.8+Math.max(0,p.meet-40)*0.008+Math.max(0,p.power-40)*0.003);
   const add=splitInt(H-hr,w);
   let extra=0;
   ps.forEach((x,i)=>{const room=Math.max(0,x.ab-x.h);const give=Math.min(add[i],room);x.h+=give;extra+=add[i]-give;});
   while(extra>0){const i=weightedIndex(w);if(ps[i].h<ps[i].ab){ps[i].h++;extra--;}else break;}
-  const rw=b.map(p=>0.8+Math.max(0,p.meet-40)*0.006+Math.max(0,p.speed-40)*0.004);
+  const rw=roster.map(p=>0.8+Math.max(0,p.meet-40)*0.006+Math.max(0,p.speed-40)*0.004);
   const rs=splitInt(runs,rw);ps.forEach((x,i)=>x.r+=rs[i]);
-  const wr=b.map(p=>0.8+Math.max(0,p.power-40)*0.01+Math.max(0,p.meet-40)*0.004);
+  const wr=roster.map(p=>0.8+Math.max(0,p.power-40)*0.01+Math.max(0,p.meet-40)*0.004);
   const rbi=splitInt(runs,wr);ps.forEach((x,i)=>x.rbi+=rbi[i]);
-  const bbT=ri(1,5);for(let i=0;i<bbT;i++)ps[weightedIndex(b.map(p=>p.eye))].bb++;
-  const kT=ri(4,11);for(let i=0;i<kT;i++)ps[weightedIndex(b.map(p=>Math.max(1,110-p.meet)))].k++;
-  const sbT=ri(0,3);for(let i=0;i<sbT;i++)ps[weightedIndex(b.map(p=>Math.max(1,p.speed-48)))].sb++;
+  const bbT=ri(1,5);for(let i=0;i<bbT;i++)ps[weightedIndex(roster.map(p=>p.eye))].bb++;
+  const kT=ri(4,11);for(let i=0;i<kT;i++)ps[weightedIndex(roster.map(p=>Math.max(1,110-p.meet)))].k++;
+  const sbT=ri(0,3);for(let i=0;i<sbT;i++)ps[weightedIndex(roster.map(p=>Math.max(1,p.speed-48)))].sb++;
   return ps;
 }
 function synthPitching(teamId,runsAllowed,oppHits,won,close){

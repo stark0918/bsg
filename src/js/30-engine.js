@@ -387,13 +387,14 @@ function doSteal(m){
     if(m.outs>=3)endHalf(m);
   }
 }
-function doPinchHit(m){
+function doPinchHit(m,auto){
   const offSide=offenseSide(m);
   const bench=m.bench[offSide];
   if(!bench.length){m.log.push({t:"　已無可用之兵。",c:"sys"});return;}
   const lu=m.lineups[offSide],idx=m.batterIdx[offSide]%lu.length;
   const before=lu[idx];
-  const sub=bench.shift();
+  const bi=auto?ri(0,bench.length-1):0;   // 自動調度隨機挑替補，讓大家都有上場機會
+  const sub=bench.splice(bi,1)[0];
   lu[idx]=sub;
   m.log.push({t:`　代打！${before.name} 退場，${sub.name} 拎著球棒走上打擊區。`,c:"sys"});
 }
@@ -421,8 +422,15 @@ function submit(fn,ms){
     render();
   },ms||230);
 }
+function maybeAutoSub(m){
+  if(m.over)return;
+  const bench=m.bench[offenseSide(m)];
+  if(!bench.length||!chance(0.06))return;
+  doPinchHit(m,true);   // 自動讓替補上場代打（自動比賽才有機會上場的問題）
+}
 function resolveTurn(offT,defT){
   const m=S.match;if(!m||m.over)return;
+  if(!playerIsOffense(m))maybeAutoSub(m);   // AI 進攻時也讓其替補有代打機會
   if(defT==="ibb"){doIBB(m);}
   else{playPA(m,offT,defT);}
   if(!m.over&&m.outs>=3)endHalf(m);
@@ -430,6 +438,7 @@ function resolveTurn(offT,defT){
 function autoHalf(m){
   const startHalf=m.half,startInn=m.inning;let guard=0;
   while(!m.over&&m.half===startHalf&&m.inning===startInn&&guard++<200){
+    maybeAutoSub(m);
     playPA(m,aiOffense(m),aiDefense(m));
     if(m.outs>=3)endHalf(m);
   }
@@ -437,6 +446,7 @@ function autoHalf(m){
 function autoGame(m){
   let guard=0;
   while(!m.over&&guard++<4000){
+    maybeAutoSub(m);
     playPA(m,aiOffense(m),aiDefense(m));
     if(m.outs>=3)endHalf(m);
   }
