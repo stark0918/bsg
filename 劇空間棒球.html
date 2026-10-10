@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>劇空間棒球 ～ GEKIKUUKAN BASEBALL</title>
+<style>
+:root{
+  --paper:#f5f0e1; --ink:#20241f; --dark:#123021; --dark2:#0b1f15;
+  --accent:#b11414; --gold:#f2c14e; --led:#ffc23f; --ledbg:#0a0f0b;
+  --line:#c9bfa4; --muted:#6b6455;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1c4a30 0%, #0d2416 55%, #071009 100%);
+  color:var(--ink);
+  font-family:"Microsoft JhengHei","PingFang TC","Heiti TC","MingLiU","MS PGothic",sans-serif;
+  font-size:15px; line-height:1.6; min-height:100vh;
+  padding:14px 10px 60px;
+}
+.wrap{max-width:880px;margin:0 auto}
+a{color:#14508c}
+.logo{
+  text-align:center; color:#fff; letter-spacing:.12em;
+  font-weight:900; font-size:30px; margin:6px 0 2px;
+  text-shadow:0 2px 0 #000, 0 0 18px #7fe0a0, 0 0 4px #b11414;
+}
+.logo small{display:block;font-size:11px;letter-spacing:.35em;color:#9fd7b3;font-weight:400;margin-top:4px}
+.panel{
+  background:var(--paper); border:3px solid #0a1a10; border-radius:4px;
+  box-shadow:0 8px 0 rgba(0,0,0,.35), inset 0 0 0 1px #fff8;
+  padding:14px 16px; margin-top:12px;
+}
+.panel h2{
+  margin:0 0 10px; font-size:17px; color:#fff; background:var(--dark);
+  padding:6px 10px; border-left:6px solid var(--accent); letter-spacing:.06em;
+}
+.panel h3{margin:16px 0 6px;font-size:15px;color:var(--dark);border-bottom:2px dotted var(--line);padding-bottom:3px}
+.muted{color:var(--muted)}
+.center{text-align:center}
+.hr{height:1px;background:var(--line);margin:10px 0;border:0}
+
+/* buttons: old form-ish */
+.btn{
+  font-family:inherit;font-size:14px;cursor:pointer;color:#14220f;
+  background:linear-gradient(#fffef8,#ddd6c0);
+  border:2px outset #efe9d8; border-radius:3px; padding:7px 12px; margin:3px 3px;
+  box-shadow:0 1px 0 #fff inset; font-weight:700;
+}
+.btn:hover{background:linear-gradient(#fff,#eae3cd)}
+.btn:active{border-style:inset}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.red{color:#fff;background:linear-gradient(#c7342a,#8e1410);border-color:#e59a92}
+.btn.red:hover{background:linear-gradient(#d94a3f,#9d1a15)}
+.btn.green{color:#fff;background:linear-gradient(#2e8b52,#1a5a34);border-color:#a7dcb6}
+.btn.green:hover{background:linear-gradient(#37a261,#206a3d)}
+.btn.gold{color:#3a2b00;background:linear-gradient(#ffe487,#e3b93f);border-color:#fff0bb}
+.btn.blue{color:#fff;background:linear-gradient(#2c6bb0,#173f70);border-color:#9dc2e8}
+.btn.sm{font-size:12px;padding:4px 8px}
+.btn.blk{display:block;width:100%;text-align:center}
+
+/* header strip */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:#cfe8d6;font-size:12px}
+.topbar b{color:#fff}
+
+/* scoreboard */
+.scoreboard{
+  background:var(--ledbg); border:3px solid #000; border-radius:4px; padding:8px;
+  box-shadow:inset 0 0 26px #000, 0 3px 0 #0008; overflow:auto;
+}
+.scoreboard table{border-collapse:collapse;width:100%;font-family:"Consolas","Courier New",monospace}
+.scoreboard th,.scoreboard td{border:1px solid #23301f;padding:3px 6px;text-align:center;color:var(--led);font-size:14px}
+.scoreboard th{color:#7fae7f;font-weight:400;font-size:12px;letter-spacing:.05em}
+.scoreboard td.team{text-align:left;white-space:nowrap;color:#e8f0da;font-family:inherit;font-weight:700}
+.scoreboard td.rhe{color:#ffd76a;font-weight:700}
+.scoreboard tr.player td.team{color:#ffe07a}
+
+/* field */
+.fieldwrap{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.field-svg{width:210px;max-width:48vw;border:2px solid #0a1a10;border-radius:4px;background:#0f2b1c}
+.cond{flex:1;min-width:200px}
+.countbox{background:#0a0f0b;border:2px solid #000;border-radius:4px;padding:8px;margin-bottom:8px}
+.countrow{display:flex;gap:14px;align-items:center;font-family:"Consolas",monospace;color:#9fd7b3;font-size:12px}
+.countrow .lbl{width:26px;color:#cfe8d6}
+.leds{display:flex;gap:5px}
+.led{width:15px;height:15px;border-radius:50%;background:#1b2a1b;border:1px solid #000;box-shadow:inset 0 0 4px #000}
+.led.on.b{background:#4fd07a;box-shadow:0 0 8px #4fd07a}
+.led.on.s{background:#ffd23f;box-shadow:0 0 8px #ffd23f}
+.led.on.o{background:#ff5b45;box-shadow:0 0 8px #ff5b45}
+.matchup{background:#fffdf5;border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.matchup .who{font-weight:700;color:var(--dark);font-size:15px}
+.matchup .pos{display:inline-block;background:var(--dark);color:#fff;font-size:11px;padding:1px 6px;border-radius:3px;margin-left:6px}
+.rrow{display:flex;align-items:center;gap:6px;margin:2px 0;font-size:12px}
+.rrow .rlab{width:44px;color:var(--muted)}
+.rbar{flex:1;height:9px;background:#e6dfc9;border:1px solid #cabf9f;border-radius:3px;overflow:hidden;min-width:60px}
+.rbar i{display:block;height:100%}
+.rrow b{width:26px;text-align:right;font-family:Consolas,monospace}
+
+/* log */
+.log{
+  background:#101a12;color:#cfe8d6;border:2px solid #000;border-radius:3px;
+  padding:10px 12px;height:230px;overflow:auto;font-size:13.5px;line-height:1.65;
+  font-family:"Microsoft JhengHei","MingLiU",sans-serif;
+}
+.log p{margin:2px 0;padding:2px 4px;border-radius:2px}
+.log p.inn{color:#ffe07a;font-weight:700;border-top:1px solid #2b3a2b;margin-top:6px}
+.log p.run{color:#ff9c7a;font-weight:700}
+.log p.hit{color:#8fe0a8}
+.log p.out{color:#a9b8a9}
+.log p.sys{color:#7fae7f;font-style:italic}
+.log p.big{color:#fff;background:#8e1410;font-weight:700}
+
+/* actions */
+.actions{margin-top:10px}
+.actgroup{margin:6px 0}
+.actgroup .gtitle{display:inline-block;font-size:12px;color:#fff;background:var(--dark);padding:2px 8px;border-radius:3px;margin-bottom:3px}
+.turn{font-weight:700;color:var(--accent)}
+
+/* tables */
+table.grid{border-collapse:collapse;width:100%;font-size:13px;background:#fffdf5}
+table.grid th,table.grid td{border:1px solid var(--line);padding:4px 6px;text-align:center}
+table.grid th{background:#e7e0ca;color:#3a3527}
+table.grid tr.me td{background:#fff3c9;font-weight:700}
+table.grid td.name{text-align:left;white-space:nowrap}
+table.grid td.num{font-family:Consolas,monospace}
+.rank1{color:#b8860b;font-weight:900}
+
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;color:#fff;background:#5a6552;margin-left:4px}
+.pill.on{background:#1f8f4a}
+.pill.off{background:#8e2f26}
+
+.teamcard{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  border:2px solid #0a1a10;border-radius:4px;padding:8px 10px;margin:6px 0;background:#fffdf5;
+}
+.teamcard .nm{font-weight:900;font-size:16px}
+.teamcard .meta{font-size:11px;color:var(--muted)}
+.swatch{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid #0007;vertical-align:-2px;margin-right:6px}
+
+.overlay{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}
+.overlay.on{display:flex}
+.overlay div{background:var(--dark);color:#d9f0e0;border:3px solid #000;padding:16px 28px;font-weight:700;letter-spacing:.15em;border-radius:4px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#123021;color:#d9f0e0;border:2px solid #000;padding:8px 20px;border-radius:20px;font-weight:700;opacity:0;transition:.25s;z-index:60;pointer-events:none;box-shadow:0 4px 0 #0006}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.footer{color:#7f9c88;font-size:11px;text-align:center;margin-top:14px;font-family:Consolas,monospace;word-break:break-all}
+.help dt{font-weight:700;color:var(--dark);margin-top:8px}
+.help dd{margin:2px 0 0 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.two{grid-template-columns:1fr}.logo{font-size:22px}}
+.bignum{font-family:"Consolas",monospace;font-weight:900;font-size:20px;color:var(--led)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">劇空間棒球<small>GEKIKUUKAN BASEBALL</small></div>
+  <div id="app"></div>
+  <div class="footer" id="cgi"></div>
+</div>
+<div class="overlay" id="ov"><div>送信中…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   劇空間棒球 — 單檔復古 CGI 風棒球遊戲
+   模式：經典 9 局對戰 + 即時戰術 + 球隊經營/整季賽程
+   ============================================================ */
+
+/* ---------- 基本工具 ---------- */
+const $=(s,el=document)=>el.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const rf=(a,b)=>a+Math.random()*(b-a);
+const chance=p=>Math.random()<p;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function nrm(rnd,mean,sd){return mean+((rnd()+rnd()+rnd()+rnd()-2)/2)*sd;}
+function weightedPick(pairs){let t=0;for(const p of pairs)t+=p[1];let r=Math.random()*t;for(const p of pairs){r-=p[1];if(r<=0)return p[0];}return pairs[pairs.length-1][0];}
+function poisson(l){let L=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
+function fmtAvg(v){if(!v||isNaN(v))return ".000";return (v>=1?"1.000":v.toFixed(3).replace(/^0/,""));}
+function fmtIP(outs){return Math.floor(outs/3)+"."+(outs%3);}
+function fmtERA(er,outs){if(!outs)return"-.--";return (er*27/outs).toFixed(2);}
+
+/* ---------- 名稱池 ---------- */
+const SU=["王","李","林","陳","張","黃","劉","蔡","楊","吳","許","鄭","謝","郭","洪","曾","廖","賴","徐","周","葉","蘇","莊","江","呂","何","羅","高","蕭","潘","彭","沈","柯","游","溫","盧","侯","石","詹","連","宋","曹","方","田","杜","韓","傅","鍾","涂","范"];
+const GI=["柏融","威晨","智勝","育成","子偉","岱鋼","國輝","泓志","家豪","俊秀","政閔","勝偉","振昌","凱文","均聲","致遠","金鋒","泰山","建民","宸緯","宇翔","冠廷","承翰","翊豪","哲瑄","皓然","凱翔","宥均","秉澄","冠宇","柏霖","宥辰","書豪","睿宸","柏睿","宥嘉","彥廷","子豪","冠緯","家緯","宇宸"];
+const POS_ZH={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊"};
+
+/* ---------- 球隊定義 ---------- */
+const TEAM_DEFS=[
+  {id:"azure",  name:"蒼海鯊", short:"鯊", c1:"#17a08a", c2:"#08493f", stadium:"蒼海灣球場", str:5},
+  {id:"blaze",  name:"烈焰龍", short:"龍", c1:"#e23b2a", c2:"#7a1408", stadium:"烈焰球場",   str:3},
+  {id:"gale",   name:"疾風鷹", short:"鷹", c1:"#9b59b6", c2:"#4a1f63", stadium:"疾風丘球場", str:0},
+  {id:"aurora", name:"極光熊", short:"熊", c1:"#2a7de1", c2:"#0b3d78", stadium:"極光巨蛋",   str:-1},
+  {id:"thunder",name:"雷神虎", short:"虎", c1:"#e5a11a", c2:"#7a5406", stadium:"雷神山球場", str:-3},
+  {id:"phantom",name:"幻影獅", short:"獅", c1:"#4a5b6b", c2:"#1c2530", stadium:"幻影圓頂",   str:-5},
+];
+
+/* ---------- 球員產生（依隊 deterministic） ---------- */
+function mkName(rnd,used){
+  for(let i=0;i<40;i++){
+    const n=pick(SU)+pick(GI);
+    if(!used.has(n)){used.add(n);return n;}
+  }
+  return pick(SU)+pick(GI);
+}
+function genRoster(team){
+  const rnd=mulberry32(hashStr("gk-roster-v3-"+team.id));
+  const used=new Set();
+  const pos=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const arch=["contact","power","speed","eye","balanced"];
+  const batters=[];
+  for(let i=0;i<13;i++){
+    const p=i<9?pos[i]:null;
+    const a=pick(arch);
+    let meet=nrm(rnd,52,10),power=nrm(rnd,50,13),eye=nrm(rnd,50,11),speed=nrm(rnd,52,12),def=nrm(rnd,52,11);
+    if(a==="contact"){meet+=9;eye+=3;power-=4;}
+    if(a==="power"){power+=14;meet-=5;speed-=6;}
+    if(a==="speed"){speed+=16;def+=4;power-=7;meet+=1;}
+    if(a==="eye"){eye+=14;meet+=2;power+=2;speed-=6;}
+    if(p==="C"){def+=12;speed-=8;meet+=2;}
+    if(p==="1B"){power+=8;def-=3;speed-=4;}
+    if(p==="2B"){def+=8;speed+=4;power-=6;}
+    if(p==="3B"){power+=6;def+=3;}
+    if(p==="SS"){def+=12;speed+=6;power-=4;}
+    if(p==="CF"){def+=8;speed+=8;power-=2;}
+    if(p==="LF"||p==="RF"){power+=3;def-=2;}
+    const s=team.str;
+    batters.push({
+      id:team.id+"b"+i, name:mkName(rnd,used),
+      pos:p||("B"+i), posLabel:p?POS_ZH[p]:"替補", bench:i>=9,
+      meet:Math.round(clamp(meet+s,25,96)), power:Math.round(clamp(power+s,20,96)),
+      eye:Math.round(clamp(eye+s,25,96)), speed:Math.round(clamp(speed+s,20,96)),
+      defense:Math.round(clamp(def+s,20,96))
+    });
+  }
+  const pitchers=[];
+  for(let i=0;i<6;i++){
+    const sp=i<3;
+    let velocity=nrm(rnd,sp?62:71,8),control=nrm(rnd,sp?64:60,9),breaking=nrm(rnd,sp?62:68,9),stamina=nrm(rnd,sp?74:42,sp?7:8);
+    pitchers.push({
+      id:team.id+"p"+i, name:mkName(rnd,used), role:sp?"先發":"後援", starter:sp,
+      velocity:Math.round(clamp(velocity+team.str,25,97)),
+      control:Math.round(clamp(control+team.str,25,97)),
+      breaking:Math.round(clamp(breaking+team.str,25,97)),
+      stamina:Math.round(clamp(stamina,25,95))
+    });
+  }
+  return {batters,pitchers};
+}
+const teamCache={};
+function getTeam(id){
+  if(!teamCache[id]){
+    const def=TEAM_DEFS.find(t=>t.id===id);
+    teamCache[id]=Object.assign({},def,genRoster(def));
+  }
+  return teamCache[id];
+}
+
+/* ---------- 投打數據模型 ---------- */
+const OFF_MODS={
+  normal:{k:1,hr:1,xbh:1,hit:1,bb:1},
+  power:{k:1.35,hr:1.85,xbh:1.35,hit:0.90,bb:0.90},
+  take:{k:1.22,hr:0.80,xbh:0.85,hit:0.88,bb:1.55},
+  hitrun:{k:1.15,hr:1.05,xbh:1.05,hit:1.06,bb:0.85}
+};
+const DEF_MODS={
+  power:{k:1.24,hr:1.25,hit:0.90,bb:1.28,hbp:1.15,fat:1.7},
+  control:{k:0.85,hr:1.05,hit:1.10,bb:0.55,hbp:0.9,fat:1.0},
+  corner:{k:1.05,hr:0.90,hit:0.90,bb:1.12,hbp:1.0,fat:1.2,ground:1.3},
+  chase:{k:1.18,hr:0.82,hit:1.00,bb:1.30,hbp:1.0,fat:1.15}
+};
+const OFF_NAME={normal:"正常揮擊",power:"強力揮擊",take:"耐心等球",bunt:"犧牲短打",hitrun:"打帶跑"};
+const DEF_NAME={power:"全力投球",control:"控球至上",corner:"邊邊角角",chase:"引誘球",ibb:"故意四壞"};
+
+function pitcherEffective(p,pitches){
+  const thr=42+p.stamina*0.62;
+  let f=1;
+  if(pitches>thr) f=clamp(1-(pitches-thr)*0.0032,0.70,1);
+  return {velocity:p.velocity*f,control:p.control*(0.86+0.14*f),breaking:p.breaking*f,fatigue:f};
+}
+const m_=(v,ref,k)=>Math.exp((v-ref)*k);
+const inv=(v,ref,k)=>1/m_(v,ref,k);
+function paOutcome(batter,eff,offT,defT){
+  const om=OFF_MODS[offT]||OFF_MODS.normal, dm=DEF_MODS[defT]||DEF_MODS.control;
+  const kAb=eff.velocity*0.45+eff.breaking*0.55;
+  const supp=eff.breaking*0.6+eff.velocity*0.4;
+  const ctl=eff.control;
+  let pK =0.178*m_(kAb,60,1/60)*inv(batter.meet,60,1/55)*om.k*dm.k;
+  let pBB=0.090*m_(batter.eye,60,1/70)*inv(ctl,60,1/60)*om.bb*dm.bb;
+  let pHBP=0.010*(dm.hbp||1);
+  let pHR=0.032*m_(batter.power,60,1/55)*inv(supp,60,1/55)*om.hr*dm.hr;
+  let p3B=0.007*m_(batter.speed,60,1/80)*om.xbh*dm.hit;
+  let p2B=0.058*m_(batter.power,58,1/70)*inv(supp,60,1/64)*om.xbh*dm.hit;
+  let p1B=0.172*m_(batter.meet,60,1/70)*inv(supp,60,1/60)*om.hit*dm.hit;
+  let sum=pK+pBB+pHBP+pHR+p3B+p2B+p1B;
+  if(sum>0.985){const s=0.985/sum;pK*=s;pBB*=s;pHBP*=s;pHR*=s;p3B*=s;p2B*=s;p1B*=s;sum=0.985;}
+  const pOut=1-sum;
+  return weightedPick([["K",pK],["BB",pBB],["HBP",pHBP],["HR",pHR],["3B",p3B],["2B",p2B],["1B",p1B],["OUT",pOut]]);
+}
+
+/* ---------- 壘上推進 ---------- */
+function hitAdvance(bases,batter,kind,hitrun){
+  let runs=0;const nb=[null,null,null];const scored=[];
+  const r1=bases[0],r2=bases[1],r3=bases[2];
+  const sp=x=>x?x.speed:0;
+  if(kind==="HR"){
+    if(r1){runs++;scored.push(r1);}if(r2){runs++;scored.push(r2);}if(r3){runs++;scored.push(r3);}
+    runs++;scored.push(batter);
+    return{runs,bases:nb,scored};
+  }
+  if(kind==="3B"){
+    if(r1){runs++;scored.push(r1);}if(r2){runs++;scored.push(r2);}if(r3){runs++;scored.push(r3);}
+    nb[2]=batter;return{runs,bases:nb,scored};
+  }
+  if(kind==="2B"){
+    if(r3){runs++;scored.push(r3);}
+    if(r2){runs++;scored.push(r2);}
+    if(r1){if(hitrun||sp(r1)>=62||chance(0.42)){runs++;scored.push(r1);}else nb[2]=r1;}
+    nb[1]=batter;return{runs,bases:nb,scored};
+  }
+  // 一壘安打
+  if(r3){runs++;scored.push(r3);}
+  if(r2){if(hitrun||sp(r2)>=58||chance(0.62)){runs++;scored.push(r2);}else nb[2]=r2;}
+  if(r1){if(hitrun){if(!nb[2])nb[2]=r1;}else nb[1]=r1;}
+  nb[0]=batter;return{runs,bases:nb,scored};
+}
+function advanceOnWalk(bases,batter){
+  const nb=[bases[0],bases[1],bases[2]];let runs=0;const scored=[];
+  if(bases[0]&&bases[1]&&bases[2]){runs++;scored.push(bases[2]);nb[2]=bases[1];nb[1]=bases[0];nb[0]=batter;}
+  else if(bases[0]&&bases[1]){nb[2]=bases[1];nb[1]=bases[0];nb[0]=batter;}
+  else if(bases[0]){nb[1]=bases[0];nb[0]=batter;}
+  else{nb[0]=batter;}
+  return {runs,bases:nb,scored};
+}
+function resolveOut(bases,batter,outs,groundBias){
+  const r1=bases[0],r2=bases[1],r3=bases[2];
+  const w=[["ground",0.42*(groundBias||1)],["fly",0.36],["line",0.12],["pop",0.10*(groundBias?0.8:1)]];
+  let subtype=weightedPick(w);
+  let nb=[r1,r2,r3],runs=0,outsAdded=1,reached=false,error=false,desc="";
+  if(subtype==="ground"&&r1&&outs<2){
+    const roll=Math.random();
+    if(roll<0.32*(groundBias||1)){ // 雙殺
+      outsAdded=2;nb[0]=null;desc="精湛的雙殺守備";
+    }else if(roll<0.32*(groundBias||1)+0.30){ // 野手選擇
+      nb[0]=batter;reached=true;
+      if(r3&&chance(0.35)){runs++;nb[2]=null;}
+      desc="野手選擇，跑者被封殺在二壘";
+    }else{ nb[0]=null; desc="滾地球遭到刺殺"; }
+  }else if(subtype==="fly"&&r3&&outs<2&&chance(0.5)){
+    runs++;nb[2]=null;desc="高飛犧牲打，三壘跑者奔回本壘";
+  }else if(subtype==="line"&&r1&&outs<2&&chance(0.12)){
+    outsAdded=2;nb[0]=null;desc="平飛球被接殺，跑者回壘不及造成雙殺";
+  }else{
+    desc=({ground:"滾地球遭到刺殺",fly:"高飛球被接殺",line:"平飛球被沒收",pop:"內野小飛球被接殺"})[subtype];
+  }
+  return {bases:nb,runs,outsAdded,reached,error:false,subtype,desc};
+}
+
+/* ---------- 比賽狀態 ---------- */
+function sideName(m,side){return getTeam(side==="home"?m.homeId:m.awayId).name;}
+function currentBatter(m){const lu=m.lineups[offenseSide(m)];return lu[m.batterIdx[offenseSide(m)]%lu.length];}
+function defenseSide(m){return m.half==="top"?"away":"home";}
+function offenseSide(m){return m.half==="top"?"away":"home";}
+function playerIsOffense(m){const s=S.season.playerTeam;return m.half==="top"?m.awayId===s:m.homeId===s;}
+function getBat(m,pid){if(!m.stats[pid])m.stats[pid]={ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};return m.stats[pid];}
+function batAdd(m,pid,d){const s=getBat(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
+function getPit(m,pid){if(!m.pstats[pid])m.pstats[pid]={outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0};return m.pstats[pid];}
+function pitAdd(m,pid,d){const s=getPit(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
+function addRuns(m,side,n){if(n<=0)return;m.score[side]+=n;m.line[side][m.inning-1]+=n;}
+
+function buildLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
+function starterOf(team,day){const sp=team.pitchers.filter(p=>p.starter);return sp[(day+hashStr(team.id))%sp.length];}
+
+function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
+  const home=getTeam(homeId),away=getTeam(awayId);
+  const m={
+    homeId,awayId,dayIndex,
+    inning:1,half:"top",outs:0,balls:0,strikes:0,
+    bases:[null,null,null],
+    score:{away:0,home:0},hits:{away:0,home:0},errs:{away:0,home:0},
+    line:{away:new Array(12).fill(0),home:new Array(12).fill(0)},
+    lineups:{away:buildLineup(away),home:buildLineup(home)},
+    bench:{away:away.batters.filter(b=>b.bench),home:home.batters.filter(b=>b.bench)},
+    bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
+    usedPitchers:{away:[],home:[]},
+    batterIdx:{away:0,home:0},
+    pitchers:{away:{obj:awayStarter,pitches:0},home:{obj:homeStarter,pitches:0}},
+    stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
+    lastOff:null,lastDef:null,usedSubs:new Set()
+  };
+  m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
+  m.log.push(`　先發投手　${away.name}：${awayStarter.name}　／　${home.name}：${homeStarter.name}`);
+  m.log.push(`◆ 1局上　${away.name}的進攻`);
+  return m;
+}
+
+/* ---------- 打席處理 ---------- */
+function playPA(m,offT,defT){
+  const offSide=offenseSide(m),defSide=defenseSide(m);
+  const batter=currentBatter(m);
+  const P=m.pitchers[defSide];
+  const eff=pitcherEffective(P.obj,P.pitches);
+  const L=[];
+  const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
+
+  const runnerOn1=!!m.bases[0],runnerOn2=!!m.bases[1],runnerOn3=!!m.bases[2];
+  const anyRunner=runnerOn1||runnerOn2||runnerOn3;
+  if(offT==="bunt"&&!anyRunner)offT="normal";
+  if(offT==="hitrun"&&!anyRunner)offT="normal";
+
+  const thrown=ri(1,4)+ri(0,2);
+  P.pitches+=thrown;
+  pitAdd(m,P.obj.id,{pp:thrown});
+
+  let ev;
+  if(offT==="bunt"){
+    const succ=clamp(0.62+(batter.speed-60)/300-(eff.velocity-60)/500,0.30,0.86);
+    if(chance(succ)) ev=chance(0.10)?"BUNTHIT":"SAC";
+    else ev="BUNTOUT";
+  }else{
+    ev=paOutcome(batter,eff,offT,defT);
+  }
+
+  push(`　投手「${DEF_NAME[defT]||"配球"}」對決打者「${OFF_NAME[offT]||"揮擊"}」。`,null);
+
+  let runs=0,desc="",cls="out";
+  if(ev==="K"){m.outs++;
+    batAdd(m,batter.id,{ab:1,k:1});pitAdd(m,P.obj.id,{k:1,outs:1});
+    desc=`三振！${batter.name}揮棒落空，黯然退回休息區。`;cls="out";
+    if(offT==="hitrun"&&runnerOn1&&m.outs<2&&chance(0.42)){
+      m.bases[0]=null;m.outs++;desc+=`（打帶跑走壘失敗，一壘跑者被封殺！）`;
+    }
+  }
+  else if(ev==="OUT"){const r=resolveOut(m.bases,batter,m.outs,DEF_MODS[defT]&&DEF_MODS[defT].ground);
+    runs=r.runs;m.outs+=r.outsAdded;m.bases=r.bases;
+    batAdd(m,batter.id,{ab:1});pitAdd(m,P.obj.id,{outs:r.outsAdded});
+    desc=r.desc+"。";cls="out";
+  }
+  else if(ev==="SAC"){const nb=[m.bases[0],m.bases[1],m.bases[2]];let rr=0;
+    if(m.bases[2]){rr++;nb[2]=null;}
+    if(m.bases[1]){nb[2]=m.bases[1];nb[1]=null;}
+    if(m.bases[0]){nb[1]=m.bases[0];nb[0]=null;}
+    runs=rr;m.bases=nb;m.outs++;
+    batAdd(m,batter.id,{ab:0});pitAdd(m,P.obj.id,{outs:1});
+    desc=`漂亮的犧牲短打！${batter.name} 成功護送跑者${rr?"並送回一分":""}。`;cls="out";
+  }
+  else if(ev==="BUNTOUT"){m.outs++;batAdd(m,batter.id,{ab:1});pitAdd(m,P.obj.id,{outs:1});desc=`短打失敗，${batter.name} 點成小飛球被接殺。`;cls="out";}
+  else if(ev==="BUNTHIT"){const nb=[batter,m.bases[0],m.bases[1]];let rr=0;
+    if(m.bases[2]){rr++;nb[2]=m.bases[1];nb[1]=m.bases[0];nb[0]=batter;}
+    else if(m.bases[1]){nb[2]=m.bases[1];nb[1]=m.bases[0];nb[0]=batter;}
+    runs=rr;m.bases=nb;m.hits[offSide]++;
+    batAdd(m,batter.id,{ab:1,h:1});pitAdd(m,P.obj.id,{h:1});
+    desc=`出其不意！${batter.name} 偷點形成內野安打！`;cls="hit";
+  }
+  else if(ev==="BB"){const r=advanceOnWalk(m.bases,batter);runs=r.runs;m.bases=r.bases;
+    batAdd(m,batter.id,{ab:0,bb:1});pitAdd(m,P.obj.id,{bb:1});
+    r.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
+    desc=`四壞球保送，${batter.name}選球上壘。`;cls="hit";
+  }
+  else if(ev==="HBP"){const r=advanceOnWalk(m.bases,batter);runs=r.runs;m.bases=r.bases;
+    batAdd(m,batter.id,{ab:0,bb:1});
+    r.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
+    desc=`觸身球！${batter.name}挨了一記，保送上壘。`;cls="hit";
+  }
+  else{ // 安打：一壘／二壘／三壘／全壘打
+    const h=hitAdvance(m.bases,batter,ev,offT==="hitrun");
+    runs=h.runs;m.bases=h.bases;m.hits[offSide]++;
+    pitAdd(m,P.obj.id,{h:1});
+    batAdd(m,batter.id,{ab:1,h:1});
+    if(ev==="HR")batAdd(m,batter.id,{hr:1});
+    h.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
+    const word={"HR":"全壘打","3B":"三壘安打","2B":"二壘安打","1B":"一壘安打"}[ev];
+    if(ev==="HR"){desc=`全壘打～～！！ ${batter.name} 的${runs>1?runs+"分":"陽春"}彈！`;cls="big";}
+    else{desc=`${word}！${batter.name} 擊出穿越防線的安打${runs?"，跑者回壘得分":""}。`;cls="hit";}
+  }
+
+  // 得分
+  if(runs>0){
+    addRuns(m,offSide,runs);
+    batAdd(m,batter.id,{rbi:runs});
+    pitAdd(m,P.obj.id,{r:runs,er:runs});
+    push(`　★ ${sideName(m,offSide)} 拿下 ${runs} 分！`, "run");
+  }
+
+  // 產出文字
+  const cnt=makeCount(ev);
+  const pitchWords=makePitchSeq(ev,cnt);
+  pitchWords.forEach(w=>push("　　› "+w,null));
+  push(`　${desc}（球數 ${cnt.b}-${cnt.s}）`,cls);
+
+  // 下一棒
+  m.batterIdx[offSide]++;
+  m.balls=0;m.strikes=0;
+
+  // 再見安打判定
+  if(m.half==="bottom"&&m.inning>=9&&m.score.home>m.score.away){
+    m.over=true;m.winner="home";m.walkoff=true;
+  }
+}
+
+function makeCount(ev){
+  if(ev==="K")return{b:ri(0,3),s:3};
+  if(ev==="BB")return{b:4,s:ri(0,2)};
+  if(ev==="HBP")return{b:0,s:0};
+  return{b:ri(0,3),s:ri(0,2)};
+}
+function makePitchSeq(ev,cnt){
+  const arr=[];
+  for(let i=0;i<cnt.b;i++)arr.push("壞球，球數落後");
+  for(let i=0;i<cnt.s;i++)arr.push(chance(0.5)?"好球沒揮，記好球":"精彩的界外球");
+  if(arr.length===0)arr.push("第一球就出手");
+  const fin={"K":"再見三振，棒子揮了個空","BB":"明顯壞球，打者獲得保送","HBP":"身體附近的球，打者閃避不及",
+    "HR":"清脆的擊球聲！球飛向中外野深處","3B":"強勁的平飛球滾向右外野縫隙","2B":"深遠的飛球落地，打者衝上二壘",
+    "1B":"穿越內野的強襲安打","OUT":"擊球進場，被防守方處理",
+    "SAC":"輕輕一點，球滾向三壘方向","BUNTHIT":"突如其來的一點，防守方反應不及","BUNTOUT":"點成小飛球，被捕手接殺"}[ev]||"擊球進場";
+  arr.push(fin);
+  return arr;
+}
+
+/* ---------- 半局 / 比賽結束 ---------- */
+function endHalf(m){
+  m.outs=0;m.bases=[null,null,null];m.balls=0;m.strikes=0;
+  const finished=m.half;
+  if(finished==="top"){
+    if(m.inning>=9&&m.score.home>m.score.away){m.over=true;m.winner="home";return;}
+    if(m.inning>=9&&m.score.home!==m.score.away){m.over=true;m.winner="home";return;}
+    m.half="bottom";
+    m.log.push({t:`◆ ${m.inning}局下　${sideName(m,"home")}的進攻`,c:"inn"});
+  }else{
+    if(m.inning>=9&&m.score.home!==m.score.away){m.over=true;m.winner=m.score.home>m.score.away?"home":"away";return;}
+    if(m.inning>=12){m.over=true;m.winner=null;return;}
+    m.inning++;m.half="top";
+    m.log.push({t:`◆ ${m.inning}局上　${sideName(m,"away")}的進攻`,c:"inn"});
+  }
+}
+
+/* ---------- CPU AI 戰術 ---------- */
+function aiOffense(m){
+  const batter=currentBatter(m);
+  const defSide=defenseSide(m);
+  const eff=pitcherEffective(m.pitchers[defSide].obj,m.pitchers[defSide].pitches);
+  const r1=!!m.bases[0],r2=!!m.bases[1],r3=!!m.bases[2];
+  if(m.outs<2&&!r3&&(r1||r2)&&batter.power<58&&chance(0.32))return "bunt";
+  if(r1&&batter.speed>72&&m.outs<2&&chance(0.14))return "hitrun";
+  if(batter.power>72&&(r1||r2)&&m.outs<2&&chance(0.26))return "power";
+  if(eff.control<58&&chance(0.30))return "take";
+  return "normal";
+}
+function aiDefense(m){
+  const batter=currentBatter(m);
+  const defSide=defenseSide(m);
+  const P=m.pitchers[defSide];
+  const openFirst=!m.bases[0];
+  if(m.outs<2&&openFirst&&(m.bases[1]||m.bases[2])&&batter.power>78&&chance(0.55))return "ibb";
+  if(P.pitches>75&&chance(0.4))return "control";
+  if(batter.power>75)return chance(0.5)?"corner":"chase";
+  return weightedPick([["corner",0.40],["control",0.28],["power",0.20],["chase",0.12]]);
+}
+
+/* ---------- 玩家特殊動作 ---------- */
+function doIBB(m){
+  const offSide=offenseSide(m),batter=currentBatter(m),P=m.pitchers[defenseSide(m)];
+  const r=advanceOnWalk(m.bases,batter);
+  m.bases=r.bases;
+  if(r.runs>0){addRuns(m,offSide,r.runs);batAdd(m,batter.id,{rbi:r.runs});}
+  batAdd(m,batter.id,{ab:0,bb:1});
+  m.log.push({t:`　投手選擇故意四壞，保送 ${batter.name} 上一壘。`,c:"sys"});
+  m.batterIdx[offSide]++;P.pitches+=4;pitAdd(m,P.obj.id,{pp:4,bb:1});
+}
+function doSteal(m){
+  const offSide=offenseSide(m);
+  let from=-1,to=-1,runner=null;
+  if(m.bases[0]){from=0;to=1;runner=m.bases[0];}
+  else if(m.bases[1]){from=1;to=2;runner=m.bases[1];}
+  if(!runner){m.log.push({t:"　沒有可盜壘的跑者。",c:"sys"});return;}
+  const defSide=defenseSide(m),eff=pitcherEffective(m.pitchers[defSide].obj,m.pitchers[defSide].pitches);
+  const p=clamp(0.60+(runner.speed-60)/160-(eff.velocity-60)/400,0.35,0.88);
+  if(chance(p)){
+    m.bases[from]=null;m.bases[to]=runner;
+    m.log.push({t:`　★ 盜壘成功！${runner.name} 用速度搶下${to===2?"三壘":"二壘"}！`,c:"hit"});
+  }else{
+    m.bases[from]=null;m.outs++;
+    m.log.push({t:`　盜壘失敗！${runner.name} 遭到阻殺，${m.outs}人出局。`,c:"out"});
+    if(m.outs>=3)endHalf(m);
+  }
+}
+function doPinchHit(m){
+  const offSide=offenseSide(m);
+  const bench=m.bench[offSide];
+  if(!bench.length){m.log.push({t:"　已無可用之兵。",c:"sys"});return;}
+  const lu=m.lineups[offSide],idx=m.batterIdx[offSide]%lu.length;
+  const before=lu[idx];
+  const sub=bench.shift();
+  lu[idx]=sub;
+  m.log.push({t:`　代打！${before.name} 退場，${sub.name} 拎著球棒走上打擊區。`,c:"sys"});
+}
+function doChangePitcher(m,pid){
+  const defSide=defenseSide(m);
+  const bp=m.bullpen[defSide];
+  const i=bp.findIndex(p=>p.id===pid);
+  if(i<0)return;
+  const np=bp.splice(i,1)[0];
+  m.usedPitchers[defSide].push(m.pitchers[defSide].obj.id);
+  m.pitchers[defSide]={obj:np,pitches:0};
+  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換上 ${np.name}（${np.role}）接替投球。`,c:"run"});
+}
+
+/* ---------- 遊戲回合控制 ---------- */
+let busy=false;
+function submit(fn,ms){
+  if(busy)return;
+  busy=true;
+  const ov=$("#ov");if(ov)ov.classList.add("on");
+  setTimeout(()=>{
+    try{fn();}catch(e){console.error(e);}
+    busy=false;if(ov)ov.classList.remove("on");
+    if(S.match&&S.match.over&&!S.match._processed)processGameEnd(S.match);
+    render();
+  },ms||230);
+}
+function resolveTurn(offT,defT){
+  const m=S.match;if(!m||m.over)return;
+  if(defT==="ibb"){doIBB(m);}
+  else{playPA(m,offT,defT);}
+  if(!m.over&&m.outs>=3)endHalf(m);
+}
+function autoHalf(m){
+  const startHalf=m.half,startInn=m.inning;let guard=0;
+  while(!m.over&&m.half===startHalf&&m.inning===startInn&&guard++<200){
+    playPA(m,aiOffense(m),aiDefense(m));
+    if(m.outs>=3)endHalf(m);
+  }
+}
+function autoGame(m){
+  let guard=0;
+  while(!m.over&&guard++<4000){
+    playPA(m,aiOffense(m),aiDefense(m));
+    if(m.outs>=3)endHalf(m);
+  }
+  if(!m.over){m.over=true;}
+}
+
+/* ---------- 球季 ---------- */
+function roundRobin(ids){
+  const n=ids.length,rounds=[];
+  let arr=ids.slice();
+  for(let r=0;r<n-1;r++){
+    const pairs=[];
+    for(let i=0;i<n/2;i++)pairs.push([arr[i],arr[n-1-i]]);
+    rounds.push(pairs);
+    const fixed=arr[0],rest=arr.slice(1);rest.unshift(rest.pop());arr=[fixed].concat(rest);
+  }
+  return rounds;
+}
+function makeSchedule(){
+  const ids=TEAM_DEFS.map(t=>t.id);
+  const first=roundRobin(ids);
+  const days=[];
+  first.forEach((round,r)=>{
+    days.push(round.map((p,i)=>r%2===0?{away:p[0],home:p[1],played:false,score:null}:{away:p[1],home:p[0],played:false,score:null}));
+  });
+  first.forEach((round,r)=>{
+    days.push(round.map((p,i)=>r%2===0?{away:p[1],home:p[0],played:false,score:null}:{away:p[0],home:p[1],played:false,score:null}));
+  });
+  return days;
+}
+function teamStrength(id){
+  const t=getTeam(id);
+  const off=avg(t.batters.slice(0,9).map(b=>b.meet*0.6+b.power*0.4));
+  const def=avg(t.pitchers.map(p=>p.control*0.4+p.breaking*0.3+p.velocity*0.3));
+  return {off,def};
+}
+function quickSim(aId,bId){
+  const a=teamStrength(aId),b=teamStrength(bId);
+  const lamA=clamp(4.3*Math.pow(a.off/b.def,0.6)*rf(0.8,1.2),0.6,12);
+  const lamB=clamp(4.3*Math.pow(b.off/a.def,0.6)*rf(0.8,1.2),0.6,12);
+  let sa=poisson(lamA),sb=poisson(lamB),x=0;
+  while(sa===sb&&x<6){if(chance(0.5))sa++;else sb++;x++;}
+  return {a:sa,b:sb};
+}
+function applyRecord(awayId,homeId,ra,rh){
+  const r=S.season.records;
+  [awayId,homeId].forEach(id=>{if(!r[id])r[id]={w:0,l:0,t:0,rs:0,ra:0};});
+  r[awayId].rs+=ra;r[awayId].ra+=rh;r[homeId].rs+=rh;r[homeId].ra+=ra;
+  if(ra>rh){r[awayId].w++;r[homeId].l++;}
+  else if(rh>ra){r[homeId].w++;r[awayId].l++;}
+  else{r[awayId].t++;r[homeId].t++;}
+}
+function mergePlayerStats(m){
+  const tid=S.season.playerTeam;
+  const ps=S.season.playerStats;
+  for(const pid in m.stats){ if(pid.indexOf(tid+"b")===0){const s=m.stats[pid];const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];} }
+  for(const pid in m.pstats){ if(pid.indexOf(tid+"p")===0){const s=m.pstats[pid];const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];} }
+  // 勝敗投手
+  if(m.winner){
+    const wSide=m.winner;
+    // 先發/後援簡化：最後投球且獲勝方 → 勝投
+    const wTeam=wSide==="home"?m.homeId:m.awayId;
+    if(wTeam===tid){/* 玩家隊，找最後上場投手 */ }
+  }
+}
+function processGameEnd(m){
+  if(m._processed)return;m._processed=true;
+  const day=S.season.schedule[m.dayIndex];
+  const g=day.find(x=>x.away===m.awayId&&x.home===m.homeId);
+  if(g){g.played=true;g.score={a:m.score.away,h:m.score.home};}
+  applyRecord(m.awayId,m.homeId,m.score.away,m.score.home);
+  mergePlayerStats(m);
+  day.forEach(x=>{
+    if(x.played)return;
+    const r=quickSim(x.away,x.home);
+    x.played=true;x.score=r;
+    applyRecord(x.away,x.home,r.a,r.b);
+  });
+  S.season.day++;
+  saveGame();
+}
+
+/* ---------- 存檔 ---------- */
+const SAVEKEY="gekikuukan_baseball_save_v1";
+function saveGame(){
+  if(!S.season)return;
+  try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));}catch(e){}
+}
+function loadGame(){
+  try{const raw=localStorage.getItem(SAVEKEY);if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;}catch(e){return false;}
+}
+function hasSave(){try{return !!localStorage.getItem(SAVEKEY);}catch(e){return false;}}
+
+/* ---------- 遊戲狀態 ---------- */
+const S={screen:"title",season:null,match:null,flash:""};
+
+function newSeason(playerTeam){
+  S.season={
+    playerTeam,
+    day:0,
+    schedule:makeSchedule(),
+    records:{},
+    playerStats:{bat:{},pit:{}},
+    started:Date.now()
+  };
+  TEAM_DEFS.forEach(t=>S.season.records[t.id]={w:0,l:0,t:0,rs:0,ra:0});
+  saveGame();
+}
+function nextPlayerGame(){
+  const day=S.season.schedule[S.season.day];
+  if(!day)return null;
+  const g=day.find(x=>x.away===S.season.playerTeam||x.home===S.season.playerTeam);
+  return g||null;
+}
+function startMatch(){
+  const g=nextPlayerGame();
+  if(!g)return;
+  const dayIdx=S.season.day;
+  const away=getTeam(g.away),home=getTeam(g.home);
+  S.match=newMatch(g.home,g.away,dayIdx,starterOf(home,dayIdx),starterOf(away,dayIdx));
+  S.match.playerSide=playerTeamSide(S.match);
+  S.screen="game";
+}
+function playerTeamSide(m){
+  return m.awayId===S.season.playerTeam?"away":"home";
+}
+
+/* ---------- 排名 ---------- */
+function standingsList(){
+  const r=S.season.records;
+  const rows=TEAM_DEFS.map(t=>{
+    const d=r[t.id]||{w:0,l:0,t:0,rs:0,ra:0};
+    const pct=(d.w+d.l)?d.w/(d.w+d.l):0;
+    return {id:t.id,name:t.name,w:d.w,l:d.l,t:d.t,pct,gb:0,rs:d.rs,ra:d.ra};
+  });
+  rows.sort((a,b)=>b.pct-a.pct||b.w-a.w);
+  let top=rows[0];
+  rows.forEach(x=>{
+    if(x===top)x.gb="-";
+    else x.gb=(((top.w-x.w)+(x.l-top.l))/2).toFixed(1);
+  });
+  return rows;
+}
+
+/* ---------- 畫面渲染 ---------- */
+function render(){
+  const app=$("#app");
+  if(S.screen==="title")app.innerHTML=viewTitle();
+  else if(S.screen==="newgame")app.innerHTML=viewNewGame();
+  else if(S.screen==="hub")app.innerHTML=viewHub();
+  else if(S.screen==="game")app.innerHTML=viewGame();
+  else if(S.screen==="roster")app.innerHTML=viewRoster();
+  else if(S.screen==="schedule")app.innerHTML=viewSchedule();
+  else if(S.screen==="standings")app.innerHTML=viewStandings();
+  else if(S.screen==="help")app.innerHTML=viewHelp();
+  renderCGI();
+  const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
+  const toast=$("#toast");
+  if(toast&&S.flash){toast.textContent=S.flash;toast.classList.add("on");S.flash="";setTimeout(()=>toast.classList.remove("on"),1800);}
+}
+function renderCGI(){
+  const c=$("#cgi");if(!c)return;
+  let q="mode=top";
+  if(S.screen==="game"&&S.match){
+    const m=S.match;
+    q=`game.cgi?mode=bat&inn=${m.inning}&half=${m.half}&o=${m.outs}&b=${m.bases.map(x=>x?1:0).join("")}&sc=${m.score.away}-${m.score.home}`;
+  }else if(S.season){
+    q=`season.cgi?team=${S.season.playerTeam}&day=${S.season.day}&mode=${S.screen}`;
+  }
+  c.textContent="http://gekikuukan.local/cgi-bin/"+q;
+}
+function teamBadge(id){
+  const t=getTeam(id);
+  return `<span class="swatch" style="background:${t.c1}"></span>${esc(t.name)}`;
+}
+function rbar(label,v){
+  const col=v>=75?"#2e9e4f":v>=58?"#c9a227":"#b5533a";
+  return `<div class="rrow"><span class="rlab">${label}</span><span class="rbar"><i style="width:${v}%;background:${col}"></i></span><b>${v}</b></div>`;
+}
+
+/* ----- 標題 ----- */
+function viewTitle(){
+  let cont="";
+  if(hasSave()){
+    cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季</button>`;
+  }
+  return `<div class="panel center">
+    <h2 style="text-align:center">歡迎來到劇空間</h2>
+    <p class="muted">這是一款向古早 CGI 棒球遊戲致敬的作品。<br>
+    你將扮演球團監督，在九局對戰中以戰術決勝負，並帶領球隊打完整季。</p>
+    <div class="hr"></div>
+    <button class="btn green blk" data-act="newgame">⚾ 新球季開始（選擇球隊）</button>
+    ${cont}
+    <button class="btn blk" data-act="help">？ 遊戲說明</button>
+    ${hasSave()?`<button class="btn blk" data-act="wipe">✕ 刪除存檔</button>`:""}
+  </div>
+  <div class="panel">
+    <h2>收錄球團</h2>
+    <div class="two">
+      ${TEAM_DEFS.map(t=>`<div class="teamcard"><div><div class="nm">${teamBadge(t.id)}</div><div class="meta">主場：${t.stadium}</div></div><div class="pill off">${t.str>=0?"+"+t.str:t.str}</div></div>`).join("")}
+    </div>
+  </div>`;
+}
+
+/* ----- 選隊 ----- */
+function viewNewGame(){
+  return `<div class="panel">
+    <h2>選擇你要率領的球隊</h2>
+    <p class="muted">六支球團各有優劣（＋為整體評價）。選定後展開 10 場例行賽。</p>
+    ${TEAM_DEFS.map(t=>{
+      const tc=getTeam(t.id);
+      const ov=Math.round(avg(tc.batters.slice(0,9).map(b=>b.meet*0.5+b.power*0.3+b.speed*0.2)));
+      const pv=Math.round(avg(tc.pitchers.map(p=>p.velocity*0.35+p.control*0.35+p.breaking*0.3)));
+      return `<div class="teamcard">
+        <div style="flex:1">
+          <div class="nm">${teamBadge(t.id)}</div>
+          <div class="meta">主場：${t.stadium}　·　打線 ${ov}　·　投手陣 ${pv}</div>
+        </div>
+        <button class="btn green" data-act="pickTeam" data-arg="${t.id}">選擇</button>
+      </div>`;
+    }).join("")}
+    <div class="hr"></div>
+    <button class="btn blk" data-act="toTitle">← 返回</button>
+  </div>`;
+}
+
+/* ----- 球季總部 ----- */
+function viewHub(){
+  const s=S.season;
+  if(!s)return viewTitle();
+  const g=nextPlayerGame();
+  const team=getTeam(s.playerTeam);
+  const st=standingsList();
+  const myRank=st.findIndex(x=>x.id===s.playerTeam)+1;
+  const myRec=s.records[s.playerTeam];
+  let main="";
+  if(!g){
+    const champ=st[0];
+    main=`<div class="panel"><h2>🏆 例行賽結束</h2>
+      <p class="center">最終排名第 <b class="bignum">${myRank}</b> 名<br>
+      戰績 ${myRec.w} 勝 ${myRec.l} 敗 ${myRec.t} 和</p>
+      <p class="center">優勝球團：<b>${teamBadge(champ.id)}</b>（${champ.w}勝${champ.l}敗）</p>
+      <button class="btn red blk" data-act="newgame">開始新球季</button>
+      <button class="btn blk" data-act="toTitle">回主選單</button></div>`;
+    return hubFrame(team,st,myRank,myRec,main);
+  }
+  const oppId=g.away===s.playerTeam?g.home:g.away;
+  const opp=getTeam(oppId);
+  const isHome=g.home===s.playerTeam;
+  main=`<div class="panel">
+    <h2>第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
+    <div class="teamcard"><div><div class="nm">${isHome?"🏠 主場":"🚌 客場"}</div>
+      <div class="meta">vs ${esc(opp.name)}　·　${isHome?esc(team.stadium):esc(opp.stadium)}</div></div></div>
+    <button class="btn green blk" data-act="play">⚾ 進行比賽（即時戰術）</button>
+    <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
+    <div class="hr"></div>
+    <div class="two">
+      <button class="btn blk" data-act="roster">👥 陣容與成績</button>
+      <button class="btn blk" data-act="schedule">🗓 賽程表</button>
+      <button class="btn blk" data-act="standings">📊 聯盟排名</button>
+      <button class="btn blk" data-act="help">？ 說明</button>
+    </div>
+    <div class="hr"></div>
+    <button class="btn sm blk" data-act="saveNow">💾 手動存檔</button>
+    <button class="btn sm blk" data-act="toTitle">回主選單（自動存檔）</button>
+  </div>`;
+  return hubFrame(team,st,myRank,myRec,main);
+}
+function hubFrame(team,st,myRank,myRec,main){
+  const rows=st.map((x,i)=>{
+    const cls=x.id===S.season.playerTeam?"me":"";
+    return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
+      <td class="name">${teamBadge(x.id)}${x.id===S.season.playerTeam?"（你）":""}</td>
+      <td class="num">${x.w}</td><td class="num">${x.l}</td><td class="num">${x.t}</td>
+      <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`;
+  }).join("");
+  return `<div class="topbar"><div>監督：<b>${esc(team.name)}</b></div>
+    <div>戰績 <b>${myRec.w}-${myRec.l}${myRec.t?"-"+myRec.t:""}</b>　排名 <b>${myRank}</b></div></div>
+    ${main}
+    <div class="panel">
+      <h2>聯盟排名</h2>
+      <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>勝差</th></tr>${rows}</table>
+    </div>`;
+}
+
+/* ----- 比賽畫面 ----- */
+function viewGame(){
+  const m=S.match;
+  if(!m)return viewHub();
+  const off=playerIsOffense(m);
+  const myTurn=!m.over;
+  const innLabel=(m.half==="top"?"上":"下");
+  const offSide=offenseSide(m),defSide=defenseSide(m);
+  const batter=currentBatter(m);
+  const P=m.pitchers[defSide];
+  const eff=pitcherEffective(P.obj,P.pitches);
+  const team=esc(getTeam(S.season.playerTeam).name);
+
+  // 記分板
+  const cols=Math.max(9,m.inning);
+  let head="<tr><th>球隊</th>";
+  for(let i=1;i<=cols;i++)head+=`<th>${i}</th>`;
+  head+="<th>R</th><th>H</th><th>E</th></tr>";
+  const row=(id,key)=>{
+    const isP=id===S.season.playerTeam;
+    let r=`<tr class="${isP?"player":""}"><td class="team">${esc(getTeam(id).short)} ${esc(getTeam(id).name)}${isP?"＊":""}</td>`;
+    for(let i=0;i<cols;i++)r+=`<td>${m.line[key][i]||0}</td>`;
+    r+=`<td class="rhe">${m.score[key]}</td><td class="rhe">${m.hits[key]}</td><td class="rhe">${m.errs[key]}</td></tr>`;
+    return r;
+  };
+  const scoreboard=`<div class="scoreboard"><table>${head}${row(m.awayId,"away")}${row(m.homeId,"home")}</table></div>`;
+
+  // 壘包圖
+  const field=fieldSVG(m.bases);
+  const count=`<div class="countbox">
+    <div class="countrow"><span class="lbl">B</span><span class="leds">${[0,1,2,3].map(i=>`<span class="led b ${i<m.balls?"on":""}"></span>`).join("")}</span>
+      <span class="lbl">S</span><span class="leds">${[0,1,2].map(i=>`<span class="led s ${i<m.strikes?"on":""}"></span>`).join("")}</span>
+      <span class="lbl">O</span><span class="leds">${[0,1,2].map(i=>`<span class="led o ${i<m.outs?"on":""}"></span>`).join("")}</span></div>
+    <div class="countrow" style="margin-top:6px"><span class="lbl">局面</span><b style="color:#ffe07a">${m.inning}局${innLabel}</b>　<span class="lbl">壘上</span>${batterDesc(m)}</div>
+  </div>`;
+
+  const matchup=`<div class="matchup">
+    <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span>
+      <span class="muted" style="font-size:12px">　　打率 ${batAvg(m,batter.id)}</span></div>
+    ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
+    <div class="hr"></div>
+    <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
+      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}</span></div>
+    ${rbar("球速",P.obj.velocity)}${rbar("控球",P.obj.control)}${rbar("變化",P.obj.breaking)}${rbar("體力",P.obj.stamina)}
+  </div>`;
+
+  // 日誌
+  const log=`<div class="log" id="log">${m.log.map(l=>{
+    if(typeof l==="string")return `<p>${esc(l)}</p>`;
+    return `<p class="${l.c||""}">${esc(l.t)}</p>`;
+  }).join("")}</div>`;
+
+  // 動作
+  let actions="";
+  if(!m.over){
+    if(off){
+      actions=`<div class="actgroup"><span class="gtitle">打擊戰術</span><br>
+        <button class="btn red" data-act="bat" data-arg="normal">正常揮擊</button>
+        <button class="btn red" data-act="bat" data-arg="power">強力揮擊</button>
+        <button class="btn red" data-act="bat" data-arg="take">耐心等球</button>
+        ${m.bases[0]!==null||m.bases[1]!==null?`<button class="btn" data-act="bat" data-arg="bunt">犧牲短打</button>`:""}
+        ${m.bases[0]||m.bases[1]?`<button class="btn" data-act="bat" data-arg="hitrun">打帶跑</button>`:""}
+      </div>
+      <div class="actgroup"><span class="gtitle">跑壘／調度</span><br>
+        ${m.bases[0]||m.bases[1]?`<button class="btn blue" data-act="steal">盜壘</button>`:""}
+        ${m.bench[offSide].length?`<button class="btn blue" data-act="pinchhit">代打</button>`:""}
+      </div>`;
+    }else{
+      actions=`<div class="actgroup"><span class="gtitle">配球策略</span><br>
+        <button class="btn gold" data-act="pitch" data-arg="power">全力投球</button>
+        <button class="btn gold" data-act="pitch" data-arg="control">控球至上</button>
+        <button class="btn gold" data-act="pitch" data-arg="corner">邊邊角角</button>
+        <button class="btn gold" data-act="pitch" data-arg="chase">引誘球</button>
+        <button class="btn" data-act="pitch" data-arg="ibb">故意四壞</button>
+      </div>
+      <div class="actgroup"><span class="gtitle">投手調度</span><br>
+        ${bullpenButtons(m)}
+      </div>`;
+    }
+    actions+=`<div class="actgroup" style="border-top:1px dotted var(--line);padding-top:6px">
+      <button class="btn green" data-act="autoInning">⏩ 自動完成本局</button>
+      <button class="btn green" data-act="simGame">⏭ 快速模擬全場</button>
+    </div>`;
+  }
+
+  let result="";
+  if(m.over){
+    const win=m.winner;
+    const title=m.walkoff?"🎉 再見安打！勝利！":
+      win===null?"和局收場":`比賽結束　${esc(getTeam(win==="home"?m.homeId:m.awayId).name)} 獲勝`;
+    result=`<div class="panel"><h2>${title}</h2>
+      <p class="center">最終比數　<b class="bignum">${esc(getTeam(m.awayId).name)} ${m.score.away} － ${m.score.home} ${esc(getTeam(m.homeId).name)}</b></p>
+      ${boxScore(m)}
+      <div class="hr"></div>
+      <button class="btn green blk" data-act="backToHub">▶ 回到球季總部</button>
+    </div>`;
+  }
+
+  return `<div class="panel">
+    <div class="topbar"><div>你的球隊：<b>${team}</b></div><div class="turn">${m.over?"比賽結束":(off?"▶ 你的進攻（下達打擊戰術）":"▶ 你的守備（下達配球）")}</div></div>
+    ${scoreboard}
+    <div class="fieldwrap" style="margin-top:10px">
+      ${field}
+      <div class="cond">${count}${matchup}</div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>實況轉播</h2>
+    ${log}
+    <div class="actions">${actions}</div>
+  </div>
+  ${result}`;
+}
+function batterDesc(m){
+  const b=[];if(m.bases[2])b.push("三壘");if(m.bases[1])b.push("二壘");if(m.bases[0])b.push("一壘");
+  return b.length?b.join("、")+"有跑者":"壘上無人";
+}
+function batAvg(m,pid){
+  const s=m.stats[pid];
+  if(!s||!s.ab)return ".000";
+  return fmtAvg(s.h/s.ab);
+}
+function bullpenButtons(m){
+  const defSide=defenseSide(m);
+  const bp=m.bullpen[defSide];
+  if(!bp.length)return `<span class="muted">牛棚已無可用投手</span>`;
+  return bp.map(p=>`<button class="btn sm blue" data-act="changePit" data-arg="${p.id}">換上 ${esc(p.name)}（${p.role}）</button>`).join("");
+}
+function boxScore(m){
+  const mk=(id,key)=>{
+    const lu=m.lineups[key];
+    let rows=lu.map(b=>{
+      const s=m.stats[b.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};
+      return `<tr><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td>
+        <td class="num">${s.ab}</td><td class="num">${s.h}</td><td class="num">${s.hr}</td>
+        <td class="num">${s.rbi}</td><td class="num">${s.bb}</td><td class="num">${s.k}</td></tr>`;
+    }).join("");
+    const P=m.pitchers[key];
+    const ps=m.pstats[P.obj.id]||{outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0};
+    return `<h3>${esc(getTeam(id).name)}</h3>
+      <table class="grid"><tr><th>打者</th><th>守位</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th></tr>${rows}</table>
+      <table class="grid" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>
+      <tr><td class="name">${esc(P.obj.name)}</td><td class="num">${fmtIP(ps.outs)}</td><td class="num">${ps.h}</td><td class="num">${ps.r}</td><td class="num">${ps.er}</td><td class="num">${ps.bb}</td><td class="num">${ps.k}</td><td class="num">${ps.pp}</td></tr></table>`;
+  };
+  return `<div class="two">${mk(m.awayId,"away")}${mk(m.homeId,"home")}</div>`;
+}
+function fieldSVG(bases){
+  const occ=[!!bases[0],!!bases[1],!!bases[2]];
+  const base=(x,y,on,label)=>`<g><rect x="${x-14}" y="${y-14}" width="28" height="28" rx="4" transform="rotate(45 ${x} ${y})" fill="${on?"#f2c14e":"#e8e2d0"}" stroke="#5b5b4a" stroke-width="2"/>${on?`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="15" fill="#3a2b00">${label}</text>`:""}</g>`;
+  return `<svg viewBox="0 0 220 210" class="field-svg" preserveAspectRatio="xMidYMid meet">
+    <rect width="220" height="210" fill="#0f2b1c"/>
+    <path d="M110 196 L201 105 L110 14 L19 105 Z" fill="#3f7a3f" stroke="#dfe8c8" stroke-width="3"/>
+    <path d="M110 196 L110 130 L188 105 Z" fill="#4c8a4c" opacity="0.5"/>
+    <text x="110" y="66" text-anchor="middle" font-size="11" fill="#dfe8c8">2B</text>
+    <text x="46" y="112" text-anchor="middle" font-size="11" fill="#dfe8c8">3B</text>
+    <text x="176" y="112" text-anchor="middle" font-size="11" fill="#dfe8c8">1B</text>
+    ${base(19,105,occ[2],3)}
+    ${base(110,14,occ[1],2)}
+    ${base(201,105,occ[0],1)}
+    <rect x="96" y="182" width="28" height="16" rx="3" transform="rotate(45 110 190)" fill="#e8e2d0" stroke="#5b5b4a" stroke-width="2"/>
+    <text x="110" y="205" text-anchor="middle" font-size="10" fill="#dfe8c8">本壘</text>
+  </svg>`;
+}
+
+/* ----- 陣容與成績 ----- */
+function viewRoster(){
+  const tid=S.season.playerTeam,t=getTeam(tid),ps=S.season.playerStats;
+  const batRows=t.batters.map(b=>{
+    const s=ps.bat[b.id];
+    const ab=s?s.ab:0,h=s?s.h:0;
+    return `<tr><td class="name">${esc(b.name)}${b.bench?' <span class="pill off">替</span>':''}</td>
+      <td>${esc(b.posLabel)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
+      <td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td>
+      <td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td></tr>`;
+  }).join("");
+  const pitRows=t.pitchers.map(p=>{
+    const s=ps.pit[p.id];
+    return `<tr><td class="name">${esc(p.name)}</td><td>${esc(p.role)}</td><td class="num">${s?s.g:0}</td>
+      <td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td>
+      <td class="num">${s?s.h:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
+  }).join("");
+  return `<div class="panel">
+    <h2>${esc(t.name)}　陣容與本季成績</h2>
+    <div class="topbar" style="color:#3a3527"><div class="muted">（投手數據為本季累計）</div><div></div></div>
+    <h3>野手</h3>
+    <table class="grid"><tr><th>球員</th><th>守位</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${batRows}</table>
+    <h3>投手</h3>
+    <table class="grid"><tr><th>球員</th><th>角色</th><th>出賽</th><th>局數</th><th>防禦率</th><th>被安</th><th>失分</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="backHub">← 回球季總部</button>
+  </div>`;
+}
+
+/* ----- 賽程 ----- */
+function viewSchedule(){
+  const s=S.season;
+  const days=s.schedule.map((day,i)=>{
+    const games=day.map(g=>{
+      const isMine=g.away===s.playerTeam||g.home===s.playerTeam;
+      let sc="－ vs －";
+      if(g.played){sc=`${g.score.a} : ${g.score.h}`;}
+      return `<tr class="${isMine?"me":""}"><td class="name">${teamBadge(g.away)}</td>
+        <td class="num">@</td><td class="name">${teamBadge(g.home)}</td>
+        <td class="num">${g.played?sc:"未開打"}</td></tr>`;
+    }).join("");
+    const state=i<s.day?"結束":i===s.day?"今日":"未定";
+    return `<h3>第 ${i+1} 日 <span class="pill ${i===s.day?"on":"off"}">${state}</span></h3>
+      <table class="grid"><tr><th>客隊</th><th></th><th>主隊</th><th>比數</th></tr>${games}</table>`;
+  }).join("");
+  return `<div class="panel"><h2>賽程表</h2>${days}
+    <div class="hr"></div><button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
+}
+
+/* ----- 排名 ----- */
+function viewStandings(){
+  const st=standingsList();
+  const rows=st.map((x,i)=>{
+    const cls=x.id===S.season.playerTeam?"me":"";
+    return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
+      <td class="name">${teamBadge(x.id)}</td><td class="num">${x.w}</td><td class="num">${x.l}</td>
+      <td class="num">${x.t}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.rs}</td><td class="num">${x.ra}</td></tr>`;
+  }).join("");
+  return `<div class="panel"><h2>聯盟排名</h2>
+    <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>得分</th><th>失分</th></tr>${rows}</table>
+    <div class="hr"></div><button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
+}
+
+/* ----- 說明 ----- */
+function viewHelp(){
+  return `<div class="panel help">
+    <h2>遊戲說明</h2>
+    <dl>
+      <dt>■ 玩法概要</dt>
+      <dd>你率領一支球團打 10 場例行賽。每場比賽為經典 9 局（延長至 12 局，仍平手則和局）。你在自己的進攻與守備回合下達戰術，電腦對手也會見招拆招。</dd>
+      <dt>■ 打擊戰術</dt>
+      <dd><b>正常揮擊</b>：穩定。<b>強力揮擊</b>：長打與全壘打大增，但三振也變多。<b>耐心等球</b>：拉高保送，安打率略降。<b>犧牲短打</b>：護送跑者推進，打者多數出局。<b>打帶跑</b>：跑者提前起跑，靠安打多搶壘，但打者揮空時跑者可能被觸殺。</dd>
+      <dt>■ 守備／配球</dt>
+      <dd><b>全力投球</b>：三振率高，但保送、全壘打風險與體力消耗都增加。<b>控球至上</b>：壓低保送。<b>邊邊角角</b>：製造滾地球。<b>引誘球</b>：增加三振也增加保送。<b>故意四壞</b>：直接保送，避免硬拚強打。</dd>
+      <dt>■ 跑壘與調度</dt>
+      <dd><b>盜壘</b>：以跑者速度挑戰捕手。<b>代打</b>：換上替補野手。<b>換投手</b>：從牛棚派上後援投手。</dd>
+      <dt>■ 加速遊玩</dt>
+      <dd>不想每一球都下指令時，可用「自動完成本局」或「快速模擬全場」。</dd>
+      <dt>■ 存檔</dt>
+      <dd>每場比賽結束會自動存入瀏覽器（localStorage）。主選單可「繼續球季」。</dd>
+    </dl>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="${S.season?"backHub":"toTitle"}">← 返回</button>
+  </div>`;
+}
+
+/* ---------- 事件分派 ---------- */
+const ACT={
+  newgame(){S.screen="newgame";render();},
+  toTitle(){S.screen="title";render();},
+  pickTeam(id){
+    newSeason(id);
+    S.screen="hub";render();
+  },
+  continue(){
+    if(loadGame()){S.season&&(S.screen="hub");render();}
+  },
+  wipe(){try{localStorage.removeItem(SAVEKEY);}catch(e){}render();},
+  help(){S.screen="help";render();},
+  backHub(){S.screen="hub";S.match=null;render();},
+  roster(){S.screen="roster";render();},
+  schedule(){S.screen="schedule";render();},
+  standings(){S.screen="standings";render();},
+  saveNow(){saveGame();flash("已存檔");render();},
+  play(){startMatch();if(S.match)render();},
+  simPlay(){
+    startMatch();
+    if(!S.match)return;
+    submit(()=>{autoGame(S.match);});
+  },
+  backToHub(){S.screen="hub";S.match=null;render();},
+  autoInning(){const m=S.match;if(!m||m.over)return;submit(()=>{autoHalf(m);if(!m.over&&m.outs>=3)endHalf(m);});},
+  simGame(){const m=S.match;if(!m||m.over)return;submit(()=>{autoGame(m);});},
+  bat(t){const m=S.match;if(!m||m.over||!playerIsOffense(m))return;submit(()=>{resolveTurn(t,aiDefense(m));});},
+  pitch(t){const m=S.match;if(!m||m.over||playerIsOffense(m))return;submit(()=>{resolveTurn(aiOffense(m),t);});},
+  steal(){const m=S.match;if(!m||m.over||!playerIsOffense(m))return;submit(()=>{doSteal(m);});},
+  pinchhit(){const m=S.match;if(!m||m.over||!playerIsOffense(m))return;submit(()=>{doPinchHit(m);});},
+  changePit(pid){const m=S.match;if(!m||m.over||playerIsOffense(m))return;submit(()=>{doChangePitcher(m,pid);});}
+};
+let flashTimer=null;
+function flash(msg){S.flash=msg;clearTimeout(flashTimer);}
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-act]");
+  if(!el||busy)return;
+  const a=el.dataset.act,arg=el.dataset.arg;
+  if(ACT[a])ACT[a](arg);
+});
+
+/* ---------- 啟動 ---------- */
+render();
+</script>
+</body>
+</html>
