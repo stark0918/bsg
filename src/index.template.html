@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>劇空間棒球 ～ GEKIKUUKAN BASEBALL</title>
+<style>
+:root{
+  --paper:#f5f0e1; --ink:#20241f; --dark:#123021; --dark2:#0b1f15;
+  --accent:#b11414; --gold:#f2c14e; --led:#ffc23f; --ledbg:#0a0f0b;
+  --line:#c9bfa4; --muted:#6b6455;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1c4a30 0%, #0d2416 55%, #071009 100%);
+  color:var(--ink);
+  font-family:"Microsoft JhengHei","PingFang TC","Heiti TC","MingLiU","MS PGothic",sans-serif;
+  font-size:15px; line-height:1.6; min-height:100vh;
+  padding:14px 10px 60px;
+}
+.wrap{max-width:880px;margin:0 auto}
+a{color:#14508c}
+.logo{
+  text-align:center; color:#fff; letter-spacing:.12em;
+  font-weight:900; font-size:30px; margin:6px 0 2px;
+  text-shadow:0 2px 0 #000, 0 0 18px #7fe0a0, 0 0 4px #b11414;
+}
+.logo small{display:block;font-size:11px;letter-spacing:.35em;color:#9fd7b3;font-weight:400;margin-top:4px}
+.panel{
+  background:var(--paper); border:3px solid #0a1a10; border-radius:4px;
+  box-shadow:0 8px 0 rgba(0,0,0,.35), inset 0 0 0 1px #fff8;
+  padding:14px 16px; margin-top:12px;
+}
+.panel h2{
+  margin:0 0 10px; font-size:17px; color:#fff; background:var(--dark);
+  padding:6px 10px; border-left:6px solid var(--accent); letter-spacing:.06em;
+}
+.panel h3{margin:16px 0 6px;font-size:15px;color:var(--dark);border-bottom:2px dotted var(--line);padding-bottom:3px}
+.muted{color:var(--muted)}
+.center{text-align:center}
+.hr{height:1px;background:var(--line);margin:10px 0;border:0}
+
+/* buttons: old form-ish */
+.btn{
+  font-family:inherit;font-size:14px;cursor:pointer;color:#14220f;
+  background:linear-gradient(#fffef8,#ddd6c0);
+  border:2px outset #efe9d8; border-radius:3px; padding:7px 12px; margin:3px 3px;
+  box-shadow:0 1px 0 #fff inset; font-weight:700;
+}
+.btn:hover{background:linear-gradient(#fff,#eae3cd)}
+.btn:active{border-style:inset}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.red{color:#fff;background:linear-gradient(#c7342a,#8e1410);border-color:#e59a92}
+.btn.red:hover{background:linear-gradient(#d94a3f,#9d1a15)}
+.btn.green{color:#fff;background:linear-gradient(#2e8b52,#1a5a34);border-color:#a7dcb6}
+.btn.green:hover{background:linear-gradient(#37a261,#206a3d)}
+.btn.gold{color:#3a2b00;background:linear-gradient(#ffe487,#e3b93f);border-color:#fff0bb}
+.btn.blue{color:#fff;background:linear-gradient(#2c6bb0,#173f70);border-color:#9dc2e8}
+.btn.sm{font-size:12px;padding:4px 8px}
+.btn.blk{display:block;width:100%;text-align:center}
+
+/* header strip */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:#cfe8d6;font-size:12px}
+.topbar b{color:#fff}
+
+/* scoreboard */
+.scoreboard{
+  background:var(--ledbg); border:3px solid #000; border-radius:4px; padding:8px;
+  box-shadow:inset 0 0 26px #000, 0 3px 0 #0008; overflow:auto;
+}
+.scoreboard table{border-collapse:collapse;width:100%;font-family:"Consolas","Courier New",monospace}
+.scoreboard th,.scoreboard td{border:1px solid #23301f;padding:3px 6px;text-align:center;color:var(--led);font-size:14px}
+.scoreboard th{color:#7fae7f;font-weight:400;font-size:12px;letter-spacing:.05em}
+.scoreboard td.team{text-align:left;white-space:nowrap;color:#e8f0da;font-family:inherit;font-weight:700}
+.scoreboard td.rhe{color:#ffd76a;font-weight:700}
+.scoreboard tr.player td.team{color:#ffe07a}
+
+/* field */
+.fieldwrap{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.field-svg{width:210px;max-width:48vw;border:2px solid #0a1a10;border-radius:4px;background:#0f2b1c}
+.cond{flex:1;min-width:200px}
+.countbox{background:#0a0f0b;border:2px solid #000;border-radius:4px;padding:8px;margin-bottom:8px}
+.countrow{display:flex;gap:14px;align-items:center;font-family:"Consolas",monospace;color:#9fd7b3;font-size:12px}
+.countrow .lbl{width:26px;color:#cfe8d6}
+.leds{display:flex;gap:5px}
+.led{width:15px;height:15px;border-radius:50%;background:#1b2a1b;border:1px solid #000;box-shadow:inset 0 0 4px #000}
+.led.on.b{background:#4fd07a;box-shadow:0 0 8px #4fd07a}
+.led.on.s{background:#ffd23f;box-shadow:0 0 8px #ffd23f}
+.led.on.o{background:#ff5b45;box-shadow:0 0 8px #ff5b45}
+.matchup{background:#fffdf5;border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.matchup .who{font-weight:700;color:var(--dark);font-size:15px}
+.matchup .pos{display:inline-block;background:var(--dark);color:#fff;font-size:11px;padding:1px 6px;border-radius:3px;margin-left:6px}
+.rrow{display:flex;align-items:center;gap:6px;margin:2px 0;font-size:12px}
+.rrow .rlab{width:44px;color:var(--muted)}
+.rbar{flex:1;height:9px;background:#e6dfc9;border:1px solid #cabf9f;border-radius:3px;overflow:hidden;min-width:60px}
+.rbar i{display:block;height:100%}
+.rrow b{width:26px;text-align:right;font-family:Consolas,monospace}
+
+/* log */
+.log{
+  background:#101a12;color:#cfe8d6;border:2px solid #000;border-radius:3px;
+  padding:10px 12px;height:230px;overflow:auto;font-size:13.5px;line-height:1.65;
+  font-family:"Microsoft JhengHei","MingLiU",sans-serif;
+}
+.log p{margin:2px 0;padding:2px 4px;border-radius:2px}
+.log p.inn{color:#ffe07a;font-weight:700;border-top:1px solid #2b3a2b;margin-top:6px}
+.log p.run{color:#ff9c7a;font-weight:700}
+.log p.hit{color:#8fe0a8}
+.log p.out{color:#a9b8a9}
+.log p.sys{color:#7fae7f;font-style:italic}
+.log p.big{color:#fff;background:#8e1410;font-weight:700}
+
+/* actions */
+.actions{margin-top:10px}
+.actgroup{margin:6px 0}
+.actgroup .gtitle{display:inline-block;font-size:12px;color:#fff;background:var(--dark);padding:2px 8px;border-radius:3px;margin-bottom:3px}
+.turn{font-weight:700;color:var(--accent)}
+
+/* tables */
+table.grid{border-collapse:collapse;width:100%;font-size:13px;background:#fffdf5}
+table.grid th,table.grid td{border:1px solid var(--line);padding:4px 6px;text-align:center}
+table.grid th{background:#e7e0ca;color:#3a3527}
+table.grid tr.me td{background:#fff3c9;font-weight:700}
+table.grid td.name{text-align:left;white-space:nowrap}
+table.grid td.num{font-family:Consolas,monospace}
+.rank1{color:#b8860b;font-weight:900}
+
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;color:#fff;background:#5a6552;margin-left:4px}
+.pill.on{background:#1f8f4a}
+.pill.off{background:#8e2f26}
+
+.teamcard{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  border:2px solid #0a1a10;border-radius:4px;padding:8px 10px;margin:6px 0;background:#fffdf5;
+}
+.teamcard .nm{font-weight:900;font-size:16px}
+.teamcard .meta{font-size:11px;color:var(--muted)}
+.swatch{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid #0007;vertical-align:-2px;margin-right:6px}
+.plink{cursor:pointer;color:#14508c;text-decoration:underline;text-underline-offset:2px}
+.plink:hover{color:var(--accent)}
+.abilnote{font-size:12px;color:var(--muted);background:#fffdf5;border:1px dashed var(--line);border-radius:3px;padding:6px 8px;margin:8px 0}
+.grade{display:inline-block;font-weight:900;font-family:Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:3px;color:#fff}
+.g-S{background:#b11414}.g-A{background:#c9701a}.g-B{background:#1f8f4a}.g-C{background:#5a6552}.g-D{background:#8a8171}
+
+.overlay{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}
+.overlay.on{display:flex}
+.overlay div{background:var(--dark);color:#d9f0e0;border:3px solid #000;padding:16px 28px;font-weight:700;letter-spacing:.15em;border-radius:4px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#123021;color:#d9f0e0;border:2px solid #000;padding:8px 20px;border-radius:20px;font-weight:700;opacity:0;transition:.25s;z-index:60;pointer-events:none;box-shadow:0 4px 0 #0006}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.footer{color:#7f9c88;font-size:11px;text-align:center;margin-top:14px;font-family:Consolas,monospace;word-break:break-all}
+.help dt{font-weight:700;color:var(--dark);margin-top:8px}
+.help dd{margin:2px 0 0 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.two{grid-template-columns:1fr}.logo{font-size:22px}}
+.bignum{font-family:"Consolas",monospace;font-weight:900;font-size:20px;color:var(--led)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">劇空間棒球<small>GEKIKUUKAN BASEBALL</small></div>
+  <div id="app"></div>
+  <div class="footer" id="cgi"></div>
+</div>
+<div class="overlay" id="ov"><div>送信中…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+</body>
+</html>

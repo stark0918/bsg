@@ -1,0 +1,17 @@
+/* ====================================================================
+   除錯／開發用：把主要 API 掛到 window.GK，方便在瀏覽器 Console 檢視。
+   遊戲本身不依賴這個區塊，可整段刪掉不影響運作。
+   例： GK.S.season.day、GK.getTeam('azure').batters、GK.advanceCareer()
+   ==================================================================== */
+window.GK = {
+  get S(){ return S; },
+  get CAREER(){ return CAREER; },
+  set CAREER(v){ CAREER = v; },
+  get teamCache(){ return teamCache; },
+  saveGame, loadGame, hasSave, loadCareer, saveCareer,
+  newSeason, migrateSeasonStats,
+  getTeam, playerById, playerOverall, gradeOf, gradeBadge, ageNote,
+  advanceCareer, applyOv, leadersList, leadersQualify,
+  processGameEnd, startMatch, autoGame, quickSim, teamStrength,
+  render, viewAbilities, ACT
+};
