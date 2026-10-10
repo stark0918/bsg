@@ -691,14 +691,33 @@ function playPA(m,offT,defT){
     m.over=true;m.winner="home";m.walkoff=true;m.splash={t:"再見！",c:"hr"};
   }
 }
-/* 單場英雄（Player of the Game） */
+/* 單場英雄（Player of the Game）
+   候選僅取「勝利方」球員（和局時兩隊皆可），並讓打者與投手份量相當，
+   避免以往投手（含敗投）幾乎必當 MVP 的問題。 */
 function gameHero(m){
-  let best=null,bv=-1;
-  for(const pid in m.stats){const s=m.stats[pid],p=playerById(pid);const v=s.h*2+s.hr*3+s.rbi*1.2+s.sb*0.6+(s.r||0)*0.8;
-    if(v>bv){bv=v;best={pid,name:p?p.name:pid,isPit:false,s};}}
-  for(const pid in m.pstats){const s=m.pstats[pid],p=playerById(pid);const v=s.k*2.2+(s.outs||0)*0.5-s.er*1.5+(s.w||0)*3;
-    if(v>bv){bv=v;best={pid,name:p?p.name:pid,isPit:true,s};}}
-  return best;
+  const wSide=m.winner;                    // "home" / "away" / null(和局)
+  const winTeam=wSide==null?null:(wSide==="home"?m.homeId:m.awayId);
+  const winStarter=(wSide!=null&&m.starters)?m.starters[wSide].id:null;
+  const teamOf=pid=>String(pid).replace(/[bp]\d+$/,"");
+  const cand=[];
+  for(const pid in m.stats){
+    if(winTeam&&teamOf(pid)!==winTeam)continue;
+    const s=m.stats[pid];
+    const v=s.h*1.5+s.hr*2.5+s.rbi*1.4+(s.r||0)*1.0+(s.sb||0)*0.5+(s.bb||0)*0.2;
+    const p=playerById(pid);
+    cand.push({pid,name:p?p.name:pid,isPit:false,s,v});
+  }
+  for(const pid in m.pstats){
+    if(winTeam&&teamOf(pid)!==winTeam)continue;
+    const s=m.pstats[pid];
+    let v=s.k*2+(s.outs||0)*0.45-(s.er||0)*3+(s.sv||0)*3;
+    if(pid===winStarter)v+=3;              // 勝隊先發勝投加成（m.pstats 未記勝投）
+    const p=playerById(pid);
+    cand.push({pid,name:p?p.name:pid,isPit:true,s,v});
+  }
+  if(!cand.length)return null;
+  cand.sort((a,b)=>b.v-a.v);
+  return cand[0];
 }
 
 function makeCount(ev){
