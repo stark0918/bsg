@@ -70,6 +70,7 @@ const ACT={
   },
   allstar(){S.screen="allstar";render();},
   allstarSim(){const a=simAllstar();render();},
+  seasonInfo(){S.screen="season";render();},
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},

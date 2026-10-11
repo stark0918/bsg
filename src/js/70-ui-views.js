@@ -10,7 +10,7 @@ function confirmBoxHTML(){
 function viewTitle(){
   let cont="";
   if(hasSave()){
-    cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季</button>`;
+    cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季（第 ${seasonNo()} 季）</button>`;
   }
   const hasCareer=!!((CAREER.history&&CAREER.history.length)||(CAREER.awards&&CAREER.awards.length)||CAREER.seasons>0);
   const danger=S.confirm?confirmBoxHTML()
@@ -120,7 +120,7 @@ function viewHub(){
   const opp=getTeam(oppId);
   const isHome=g.home===s.playerTeam;
   main=`<div class="panel">
-    <h2>第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
+    <h2>第 ${seasonNo()} 季　第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
     <div class="teamcard"><div><div class="nm">${isHome?"🏠 主場":"🚌 客場"}</div>
       <div class="meta">vs ${esc(opp.name)}　·　${isHome?esc(team.stadium):esc(opp.stadium)}</div></div></div>
     <button class="btn green blk" data-act="play">⚾ 進行比賽（即時戰術）</button>
@@ -131,6 +131,7 @@ function viewHub(){
       <button class="btn blk" data-act="abilities">🧮 選手能力</button>
       <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
       <button class="btn blk" data-act="allstar">⭐ 明星賽</button>
+      <button class="btn blk" data-act="seasonInfo">📋 球季資訊</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
@@ -156,7 +157,7 @@ function hubFrame(team,st,myRank,myRec,main){
       <td class="num">${x.w}</td><td class="num">${x.l}</td><td class="num">${x.t}</td>
       <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`;
   }).join("");
-  return `<div class="topbar"><div>監督：<b>${esc(team.name)}</b></div>
+  return `<div class="topbar"><div>監督：<b>${esc(team.name)}</b>　·　第 <b>${seasonNo()}</b> 季</div>
     <div>戰績 <b>${myRec.w}-${myRec.l}${myRec.t?"-"+myRec.t:""}</b>　排名 <b>${myRank}</b></div></div>
     ${main}
     <div class="panel">
@@ -185,6 +186,42 @@ function startersPanel(){
         <p class="muted" style="font-size:12px">開打後可在比賽畫面查看雙方完整打線、板凳與牛棚。</p></div>
     </div>
   </div>`;
+}
+
+/* ----- 球季資訊 ----- */
+function viewSeasonInfo(){
+  const se=S.season;
+  if(!se)return viewTitle();
+  const team=getTeam(se.playerTeam),st=standingsList();
+  const myRank=st.findIndex(x=>x.id===se.playerTeam)+1;
+  const rec=se.records[se.playerTeam]||{w:0,l:0,t:0};
+  const total=(se.schedule||[]).length,day=Math.min(se.day,total),left=Math.max(0,total-se.day);
+  const po=se.playoff;
+  let poTxt="尚未開始";
+  if(po)poTxt=po.champion?("已結束（總冠軍："+getTeam(po.champion).name+"）"):(po.stage==="semi"?"準決賽進行中":"冠軍戰進行中");
+  const titles=(CAREER.history||[]).filter(x=>x.isChamp).length;
+  const histRows=(CAREER.history||[]).slice().reverse().slice(0,8).map(x=>`<tr class="${x.isChamp?"me":""}"><td class="num">第 ${x.no} 季</td><td class="name">${teamBadge(x.team)}</td><td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">第 ${x.rank} 名</td><td class="name">${x.champ?teamBadge(x.champ)+(x.isChamp?" 🏆":""):"<span class=\"muted\">－</span>"}</td></tr>`).join("");
+  return `<div class="panel"><h2>📋 球季資訊</h2>
+    <div class="slotcard"><div class="slotinfo"><div class="nm">第 ${seasonNo()} 季</div>
+      <div class="meta">${teamBadge(se.playerTeam)}　主場：${esc(team.stadium)}</div></div></div>
+    <div class="hr"></div><h3>本季進度</h3>
+    <table class="grid">
+      <tr><th>例行賽</th><td class="num">第 ${day} / ${total} 日（剩 ${left} 日）</td></tr>
+      <tr><th>目前戰績</th><td class="num">${rec.w}-${rec.l}${rec.t?"-"+rec.t:""}　（第 ${myRank} 名）</td></tr>
+      <tr><th>季後賽</th><td class="name">${esc(poTxt)}</td></tr>
+    </table>
+    <div class="hr"></div><h3>生涯</h3>
+    <table class="grid">
+      <tr><th>已完成球季</th><td class="num">${CAREER.seasons||0} 季</td></tr>
+      <tr><th>總冠軍</th><td class="num">${titles} 次</td></tr>
+      <tr><th>明星賽</th><td class="num">${(CAREER.allstars||[]).length} 屆</td></tr>
+    </table>
+    ${histRows?`<div class="hr"></div><h3>近年球季</h3><table class="grid"><tr><th>球季</th><th>你的球隊</th><th>戰績</th><th>名次</th><th>總冠軍</th></tr>${histRows}</table>`:""}
+    <div class="hr"></div>
+    <div class="two">
+      <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+      <button class="btn blk" data-act="backHub">← 回球季總部</button>
+    </div></div>`;
 }
 
 /* ----- 打線／守位編輯 ----- */
@@ -663,8 +700,8 @@ function viewLeague(){
     <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
     <button class="btn blk" data-act="exportCsv">⬇ 匯出逐場 CSV</button>
   </div>`;
-  return `<div class="panel"><h2>🏟 劇空間</h2>
-    <p class="muted">聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
+  return `<div class="panel"><h2>🏟 劇空間　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
+    <p class="muted">第 ${seasonNo()} 季　例行賽第 ${Math.min(se.day+1,se.schedule.length)} / ${se.schedule.length} 日。聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th></tr>${srows}</table>
     ${paperBlock()}

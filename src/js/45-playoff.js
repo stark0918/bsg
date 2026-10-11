@@ -195,7 +195,7 @@ function playoffHubMain(po){
     const draftBtn=(S.season.draft&&!S.season.drafted)
       ?`<button class="btn gold blk" data-act="draft">⭐ 新人選秀開始！</button>`:"";
     return `<div class="panel">${won?confetti():""}<h2>${won?"🏆 恭喜奪冠！":"🏆 季後賽結束"}</h2>
-      <p class="center">本季總冠軍：<b>${teamBadge(po.champion)}</b></p>
+      <p class="center">第 ${seasonNo()} 季　本季總冠軍：<b>${teamBadge(po.champion)}</b></p>
       <p class="muted center">${won?"你率領的球隊登上本季王座，太神了！":"你的球季到此結束，明年再來。"}</p>
       <div class="hr"></div>
       <button class="btn red blk" data-act="newgame">開始新球季</button>
@@ -215,7 +215,7 @@ function playoffHubMain(po){
     const isHome=home===me;
     const oppId=isHome?away:home;
     const stageName=po.stage==="semi"?"準決賽":"冠軍戰";
-    return `<div class="panel"><h2>${stageName}　第 ${gameNo+1} 戰</h2>
+    return `<div class="panel"><h2>第 ${seasonNo()} 季　${stageName}　第 ${gameNo+1} 戰</h2>
       <div class="teamcard"><div><div class="nm">${isHome?"🏠 主場":"🚌 客場"}</div>
         <div class="meta">${stageName} vs ${esc(getTeam(oppId).name)}　·　${esc(getTeam(isHome?home:away).stadium)}</div></div>
         <div class="pill on">${s.winsHi}-${s.winsLo}</div></div>

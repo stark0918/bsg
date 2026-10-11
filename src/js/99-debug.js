@@ -22,5 +22,6 @@ window.GK = {
   recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup,
-  asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength
+  asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
+  seasonNo, viewSeasonInfo
 };
