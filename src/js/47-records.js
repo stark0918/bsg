@@ -407,8 +407,16 @@ function buildDayPaper(dayIdx){
 }
 function paperBlock(){
   const se=S.season,list=(se&&se.papers)||[];
-  if(!list.length)return "";
-  const rows=list.slice().reverse().map(p=>`<div class="paper"><div class="pday">第 ${p.day} 日</div>
-    <ul>${p.items.map((t,i)=>`<li class="${i===0?"top":""}">${esc(t)}</li>`).join("")}</ul></div>`).join("");
-  return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）。</p>${rows}`;
+  const specials=(se&&se.news||[]).filter(n=>n.special).slice(-5).reverse();
+  let rows="";
+  if(list.length){
+    rows=list.slice().reverse().map(p=>`<div class="paper"><div class="pday">第 ${p.day} 日</div>
+      <ul>${p.items.map((t,i)=>`<li class="${i===0?"top":""}">${esc(t)}</li>`).join("")}</ul></div>`).join("");
+  }
+  if(specials.length){
+    rows+=specials.map(n=>`<div class="paper special"><div class="pday">第 ${n.day} 日 <span class="pill on">特殊</span></div>
+      <ul><li class="top">${esc(n.text)}</li></ul></div>`).join("");
+  }
+  if(!rows)return "";
+  return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）與特殊事蹟。</p>${rows}`;
 }
