@@ -361,12 +361,15 @@ function viewGame(){
     const win=m.winner;
     const title=m.walkoff?"🎉 再見安打！勝利！":
       win===null?"和局收場":`比賽結束　${esc(getTeam(win==="home"?m.homeId:m.awayId).name)} 獲勝`;
-    result=`<div class="panel"><h2>${title}</h2>
+    const hasReg=!!nextPlayerGame(),hasPo=!!playoffNextGame();
+    const nextBtn=(hasReg||hasPo)?`<button class="btn green blk" data-act="nextGame">⏭ ${hasReg?"繼續下一場":"繼續季後賽"}</button>`:"";
+    result=`<div class="panel" id="gameresult"><h2>${title}</h2>
       <p class="center">最終比數　<b class="bignum">${esc(getTeam(m.awayId).name)} ${m.score.away} － ${m.score.home} ${esc(getTeam(m.homeId).name)}</b></p>
       ${m.hero?`<p class="center" style="margin-top:8px">◆ Player of the Game：${teamBadge(teamOfPlayer({id:m.hero.pid}))}　<b>${esc(m.hero.name)}</b>　${m.hero.isPit?`<span class="pill on">三振 ${m.hero.s.k} 次</span>`:`<span class="pill on">安打 ${m.hero.s.h}／打點 ${m.hero.s.rbi}</span>`}</p>`:""}
       ${boxScore(m)}
       <div class="hr"></div>
-      <button class="btn green blk" data-act="backToHub">▶ 回到球季總部</button>
+      ${nextBtn}
+      <button class="btn ${nextBtn?"":"green"} blk" data-act="backToHub">▶ 回到球季總部</button>
     </div>`;
   }
 

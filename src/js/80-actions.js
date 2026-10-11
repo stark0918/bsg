@@ -93,6 +93,7 @@ const ACT={
     submit(()=>{autoGame(S.match);});
   },
   backToHub(){S.screen="hub";S.match=null;render();},
+  nextGame(){S.match=null;startMatch();if(S.match)render();else{S.screen="hub";render();}},
   simPlayoff(){playoffSimAll();render();},
   autoInning(){const m=S.match;if(!m||m.over)return;submit(()=>{autoHalf(m);if(!m.over&&m.outs>=3)endHalf(m);playSnd(m);});},
   simGame(){const m=S.match;if(!m||m.over)return;submit(()=>{autoGame(m);if(m.walkoff)setTimeout(()=>SFX.cheer(),250);});},

@@ -28,6 +28,7 @@ function render(){
   else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
+  if(S.screen==="game"&&S.match&&S.match.over){const gr=$("#gameresult");if(gr&&gr.scrollIntoView)gr.scrollIntoView({block:"start"});}
   const toast=$("#toast");
   if(toast&&S.flash){toast.textContent=S.flash;toast.classList.add("on");S.flash="";setTimeout(()=>toast.classList.remove("on"),1800);}
 }
