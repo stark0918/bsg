@@ -45,7 +45,21 @@ const ACT={
   history(){S.screen="history";S.histTab=S.histTab||"games";render();},
   histTab(t){S.histTab=t;render();},
   histCat(c){S.histCat=c;render();},
-  awards(){S.screen="awards";render();},
+  recTab(c){S.recTab=c;render();},
+  exportCsv(){downloadCSV();render();},
+  league(){S.screen="league";render();},
+  gameDetail(a){
+    if(!a)return;
+    const from=(S.screen==="schedule"||S.screen==="player")?S.screen:"league";
+    if(a.charAt(0)==="p")S.gameDetail={po:+a.slice(1),from};
+    else{const p=a.split(",");S.gameDetail={day:+p[0],i:+p[1],from};}
+    S.screen="gameDetail";render();
+  },
+  gameDetailBack(){S.screen=(S.gameDetail&&S.gameDetail.from)||"league";render();},
+  awards(){S.awardsStep=0;S.screen="awards";render();},
+  awardStep(){S.awardsStep=Math.min(AWARD_MAX,(S.awardsStep||0)+1);if(S.awardsStep>=AWARD_MAX)SFX.champ();else SFX.wink();render();},
+  awardAll(){S.awardsStep=AWARD_MAX;SFX.champ();render();},
+  awardsReplay(){S.awardsStep=0;render();},
   draft(){S.screen="draft";render();},
   draftNext(){const d=S.season.draft;if(d&&d.idx<d.picks.length&&d.picks[d.idx].teamId!==S.season.playerTeam){
     const pick=d.picks[d.idx];const cs=draftCandidates(pick);

@@ -92,16 +92,72 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   else starterLine.l=1;
   return list;
 }
-function synthGameStats(awayId,homeId,ra,rh){
+function synthGameStats(awayId,homeId,ra,rh,merge){
   const margin=Math.abs(ra-rh);
   const awayBat=synthBatting(awayId,ra), homeBat=synthBatting(homeId,rh);
   const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3);
   const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3);
-  awayBat.forEach(s=>mergeBatLine(s.pid,s));
-  homeBat.forEach(s=>mergeBatLine(s.pid,s));
-  awayPit.forEach(s=>mergePitLine(s.pid,s));
-  homePit.forEach(s=>mergePitLine(s.pid,s));
+  if(merge!==false){
+    awayBat.forEach(s=>mergeBatLine(s.pid,s));
+    homeBat.forEach(s=>mergeBatLine(s.pid,s));
+    awayPit.forEach(s=>mergePitLine(s.pid,s));
+    homePit.forEach(s=>mergePitLine(s.pid,s));
+  }
   return {away:{bat:awayBat,pit:awayPit},home:{bat:homeBat,pit:homePit}};
+}
+/* ---------- 逐場 box（精簡數字陣列，節省存取空間） ---------- */
+const BOX_BAT=["ab","h","hr","rbi","bb","k","r","sb"];
+const BOX_PIT=["outs","h","r","er","bb","k","pp","w","l","sv"];
+function packBat(s){return BOX_BAT.map(k=>s[k]||0);}
+function packPit(s){return BOX_PIT.map(k=>s[k]||0);}
+/* 模擬比賽的該隊逐局得分分布（產生後即存入，不需可重現） */
+function synthInnings(runs){
+  const line=new Array(9).fill(0);
+  if(runs<=0)return line;
+  const n=Math.max(1,Math.min(runs,ri(1,2)+(runs>3?1:0)+(runs>6?1:0)));
+  const pool=[0,1,2,3,4,5,6,7,8],picks=[];
+  for(let i=0;i<n&&pool.length;i++)picks.push(pool.splice(ri(0,pool.length-1),1)[0]);
+  let left=runs;
+  while(left>0){line[picks[ri(0,picks.length-1)]]++;left--;}
+  return line;
+}
+/* 玩家實際比賽 → box */
+function boxFromMatch(m){
+  const cBat={},cPit={};
+  for(const pid in m.stats)cBat[pid]=packBat(m.stats[pid]);
+  for(const pid in m.pstats)cPit[pid]=packPit(m.pstats[pid]);
+  if(m.winner){
+    const wId=m.starters[m.winner].id;
+    const lId=m.starters[m.winner==="home"?"away":"home"].id;
+    const wl=cPit[wId]||(cPit[wId]=packPit({}));
+    wl[7]=1;
+    const ll=cPit[lId]||(cPit[lId]=packPit({}));
+    ll[8]=1;
+  }
+  return {
+    st:m.po?(m.po.stage==="semi"?"準決賽":"冠軍戰"):"",
+    aw:m.awayId,hm:m.homeId,a:m.score.away,h:m.score.home,
+    line:{aw:m.line.away.slice(0,12),hm:m.line.home.slice(0,12)},
+    e:{aw:m.errs.away,hm:m.errs.home},
+    bat:cBat,pit:cPit,win:m.winner,
+    sp:{away:m.starters.away.id,home:m.starters.home.id}
+  };
+}
+/* 模擬比賽 → box（L 為 synthGameStats 的回傳，st 為季後賽標籤） */
+function boxFromSim(awayId,homeId,r,L,st){
+  const cBat={},cPit={};
+  L.away.bat.forEach(s=>cBat[s.pid]=packBat(s));
+  L.home.bat.forEach(s=>cBat[s.pid]=packBat(s));
+  L.away.pit.forEach(s=>cPit[s.pid]=packPit(s));
+  L.home.pit.forEach(s=>cPit[s.pid]=packPit(s));
+  return {
+    st:st||"",
+    aw:awayId,hm:homeId,a:r.a,h:r.b,
+    line:{aw:synthInnings(r.a),hm:synthInnings(r.b)},
+    e:{aw:ri(0,2),hm:ri(0,2)},
+    bat:cBat,pit:cPit,win:r.a>r.b?"away":r.b>r.a?"home":null,
+    sp:{away:(L.away.pit[0]&&L.away.pit[0].pid)||"",home:(L.home.pit[0]&&L.home.pit[0].pid)||""}
+  };
 }
 function mergePlayerStats(m){
   for(const pid in m.stats)mergeBatLine(pid,m.stats[pid]);
@@ -127,13 +183,17 @@ function processGameEnd(m){
   const when="第"+(m.dayIndex+1)+"日";
   checkMatchRecords(m,when);
   logGame(m.dayIndex+1,"",m.awayId,m.homeId,m.score.away,m.score.home);
-  day.forEach(x=>{
+  const boxes=S.season.boxes||(S.season.boxes=[]);
+  boxes[m.dayIndex]=boxes[m.dayIndex]||[];
+  if(g)boxes[m.dayIndex][day.indexOf(g)]=boxFromMatch(m);
+  day.forEach((x,i)=>{
     if(x.played)return;
     const r=quickSim(x.away,x.home);
     x.played=true;x.score={a:r.a,h:r.b};
     applyRecord(x.away,x.home,r.a,r.b);
     logGame(m.dayIndex+1,"",x.away,x.home,r.a,r.b);
     const L=synthGameStats(x.away,x.home,r.a,r.b);
+    boxes[m.dayIndex][i]=boxFromSim(x.away,x.home,r,L,"");
     checkLineRecords(L.away,x.away,when);
     checkLineRecords(L.home,x.home,when);
     checkSimTeamRecords(x.away,x.home,r.a,r.b,when);

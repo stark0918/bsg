@@ -17,6 +17,8 @@ function newSeason(playerTeam){
     playerTeam,
     day:0,
     schedule:makeSchedule(),
+    boxes:[],        // 逐場 box（數字陣列精簡格式），依 dayIndex 分組
+    poBoxes:[],      // 季後賽逐場 box
     records:{},
     playerStats:{bat:{},pit:{}},
     statSchema:2,

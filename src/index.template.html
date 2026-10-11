@@ -148,6 +148,43 @@ table.grid td.num{font-family:Consolas,monospace;color:#cfe3f5}
 table.grid tr:hover td{background:rgba(87,200,230,.06)}
 .rank1{color:var(--gold);font-weight:900}
 
+/* 打線表 */
+table.lineup{font-size:12.5px}
+table.lineup th,table.lineup td{padding:2px 5px}
+table.lineup tr.onbase td{background:rgba(79,211,154,.13)}
+table.lineup tr.batting td{background:rgba(87,200,230,.16);color:#eef6ff;font-weight:700}
+table.lineup tr.batting td:first-child{box-shadow:inset 3px 0 0 var(--neon)}
+
+/* 聯盟日報／賽事卡片 */
+button.gline{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;margin:4px 0;border:1px solid var(--line);border-radius:5px;background:#0d1017;color:var(--ink);font-size:13px;text-align:left;cursor:pointer}
+button.gline:hover{border-color:var(--neon);background:#111b28}
+button.gline.me{box-shadow:inset 3px 0 0 var(--neon)}
+.gline .sc{font-variant-numeric:tabular-nums;font-weight:800;font-size:15px;color:var(--gold)}
+.gline .gmeta{flex:1;color:var(--muted);font-size:12px}
+.gline .gmore{color:var(--neon);font-size:12px;white-space:nowrap}
+.dlbl{color:var(--neon);font-weight:700;font-size:12.5px}
+tr.clickable td{cursor:pointer}
+tr.clickable:hover td{background:#101a26}
+
+/* 紀錄殿堂／分頁／獎牌 */
+.hallhead{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:linear-gradient(180deg,#16211a,#0d1017);margin:0 0 10px}
+.tabbar{display:flex;gap:6px;margin:10px 0}
+button.tab{flex:1;padding:7px 4px;border:1px solid var(--line);background:#0d1017;color:var(--muted);border-radius:5px;cursor:pointer;font-size:12.5px}
+button.tab:hover{border-color:var(--neon)}
+button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font-weight:700}
+.medal{display:inline-block;min-width:16px;padding:0 4px;border-radius:3px;font-size:11px;font-weight:800;text-align:center}
+.medal.g1{background:#3a3320;color:#f2c94c}
+.medal.g2{background:#2a3238;color:#bfd3de}
+.medal.g3{background:#33283a;color:#d3a7e8}
+
+/* 頒獎典禮演出 */
+.party{border-color:var(--gold);background:linear-gradient(180deg,#241d10,#0d1017)}
+.ceremony{border-left:3px solid var(--gold);animation:cerin .45s ease-out}
+@keyframes cerin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.champbanner{font-size:22px;font-weight:800;letter-spacing:.12em;padding:10px 0;color:var(--gold);text-shadow:0 0 12px rgba(230,200,119,.35)}
+.awardlist{margin:4px 0 0;padding-left:18px}
+.awardlist li{margin:2px 0;color:#f0e0b0}
+
 .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;color:#cfe9ff;background:#16283d;border:1px solid var(--line);margin-left:4px}
 .pill.on{background:rgba(79,211,154,.15);color:#a9e6c6;border-color:#3f8f6b}
 .pill.off{background:rgba(224,85,154,.15);color:#f2b9d2;border-color:#9c4a6e}

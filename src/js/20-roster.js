@@ -11,10 +11,12 @@ function genRoster(team){
   const arnd=mulberry32(hashStr("gk-arch-v1-"+team.id));
   const used=new Set();
   const pos=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const benchPos=["C","SS","CF","1B"];   // 板凳球員守位（僅供顯示／換人對照，不影響能力加成）
   const arch=["contact","power","speed","eye","balanced"];
   const batters=[];
   for(let i=0;i<13;i++){
     const p=i<9?pos[i]:null;
+    const bp=i>=9?benchPos[i-9]:null;
     const a=rpick(arnd,arch);
     let meet=nrm(rnd,52,10),power=nrm(rnd,50,13),eye=nrm(rnd,50,11),speed=nrm(rnd,52,12),def=nrm(rnd,52,11);
     if(a==="contact"){meet+=9;eye+=3;power-=4;}
@@ -31,7 +33,7 @@ function genRoster(team){
     const s=team.str;
     batters.push({
       id:team.id+"b"+i, name:mkName(nrnd,used),
-      pos:p||("B"+i), posLabel:p?POS_ZH[p]:"替補", bench:i>=9,
+      pos:p||(bp||("B"+i)), posLabel:p?POS_ZH[p]:(bp?POS_ZH[bp]:"替補"), bench:i>=9,
       meet:Math.round(clamp(meet+s,25,96)), power:Math.round(clamp(power+s,20,96)),
       eye:Math.round(clamp(eye+s,25,96)), speed:Math.round(clamp(speed+s,20,96)),
       defense:Math.round(clamp(def+s,20,96))

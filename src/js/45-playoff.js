@@ -54,6 +54,8 @@ function simSeriesGame(s,label){
   const loScore=home===s.hi?awayScore:homeScore;
   s.games.push({home:home,away:away,scoreHi:hiScore,scoreLo:loScore,winner:winnerId});
   logGame(null,label||"季後賽",away,home,awayScore,homeScore);
+  const L=synthGameStats(away,home,awayScore,homeScore,false);
+  (S.season.poBoxes||(S.season.poBoxes=[])).push(boxFromSim(away,home,{a:awayScore,b:homeScore},L,label||"季後賽"));
   if(winnerId===s.hi)s.winsHi++;else s.winsLo++;
   if(s.winsHi>=seriesNeed(s.best)||s.winsLo>=seriesNeed(s.best))s.winner=winnerId;
 }
@@ -114,6 +116,7 @@ function recordPlayoffResult(m){
   const stName=m.po.stage==="semi"?"準決賽":"冠軍戰";
   checkMatchRecords(m,`${stName}·第${m.po.gameNo+1}戰`);
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
+  (S.season.poBoxes||(S.season.poBoxes=[])).push(boxFromMatch(m));
   playoffProgress();
   saveGame();
 }
@@ -165,6 +168,7 @@ function poNav(){
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
       <button class="btn blk" data-act="records">📕 單場紀錄</button>
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+      <button class="btn blk" data-act="league">🏟 劇空間日報</button>
     </div>
     <button class="btn sm blk" data-act="help">？ 遊戲說明</button>`;
 }

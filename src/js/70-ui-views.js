@@ -12,6 +12,7 @@ function viewTitle(){
     <button class="btn green blk" data-act="newgame">⚾ 新球季開始（選擇球隊）</button>
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
+    <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
     ${(hasSave()||(CAREER.history&&CAREER.history.length))?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     ${hasSave()?`<button class="btn blk" data-act="wipe">✕ 刪除存檔</button>`:""}
   </div>
@@ -79,6 +80,7 @@ function viewHub(){
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
       <button class="btn blk" data-act="records">📕 單場紀錄</button>
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+      <button class="btn blk" data-act="league">🏟 劇空間日報</button>
     </div>
     ${(s.news&&s.news.length)?`<div class="hr"></div><div class="news">${s.news.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div>`:""}
     <div class="hr"></div>
@@ -86,7 +88,8 @@ function viewHub(){
     <div class="hr"></div>
     <button class="btn sm blk" data-act="saveNow">💾 手動存檔</button>
     <button class="btn sm blk" data-act="toTitle">回主選單（自動存檔）</button>
-  </div>`;
+  </div>
+  ${startersPanel()}`;
   return hubFrame(team,st,myRank,myRec,main);
 }
 function hubFrame(team,st,myRank,myRec,main){
@@ -106,6 +109,27 @@ function hubFrame(team,st,myRank,myRec,main){
     </div>`;
 }
 
+/* 今日先發名單（球季總部用） */
+function startersPanel(){
+  const s=S.season,day=s.day,g=nextPlayerGame();
+  if(!g)return "";
+  const me=s.playerTeam,myHome=g.home===me;
+  const my=getTeam(me),lu=buildLineup(my),sp=starterOf(my,day);
+  const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
+  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
+  return `<div class="panel">
+    <h2>今日先發</h2>
+    <div class="two">
+      <div><h3>${teamBadge(me)} <span class="pill">${myHome?"主場":"客場"}</span></h3>
+        <table class="grid lineup"><tr><th>棒</th><th>球員</th><th>守位</th></tr>${rows}</table>
+        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b></p></div>
+      <div><h3>${teamBadge(oppId)}</h3>
+        <p class="muted">對手先發投手：<b>${esc(osp.name)}</b></p>
+        <p class="muted" style="font-size:12px">開打後可在比賽畫面查看雙方完整打線、板凳與牛棚。</p></div>
+    </div>
+  </div>`;
+}
+
 /* ----- 比賽畫面 ----- */
 function viewGame(){
   const m=S.match;
@@ -115,6 +139,7 @@ function viewGame(){
   const innLabel=(m.half==="top"?"上":"下");
   const offSide=offenseSide(m),defSide=defenseSide(m);
   const batter=currentBatter(m);
+  const myOrder=(m.batterIdx[offSide]%m.lineups[offSide].length)+1;
   const P=m.pitchers[defSide];
   const eff=pitcherEffective(P.obj,P.pitches);
   const team=esc(getTeam(S.season.playerTeam).name);
@@ -148,8 +173,8 @@ function viewGame(){
   </div>`;
 
   const matchup=`<div class="matchup">
-    <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span>
-      <span class="muted" style="font-size:12px">　　打率 ${batAvg(m,batter.id)}</span></div>
+    <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
+      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
@@ -225,6 +250,10 @@ function viewGame(){
     ${log}
     <div class="actions">${actions}</div>
   </div>
+  <div class="panel">
+    <h2>打線與板凳</h2>
+    <div class="two">${lineupBox(m,"away")}${lineupBox(m,"home")}</div>
+  </div>
   ${result}`;
 }
 function batterDesc(m){
@@ -236,6 +265,33 @@ function batAvg(m,pid){
   if(!s||!s.ab)return ".000";
   return fmtAvg(s.h/s.ab);
 }
+function lineupBox(m,side){
+  const lu=m.lineups[side];
+  const isOff=!m.over&&side===offenseSide(m);
+  const cur=isOff?lu[m.batterIdx[side]%lu.length]:null;
+  const onBase=new Set();m.bases.forEach(x=>{if(x)onBase.add(x.id);});
+  const orig=(m.originals&&m.originals[side])||[];
+  const tid=side===m.awayId?m.awayId:m.homeId;
+  const rows=lu.map((b,i)=>{
+    const cls=[];
+    if(onBase.has(b.id))cls.push("onbase");
+    if(cur&&b.id===cur.id)cls.push("batting");
+    const o=orig[i];
+    const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
+    const mark=onBase.has(b.id)?' <span class="pill on">壘</span>':"";
+    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
+  }).join("");
+  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>`).join("、");
+  const bp=m.bullpen[side].map(p=>`${esc(p.name)}<span class="muted">（${esc(p.role)}）</span>`).join("、");
+  const P=m.pitchers[side].obj;
+  return `<div>
+    <h3>${teamBadge(tid)}${isOff?' <span class="pill on">進攻中</span>':""}</h3>
+    <table class="grid lineup"><tr><th>棒</th><th>球員</th><th>守位</th></tr>${rows}</table>
+    <p class="muted" style="font-size:12px;margin:6px 0 2px">投手：${esc(P.name)}（${esc(P.role)}）</p>
+    <p class="muted" style="font-size:12px;margin:2px 0">板凳：${bench||"－"}</p>
+    <p class="muted" style="font-size:12px;margin:2px 0">牛棚：${bp||"－"}</p>
+  </div>`;
+}
 function bullpenButtons(m){
   const defSide=defenseSide(m);
   const bp=m.bullpen[defSide];
@@ -245,18 +301,27 @@ function bullpenButtons(m){
 function boxScore(m){
   const mk=(id,key)=>{
     const lu=m.lineups[key];
-    let rows=lu.map(b=>{
+    const orig=(m.originals&&m.originals[key])||[];
+    let rows=lu.map((b,i)=>{
       const s=m.stats[b.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};
-      return `<tr><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td>
+      const o=orig[i];
+      const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
+      return `<tr><td class="name">${esc(b.name)}${subNote}</td><td>${esc(b.posLabel)}</td>
         <td class="num">${s.ab}</td><td class="num">${s.h}</td><td class="num">${s.hr}</td>
         <td class="num">${s.rbi}</td><td class="num">${s.bb}</td><td class="num">${s.k}</td></tr>`;
     }).join("");
-    const P=m.pitchers[key];
-    const ps=m.pstats[P.obj.id]||{outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0};
+    const cur=m.pitchers[key].obj.id;
+    const ids=(m.usedPitchers[key]||[]).concat(cur).filter((v,i,a)=>a.indexOf(v)===i);
+    const pitRows=ids.map(pid=>{
+      const p=playerById(pid);
+      const ps=m.pstats[pid]||{outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0};
+      return `<tr><td class="name">${esc(p?p.name:pid)}${pid===cur?' <span class="pill on">現任</span>':''}</td>
+        <td class="num">${fmtIP(ps.outs)}</td><td class="num">${ps.h}</td><td class="num">${ps.r}</td><td class="num">${ps.er}</td>
+        <td class="num">${ps.bb}</td><td class="num">${ps.k}</td><td class="num">${ps.pp}</td></tr>`;
+    }).join("");
     return `<h3>${esc(getTeam(id).name)}</h3>
       <table class="grid"><tr><th>打者</th><th>守位</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th></tr>${rows}</table>
-      <table class="grid" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>
-      <tr><td class="name">${esc(P.obj.name)}</td><td class="num">${fmtIP(ps.outs)}</td><td class="num">${ps.h}</td><td class="num">${ps.r}</td><td class="num">${ps.er}</td><td class="num">${ps.bb}</td><td class="num">${ps.k}</td><td class="num">${ps.pp}</td></tr></table>`;
+      <table class="grid" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${pitRows}</table>`;
   };
   return `<div class="two">${mk(m.awayId,"away")}${mk(m.homeId,"home")}</div>`;
 }
@@ -398,6 +463,26 @@ function viewPlayer(){
       <tr><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td><td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr></table>`;
   }
   const overall=playerOverall(p);
+  const care=CAREER.career||{};
+  const cs=isPit?(care.pit||{})[pid]:(care.bat||{})[pid];
+  let careerTable;
+  if(isPit){
+    careerTable=cs?`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
+      <tr><td class="num">${cs.g||0}</td><td class="num">${fmtIP(cs.outs||0)}</td><td class="num">${fmtERA(cs.er||0,cs.outs||0)}</td><td class="num">${cs.w||0}</td><td class="num">${cs.l||0}</td><td class="num">${cs.sv||0}</td><td class="num">${cs.k||0}</td></tr></table>`
+      :`<p class="muted">尚無跨季累計（完成一整季後開始累計）。</p>`;
+  }else{
+    const cab=cs?cs.ab:0,ch=cs?cs.h:0;
+    careerTable=cs?`<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>盜壘</th></tr>
+      <tr><td class="num">${cs.g||0}</td><td class="num">${cab}</td><td class="num">${ch}</td><td class="num">${fmtAvg(cab?ch/cab:0)}</td><td class="num">${cs.hr||0}</td><td class="num">${cs.rbi||0}</td><td class="num">${cs.sb||0}</td></tr></table>`
+      :`<p class="muted">尚無跨季累計（完成一整季後開始累計）。</p>`;
+  }
+  const best=playerBestGame(pid,isPit);
+  const bestHTML=best?`<p>${best.text}</p>
+    <button class="btn sm" data-act="gameDetail" data-arg="${best.d},${best.gi}">查看該場明細 ▸</button>`
+    :`<p class="muted">本季尚無出賽紀錄。</p>`;
+  const aws=playerAwards(pid);
+  const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
+    :`<p class="muted">尚無獲獎紀錄。</p>`;
   return `<div class="panel"><h2>球員資料</h2>
     <div class="matchup">
       ${playerAvatar(p,56)}
@@ -407,6 +492,9 @@ function viewPlayer(){
       ${bars}
     </div>
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
+    <h3>生涯累計（跨季）</h3>${careerTable}
+    <h3>本季亮眼</h3>${bestHTML}
+    <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>
     <button class="btn" data-act="roster">← 回陣容</button>
@@ -414,18 +502,186 @@ function viewPlayer(){
     <button class="btn" data-act="backHub">回球季總部</button>
   </div>`;
 }
+/* 從本季逐場 box 找出該球員最亮眼的一場 */
+function playerBestGame(pid,isPit){
+  const se=S.season;if(!se)return null;
+  let best=null;
+  (se.boxes||[]).forEach((arr,d)=>(arr||[]).forEach((b,gi)=>{
+    const f=isPit?b.pit[pid]:b.bat[pid];
+    if(!f)return;
+    const myTeam=pid.replace(/[bp]\d+$/,"");
+    const oppId=(b.aw===myTeam)?b.hm:(b.hm===myTeam)?b.aw:null;
+    if(!oppId)return;
+    const opp=getTeam(oppId).name;
+    if(isPit){
+      const score=(f[0]||0)*10+(f[5]||0)*3-f[2]*2+(f[7]?20:0);
+      if(!best||score>best.score){
+        best={d,gi,score,text:`第 ${d+1} 日 vs ${esc(opp)}：${fmtIP(f[0])} 局、${f[5]} 次三振、失 ${f[2]} 分${f[7]?"（勝投）":f[9]?"（救援）":""}`};
+      }
+    }else{
+      const score=(f[1]||0)*2+(f[2]||0)*4+(f[3]||0)*2+(f[5]||0);
+      if(!best||score>best.score){
+        const hr=f[2]?"、"+f[2]+" 發全壘打":"";
+        const rbi=f[3]?"、"+f[3]+" 打點":"";
+        best={d,gi,score,text:`第 ${d+1} 日 vs ${esc(opp)}：${f[0]} 打數 ${f[1]} 安打${hr}${rbi}`};
+      }
+    }
+  }));
+  return best;
+}
+/* 該球員的歷屆獲獎紀錄（跨季，綁定頒獎典禮） */
+function playerAwards(pid){
+  const out=[];
+  (CAREER.awards||[]).forEach(a=>{
+    if(a.mvp&&a.mvp.pid===pid)out.push(`第 ${a.no} 季 最有價值球員（MVP）`);
+    if(a.cy&&a.cy.pid===pid)out.push(`第 ${a.no} 季 最佳投手`);
+    if(a.rookie&&a.rookie.pid===pid)out.push(`第 ${a.no} 季 新人王`);
+    (a.kings||[]).forEach(k=>{if(k.pid===pid)out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
+  });
+  return out;
+}
+
+/* ----- 劇空間首頁：聯盟日報 ----- */
+function viewLeague(){
+  const se=S.season;
+  if(!se)return `<div class="panel"><h2>🏟 劇空間</h2><p class="muted">尚未開始球季，先到主選單展開新球季吧。</p>
+    <button class="btn blk" data-act="toTitle">← 回主選單</button></div>`;
+  const st=standingsList();
+  const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
+    <td class="name">${teamBadge(x.id)}${x.id===se.playerTeam?"（你）":""}</td>
+    <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`).join("");
+  const days=[];
+  for(let i=0;i<Math.min(se.day,se.schedule.length);i++)days.push(i);
+  const recent=days.slice(-4);
+  let games="";
+  recent.forEach(di=>{
+    const day=se.schedule[di];
+    games+=`<h3>第 ${di+1} 日</h3>`+day.map((g,gi)=>g.played?leagueGameCard(di,gi):"").join("");
+  });
+  if(!games)games='<p class="muted">例行賽尚未開打。</p>';
+  const poB=se.poBoxes||[];
+  if(poB.length)games+=`<h3>季後賽</h3>`+poB.map((b,i)=>leagueGameCard(-1,i,true)).join("");
+  const nav=`<div class="two">
+    <button class="btn blk" data-act="schedule">🗓 完整賽程</button>
+    <button class="btn blk" data-act="standings">📊 聯盟排名</button>
+    <button class="btn blk" data-act="leaders">📈 球員排行</button>
+    <button class="btn blk" data-act="records">📕 單場紀錄</button>
+    <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+    <button class="btn blk" data-act="exportCsv">⬇ 匯出逐場 CSV</button>
+  </div>`;
+  return `<div class="panel"><h2>🏟 劇空間</h2>
+    <p class="muted">聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
+    <div class="hr"></div><h3>聯盟排名</h3>
+    <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th></tr>${srows}</table>
+    <div class="hr"></div><h3>最近賽事</h3>${games}
+    <div class="hr"></div>${nav}
+    <div class="hr"></div><button class="btn sm blk" data-act="backHub">← 回球季總部</button></div>`;
+}
+function leagueGameCard(di,gi,isPo){
+  const b=isPo?((S.season.poBoxes||[])[gi]):((S.season.boxes||[])[di]||[])[gi];
+  if(!b)return "";
+  const me=S.season.playerTeam;
+  const mine=b.aw===me||b.hm===me;
+  const aw=getTeam(b.aw),hm=getTeam(b.hm);
+  const winLabel=b.win?(b.win==="home"?hm.name:aw.name)+" 勝":"和局";
+  const when=isPo?(b.st||"季後賽"):("第 "+(di+1)+" 日");
+  return `<button class="gline ${mine?"me":""}" data-act="gameDetail" data-arg="${isPo?"p"+gi:di+","+gi}">
+    <span class="gbadge">${teamBadge(b.aw)}</span><b class="sc">${b.a}</b><span class="muted">－</span><b class="sc">${b.h}</b><span class="gbadge">${teamBadge(b.hm)}</span>
+    <span class="gmeta">${when} · ${winLabel}</span><span class="gmore">明細 ▸</span>
+  </button>`;
+}
+/* ----- 單場明細 ----- */
+function viewGameDetail(){
+  const gd=S.gameDetail;
+  if(!gd)return viewLeague();
+  const box=gd.po!=null?((S.season.poBoxes||[])[gd.po]):((S.season.boxes||[])[gd.day]||[])[gd.i];
+  const back=`<div class="panel"><button class="btn blk" data-act="gameDetailBack">← 返回</button></div>`;
+  if(!box)return `<div class="panel"><h2>比賽明細</h2><p class="muted">此場比賽尚未留存內容（更新前已打完的場次）。</p></div>${back}`;
+  return boxDetailHTML(box,gd)+back;
+}
+function teamHitsBy(box,tid){let n=0;for(const pid in (box.bat||{}))if(pid.indexOf(tid+"b")===0)n+=(box.bat[pid][1]||0);return n;}
+function boxDetailHTML(box,gd){
+  const aw=getTeam(box.aw),hm=getTeam(box.hm);
+  const stage=box.st||"第 "+(gd.day+1)+" 日";
+  const win=box.win==="home"?hm:box.win==="away"?aw:null;
+  const head=`<div class="panel">
+    <h2>${esc(stage)}　${teamBadge(box.aw)} ＠ ${teamBadge(box.hm)}</h2>
+    <p class="center"><b class="bignum">${esc(aw.name)} ${box.a} － ${box.h} ${esc(hm.name)}</b></p>
+    <p class="center">${win?`<b>${teamBadge(box.win==="home"?box.hm:box.aw)} ${esc(win.name)} 獲勝</b>`:'<span class="muted">和局收場</span>'}　·　<span class="muted">安打 ${teamHitsBy(box,box.aw)}：${teamHitsBy(box,box.hm)}</span></p>
+    <div class="hr"></div>
+    ${inningLineTable(box)}
+  </div>`;
+  const batPanel=`<div class="panel"><h2>打者成績</h2><div class="two">${boxBatTable(box,"aw")}${boxBatTable(box,"hm")}</div></div>`;
+  const pitPanel=`<div class="panel"><h2>投手成績</h2><div class="two">${boxPitTable(box,"aw")}${boxPitTable(box,"hm")}</div></div>`;
+  const dig=gameDigest(box);
+  return head+batPanel+pitPanel+(dig?`<div class="panel"><h2>攻勢重點</h2>${dig}</div>`:"");
+}
+function inningLineTable(box){
+  const a=box.line.aw||[],h=box.line.hm||[];
+  const N=Math.max(a.length,h.length,1);
+  let head="<tr><th></th>";
+  for(let i=1;i<=N;i++)head+=`<th>${i}</th>`;
+  head+="<th>R</th></tr>";
+  const mk=(arr,score,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v||""}</td>`).join("")+`<td class="num"><b>${score}</b></td></tr>`;
+  return `<table class="grid">${head}${mk(a,box.a,box.aw)}${mk(h,box.h,box.hm)}</table>`;
+}
+function boxBatTable(box,side){
+  const tid=side==="aw"?box.aw:box.hm;
+  const rows=Object.keys(box.bat).filter(pid=>pid.indexOf(tid+"b")===0).map(pid=>{
+    const f=box.bat[pid],p=playerById(pid);
+    return `<tr><td class="name">${esc(p?p.name:pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+  }).join("");
+  return `<div><h3>${esc(getTeam(tid).name)}</h3><table class="grid"><tr><th>打者</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table></div>`;
+}
+function boxPitTable(box,side){
+  const tid=side==="aw"?box.aw:box.hm;
+  const rows=Object.keys(box.pit).filter(pid=>pid.indexOf(tid+"p")===0).map(pid=>{
+    const f=box.pit[pid],p=playerById(pid);
+    const cur=f[7]?' <span class="pill on">勝</span>':f[8]?' <span class="pill off">敗</span>':f[9]?' <span class="pill on">救</span>':"";
+    return `<tr><td class="name">${esc(p?p.name:pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+  }).join("");
+  return `<div><h3>${esc(getTeam(tid).name)}</h3><table class="grid"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table></div>`;
+}
+function gameDigest(box){
+  const parts=[];
+  const runsLine=side=>{
+    const xs=[];
+    (box.line[side]||[]).forEach((v,i)=>{if(v)xs.push(`${i+1}${side==="aw"?"上":"下"}+${v}`);});
+    return xs;
+  };
+  const aRuns=runsLine("aw"),hRuns=runsLine("hm");
+  if(aRuns.length||hRuns.length){
+    const L=[];
+    if(aRuns.length)L.push(`${esc(getTeam(box.aw).name)} ${aRuns.join("、")}`);
+    if(hRuns.length)L.push(`${esc(getTeam(box.hm).name)} ${hRuns.join("、")}`);
+    parts.push(`<p><span class="dlbl">得分過程</span>　${L.join("　／　")}</p>`);
+  }
+  const hrList=side=>Object.keys(box.bat).filter(pid=>pid.indexOf(box[side==="aw"?"aw":"hm"]+"b")===0).filter(pid=>box.bat[pid][2]>0).map(pid=>{const p=playerById(pid);return `${esc(p?p.name:pid)} ${box.bat[pid][2]}轟`;});
+  const hr=[...hrList("aw"),...hrList("hm")];
+  if(hr.length)parts.push(`<p><span class="dlbl">全壘打</span>　${hr.join("、")}</p>`);
+  const pitOf=side=>{
+    const tid=box[side==="aw"?"aw":"hm"];
+    const ps=Object.keys(box.pit).filter(pid=>pid.indexOf(tid+"p")===0);
+    const nm=pid=>{const p=playerById(pid);return p?esc(p.name):pid;};
+    const w=ps.find(pid=>box.pit[pid][7]>0),l=ps.find(pid=>box.pit[pid][8]>0),sv=ps.find(pid=>box.pit[pid][9]>0);
+    return [(w?"勝投 "+nm(w):""),(l?"敗投 "+nm(l):""),(sv?"救援 "+nm(sv):"")].filter(Boolean).join("　");
+  };
+  const pi=[pitOf("aw"),pitOf("hm")].filter(Boolean).join("　");
+  if(pi)parts.push(`<p><span class="dlbl">勝敗</span>　${pi}</p>`);
+  return parts.join("");
+}
 
 /* ----- 賽程 ----- */
 function viewSchedule(){
   const s=S.season;
   const days=s.schedule.map((day,i)=>{
-    const games=day.map(g=>{
+    const games=day.map((g,gi)=>{
       const isMine=g.away===s.playerTeam||g.home===s.playerTeam;
       let sc="－ vs －";
       if(g.played){const cs=gameScore(g);sc=`${cs.a} : ${cs.h}`;}
-      return `<tr class="${isMine?"me":""}"><td class="name">${teamBadge(g.away)}</td>
+      return `<tr class="${isMine?"me":""}${g.played?" clickable":""}" ${g.played?`data-act="gameDetail" data-arg="${i},${gi}" title="查看比賽明細"`:""}><td class="name">${teamBadge(g.away)}</td>
         <td class="num">@</td><td class="name">${teamBadge(g.home)}</td>
-        <td class="num">${g.played?sc:"未開打"}</td></tr>`;
+        <td class="num">${g.played?sc:"未開打"}${g.played?' <span class="muted">▸</span>':""}</td></tr>`;
     }).join("");
     const state=i<s.day?"結束":i===s.day?"今日":"未定";
     return `<h3>第 ${i+1} 日 <span class="pill ${i===s.day?"on":"off"}">${state}</span></h3>

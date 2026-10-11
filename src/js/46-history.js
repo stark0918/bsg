@@ -36,6 +36,19 @@ function finalizeSeason(){
     no:CAREER.seasons+1, team:me, w:rec.w, l:rec.l, t:rec.t, rank,
     champ:(se.playoff&&se.playoff.champion)||null, isChamp:!!(se.playoff&&se.playoff.champion===me)
   });
+
+  /* 歷屆獎項：綁定選手百科與紀錄殿堂 */
+  CAREER.awards=CAREER.awards||[];
+  const aw=se.awards;
+  if(aw){
+    const top1=list=>list&&list[0]?{pid:list[0].pid,name:list[0].name,team:list[0].team,pts:list[0].pts}:null;
+    CAREER.awards.push({
+      no:CAREER.seasons+1,
+      champ:(se.playoff&&se.playoff.champion)||null,
+      mvp:top1(aw.mvp), cy:top1(aw.cy), rookie:top1(aw.rookie),
+      kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
+    });
+  }
   saveCareer();
 }
 

@@ -149,6 +149,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
+  m.originals={away:m.lineups.away.slice(),home:m.lineups.home.slice()};  // 記錄原先發，供換人／打線對照
   m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
   m.log.push(`　先發投手　${away.name}：${awayStarter.name}　／　${home.name}：${homeStarter.name}`);
   m.log.push(`◆ 1局上　${away.name}的進攻`);
@@ -396,7 +397,7 @@ function doPinchHit(m,auto){
   const bi=auto?ri(0,bench.length-1):0;   // 自動調度隨機挑替補，讓大家都有上場機會
   const sub=bench.splice(bi,1)[0];
   lu[idx]=sub;
-  m.log.push({t:`　代打！${before.name} 退場，${sub.name} 拎著球棒走上打擊區。`,c:"sys"});
+  m.log.push({t:`　代打！換下「${before.name}」（${before.posLabel}），由「${sub.name}」（${sub.posLabel}）拎著球棒上場代打。`,c:"sys"});
 }
 function doChangePitcher(m,pid){
   const defSide=defenseSide(m);
@@ -404,9 +405,10 @@ function doChangePitcher(m,pid){
   const i=bp.findIndex(p=>p.id===pid);
   if(i<0)return;
   const np=bp.splice(i,1)[0];
-  m.usedPitchers[defSide].push(m.pitchers[defSide].obj.id);
+  const old=m.pitchers[defSide].obj;
+  m.usedPitchers[defSide].push(old.id);
   m.pitchers[defSide]={obj:np,pitches:0};
-  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換上 ${np.name}（${np.role}）接替投球。`,c:"run"});
+  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球。`,c:"run"});
 }
 
 /* ---------- 遊戲回合控制 ---------- */

@@ -17,6 +17,8 @@ function render(){
   else if(S.screen==="awards")app.innerHTML=viewAwards();
   else if(S.screen==="draft")app.innerHTML=viewDraft();
   else if(S.screen==="help")app.innerHTML=viewHelp();
+  else if(S.screen==="league")app.innerHTML=viewLeague();
+  else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
   const toast=$("#toast");

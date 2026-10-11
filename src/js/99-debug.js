@@ -14,5 +14,7 @@ window.GK = {
   advanceCareer, applyOv, leadersList, leadersQualify,
   processGameEnd, startMatch, autoGame, quickSim, teamStrength,
   ensurePlayoff, playoffProgress, playoffNextGame, playoffSimAll, startPlayoffMatch,
-  finalizeSeason, logGame, viewHistory, render, viewAbilities, ACT
+  finalizeSeason, logGame, viewHistory, render, viewAbilities, ACT,
+  seasonCSV, careerMerged, viewRecords, viewPlayer, viewLeague, viewGameDetail,
+  viewAwards, computeAwards, playerAwards
 };
