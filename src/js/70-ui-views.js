@@ -129,6 +129,7 @@ function viewHub(){
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
       <button class="btn blk" data-act="abilities">🧮 選手能力</button>
+      <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
@@ -176,12 +177,46 @@ function startersPanel(){
     <div class="two">
       <div><h3>${teamBadge(me)} <span class="pill">${myHome?"主場":"客場"}</span></h3>
         <table class="grid lineup"><tr><th>棒</th><th>球員</th><th>守位</th></tr>${rows}</table>
-        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b></p></div>
+        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b></p>
+        <button class="btn sm blk" data-act="lineup">🧢 編輯打線／守位</button></div>
       <div><h3>${teamBadge(oppId)}</h3>
         <p class="muted">對手先發投手：<b>${esc(osp.name)}</b></p>
         <p class="muted" style="font-size:12px">開打後可在比賽畫面查看雙方完整打線、板凳與牛棚。</p></div>
     </div>
   </div>`;
+}
+
+/* ----- 打線／守位編輯 ----- */
+function viewLineup(){
+  const se=S.season,team=getTeam(se.playerTeam);
+  const lu=buildLineup(team),bench=buildBench(team);
+  const sel=S.luSel==null?-1:S.luSel;
+  const rows=lu.map((b,i)=>`<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
+      <span class="luord">${i+1}</span>
+      <span class="luname">${esc(b.name)}${b.bench?' <span class="pill off">板凳</span>':""}</span>
+      <span class="lups">${esc(b.posLabel||"")}</span>
+      <span class="lubtns">
+        <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
+        <button class="btn sm" data-act="luDown" data-arg="${i}" ${i===lu.length-1?"disabled":""}>▼</button>
+      </span>
+    </div>`).join("");
+  const brows=bench.length?bench.map(b=>`<div class="lurow benchrow">
+      <span class="luord">–</span>
+      <span class="luname">${esc(b.name)}</span>
+      <span class="lups">${esc(b.posLabel||"")}</span>
+      <button class="btn sm gold" data-act="luSwap" data-arg="${b.id}">⇄ 換入${sel>=0?"第 "+(sel+1)+" 棒":""}</button>
+    </div>`).join(""):`<p class="muted">沒有可替換的球員。</p>`;
+  return `<div class="panel"><h2>🧢 打線／守位編輯</h2>
+    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
+    <div class="hr"></div><h3>先發打線</h3>
+    <div class="lulist">${rows}</div>
+    <div class="hr"></div><h3>板凳</h3>
+    <div class="lulist">${brows}</div>
+    <div class="hr"></div>
+    <div class="two">
+      <button class="btn blk" data-act="luReset">↺ 回復預設打線</button>
+      <button class="btn blk" data-act="backHub">← 回球季總部</button>
+    </div></div>`;
 }
 
 /* ----- 比賽畫面 ----- */

@@ -1,6 +1,6 @@
 /* ---------- 畫面渲染 ---------- */
 /* 需要「進行中的球季」才成立的畫面；無球季時退回標題，避免存取 null。 */
-const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1};
+const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1,lineup:1};
 function render(){
   if(!S.season&&NEED_SEASON[S.screen])S.screen="title";
   if(S.season&&S.season.statSchema!==2)migrateSeasonStats();
@@ -22,6 +22,7 @@ function render(){
   else if(S.screen==="help")app.innerHTML=viewHelp();
   else if(S.screen==="league")app.innerHTML=viewLeague();
   else if(S.screen==="save")app.innerHTML=viewSaveManager();
+  else if(S.screen==="lineup")app.innerHTML=viewLineup();
   else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;

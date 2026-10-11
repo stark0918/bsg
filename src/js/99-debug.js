@@ -20,5 +20,6 @@ window.GK = {
   viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
   applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer,
   recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
-  buildDayPaper, gameHeadline, paperBlock
+  buildDayPaper, gameHeadline, paperBlock,
+  viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup
 };

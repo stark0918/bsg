@@ -128,7 +128,25 @@ function weightedIndex(weights){
 }
 function addRuns(m,side,n){if(n<=0)return;m.score[side]+=n;if(m.line[side].length<m.inning)m.line[side].length=m.inning;m.line[side][m.inning-1]=(m.line[side][m.inning-1]||0)+n;}
 
-function buildLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
+function defaultLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
+function buildLineup(team){
+  const custom=(CAREER.lineups||{})[team.id];
+  if(custom&&custom.length){
+    const byId={};team.batters.forEach(b=>byId[b.id]=b);
+    const seen={},arr=[];
+    custom.forEach(id=>{const b=byId[id];if(b&&!seen[id]){arr.push(b);seen[id]=1;}});
+    team.batters.forEach(b=>{if(arr.length<9&&!seen[b.id]){arr.push(b);seen[b.id]=1;}});
+    if(arr.length>=9)return arr.slice(0,9);
+  }
+  return defaultLineup(team);
+}
+function buildBench(team){const lu=buildLineup(team);return team.batters.filter(b=>lu.indexOf(b)<0);}
+function setPlayerLineup(ids){
+  if(!S.season)return;
+  CAREER.lineups=CAREER.lineups||{};
+  CAREER.lineups[S.season.playerTeam]=ids.slice();
+  saveCareer();
+}
 function starterOf(team,day){const sp=team.pitchers.filter(p=>p.starter);return sp[(day+hashStr(team.id))%sp.length];}
 
 function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
@@ -140,7 +158,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     score:{away:0,home:0},hits:{away:0,home:0},errs:{away:0,home:0},
     line:{away:new Array(12).fill(0),home:new Array(12).fill(0)},
     lineups:{away:buildLineup(away),home:buildLineup(home)},
-    bench:{away:away.batters.filter(b=>b.bench),home:home.batters.filter(b=>b.bench)},
+    bench:{away:buildBench(away),home:buildBench(home)},
     bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},

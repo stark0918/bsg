@@ -46,6 +46,28 @@ const ACT={
   slotDel(a){const n=+a;deleteSlotStorage(n);flash("已刪除槽 "+n);render();},
   exportSave(){flash(exportSaveFile()?"已匯出存檔檔（請確認下載）":"匯出失敗");render();},
   pickImport(){const el=document.getElementById("importFile");if(el)el.click();},
+  lineup(){S.screen="lineup";S.luSel=null;render();},
+  luPick(i){S.luSel=(S.luSel===+i?null:+i);render();},
+  luUp(i){
+    const ids=buildLineup(getTeam(S.season.playerTeam)).map(b=>b.id);i=+i;
+    if(i>0){[ids[i-1],ids[i]]=[ids[i],ids[i-1]];setPlayerLineup(ids);if(S.luSel===i)S.luSel=i-1;}
+    render();
+  },
+  luDown(i){
+    const ids=buildLineup(getTeam(S.season.playerTeam)).map(b=>b.id);i=+i;
+    if(i<ids.length-1){[ids[i+1],ids[i]]=[ids[i],ids[i+1]];setPlayerLineup(ids);if(S.luSel===i)S.luSel=i+1;}
+    render();
+  },
+  luSwap(pid){
+    const ids=buildLineup(getTeam(S.season.playerTeam)).map(b=>b.id);
+    let i=S.luSel==null?0:S.luSel;if(i<0||i>=ids.length)i=0;
+    ids[i]=pid;setPlayerLineup(ids);S.luSel=null;
+    flash("已把 "+recName(pid)+" 排入第 "+(i+1)+" 棒");render();
+  },
+  luReset(){
+    if(S.season){if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];saveCareer();}
+    S.luSel=null;flash("已回復預設打線");render();
+  },
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},

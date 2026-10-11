@@ -218,6 +218,14 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 .paper ul{margin:2px 0 0;padding-left:18px}
 .paper li{font-size:12.5px;color:#c7d8ea;margin:2px 0}
 .paper li.top{color:#ffe6a8;font-weight:700}
+/* 打線編輯 */
+.lulist{display:flex;flex-direction:column;gap:4px;margin:4px 0}
+.lurow{display:flex;align-items:center;gap:8px;background:#0d1520;border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.lurow.sel{border-color:var(--gold);background:#1b2233}
+.luord{width:20px;height:20px;flex:0 0 20px;text-align:center;line-height:20px;background:#16283d;border-radius:50%;font-weight:700;font-size:12px}
+.luname{flex:1;min-width:0}
+.lups{font-size:12px;color:var(--muted);width:34px;text-align:center}
+.lubtns{display:flex;gap:3px}
 .daysep td{background:#16283d;color:#a6d4e8;font-weight:700;letter-spacing:.1em;font-size:12px}
 .daysep td:before{content:"▸ "}
 .grade{display:inline-block;font-weight:900;font-family:Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:4px;color:#fff}
@@ -629,7 +637,25 @@ function weightedIndex(weights){
 }
 function addRuns(m,side,n){if(n<=0)return;m.score[side]+=n;if(m.line[side].length<m.inning)m.line[side].length=m.inning;m.line[side][m.inning-1]=(m.line[side][m.inning-1]||0)+n;}
 
-function buildLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
+function defaultLineup(team){return team.batters.filter(b=>!b.bench).slice(0,9);}
+function buildLineup(team){
+  const custom=(CAREER.lineups||{})[team.id];
+  if(custom&&custom.length){
+    const byId={};team.batters.forEach(b=>byId[b.id]=b);
+    const seen={},arr=[];
+    custom.forEach(id=>{const b=byId[id];if(b&&!seen[id]){arr.push(b);seen[id]=1;}});
+    team.batters.forEach(b=>{if(arr.length<9&&!seen[b.id]){arr.push(b);seen[b.id]=1;}});
+    if(arr.length>=9)return arr.slice(0,9);
+  }
+  return defaultLineup(team);
+}
+function buildBench(team){const lu=buildLineup(team);return team.batters.filter(b=>lu.indexOf(b)<0);}
+function setPlayerLineup(ids){
+  if(!S.season)return;
+  CAREER.lineups=CAREER.lineups||{};
+  CAREER.lineups[S.season.playerTeam]=ids.slice();
+  saveCareer();
+}
 function starterOf(team,day){const sp=team.pitchers.filter(p=>p.starter);return sp[(day+hashStr(team.id))%sp.length];}
 
 function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
@@ -641,7 +667,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     score:{away:0,home:0},hits:{away:0,home:0},errs:{away:0,home:0},
     line:{away:new Array(12).fill(0),home:new Array(12).fill(0)},
     lineups:{away:buildLineup(away),home:buildLineup(home)},
-    bench:{away:away.batters.filter(b=>b.bench),home:home.batters.filter(b=>b.bench)},
+    bench:{away:buildBench(away),home:buildBench(home)},
     bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
@@ -2360,7 +2386,7 @@ function standingsList(){
 /* ===================== 60-ui-core.js ===================== */
 /* ---------- 畫面渲染 ---------- */
 /* 需要「進行中的球季」才成立的畫面；無球季時退回標題，避免存取 null。 */
-const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1};
+const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1,lineup:1};
 function render(){
   if(!S.season&&NEED_SEASON[S.screen])S.screen="title";
   if(S.season&&S.season.statSchema!==2)migrateSeasonStats();
@@ -2382,6 +2408,7 @@ function render(){
   else if(S.screen==="help")app.innerHTML=viewHelp();
   else if(S.screen==="league")app.innerHTML=viewLeague();
   else if(S.screen==="save")app.innerHTML=viewSaveManager();
+  else if(S.screen==="lineup")app.innerHTML=viewLineup();
   else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
@@ -2573,6 +2600,7 @@ function viewHub(){
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
       <button class="btn blk" data-act="abilities">🧮 選手能力</button>
+      <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
@@ -2620,12 +2648,46 @@ function startersPanel(){
     <div class="two">
       <div><h3>${teamBadge(me)} <span class="pill">${myHome?"主場":"客場"}</span></h3>
         <table class="grid lineup"><tr><th>棒</th><th>球員</th><th>守位</th></tr>${rows}</table>
-        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b></p></div>
+        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b></p>
+        <button class="btn sm blk" data-act="lineup">🧢 編輯打線／守位</button></div>
       <div><h3>${teamBadge(oppId)}</h3>
         <p class="muted">對手先發投手：<b>${esc(osp.name)}</b></p>
         <p class="muted" style="font-size:12px">開打後可在比賽畫面查看雙方完整打線、板凳與牛棚。</p></div>
     </div>
   </div>`;
+}
+
+/* ----- 打線／守位編輯 ----- */
+function viewLineup(){
+  const se=S.season,team=getTeam(se.playerTeam);
+  const lu=buildLineup(team),bench=buildBench(team);
+  const sel=S.luSel==null?-1:S.luSel;
+  const rows=lu.map((b,i)=>`<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
+      <span class="luord">${i+1}</span>
+      <span class="luname">${esc(b.name)}${b.bench?' <span class="pill off">板凳</span>':""}</span>
+      <span class="lups">${esc(b.posLabel||"")}</span>
+      <span class="lubtns">
+        <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
+        <button class="btn sm" data-act="luDown" data-arg="${i}" ${i===lu.length-1?"disabled":""}>▼</button>
+      </span>
+    </div>`).join("");
+  const brows=bench.length?bench.map(b=>`<div class="lurow benchrow">
+      <span class="luord">–</span>
+      <span class="luname">${esc(b.name)}</span>
+      <span class="lups">${esc(b.posLabel||"")}</span>
+      <button class="btn sm gold" data-act="luSwap" data-arg="${b.id}">⇄ 換入${sel>=0?"第 "+(sel+1)+" 棒":""}</button>
+    </div>`).join(""):`<p class="muted">沒有可替換的球員。</p>`;
+  return `<div class="panel"><h2>🧢 打線／守位編輯</h2>
+    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
+    <div class="hr"></div><h3>先發打線</h3>
+    <div class="lulist">${rows}</div>
+    <div class="hr"></div><h3>板凳</h3>
+    <div class="lulist">${brows}</div>
+    <div class="hr"></div>
+    <div class="two">
+      <button class="btn blk" data-act="luReset">↺ 回復預設打線</button>
+      <button class="btn blk" data-act="backHub">← 回球季總部</button>
+    </div></div>`;
 }
 
 /* ----- 比賽畫面 ----- */
@@ -3356,6 +3418,28 @@ const ACT={
   slotDel(a){const n=+a;deleteSlotStorage(n);flash("已刪除槽 "+n);render();},
   exportSave(){flash(exportSaveFile()?"已匯出存檔檔（請確認下載）":"匯出失敗");render();},
   pickImport(){const el=document.getElementById("importFile");if(el)el.click();},
+  lineup(){S.screen="lineup";S.luSel=null;render();},
+  luPick(i){S.luSel=(S.luSel===+i?null:+i);render();},
+  luUp(i){
+    const ids=buildLineup(getTeam(S.season.playerTeam)).map(b=>b.id);i=+i;
+    if(i>0){[ids[i-1],ids[i]]=[ids[i],ids[i-1]];setPlayerLineup(ids);if(S.luSel===i)S.luSel=i-1;}
+    render();
+  },
+  luDown(i){
+    const ids=buildLineup(getTeam(S.season.playerTeam)).map(b=>b.id);i=+i;
+    if(i<ids.length-1){[ids[i+1],ids[i]]=[ids[i],ids[i+1]];setPlayerLineup(ids);if(S.luSel===i)S.luSel=i+1;}
+    render();
+  },
+  luSwap(pid){
+    const ids=buildLineup(getTeam(S.season.playerTeam)).map(b=>b.id);
+    let i=S.luSel==null?0:S.luSel;if(i<0||i>=ids.length)i=0;
+    ids[i]=pid;setPlayerLineup(ids);S.luSel=null;
+    flash("已把 "+recName(pid)+" 排入第 "+(i+1)+" 棒");render();
+  },
+  luReset(){
+    if(S.season){if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];saveCareer();}
+    S.luSel=null;flash("已回復預設打線");render();
+  },
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},
@@ -3459,7 +3543,8 @@ window.GK = {
   viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
   applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer,
   recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
-  buildDayPaper, gameHeadline, paperBlock
+  buildDayPaper, gameHeadline, paperBlock,
+  viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup
 };
 })();
 
