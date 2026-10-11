@@ -346,3 +346,56 @@ function playerMilestones(pid){
   const ms=(CAREER.milestones||{})[pid]||{};
   return MILESTONES.filter(def=>ms[def.cat]>0).map(def=>`生涯 ${ms[def.cat]} ${def.label}`);
 }
+
+/* ---------- 聯盟日報：每日頭條 ---------- */
+function boxTeamSum(b,teamId,field,idx){
+  let t=0;for(const pid in (b[field]||{})){if(teamOfPlayer({id:pid})===teamId)t+=(b[field][pid][idx]||0);}return t;
+}
+function gameHeadline(b,me){
+  const awN=getTeam(b.aw).name,hmN=getTeam(b.hm).name;
+  if(b.a===b.h)return {s:5,text:`${awN} ${b.a}:${b.h} ${hmN} 和局收場`};
+  const awayWin=b.a>b.h;
+  const wTeam=awayWin?b.aw:b.hm,lTeam=awayWin?b.hm:b.aw;
+  const wN=awayWin?awN:hmN,lN=awayWin?hmN:awN;
+  const ws=awayWin?b.a:b.h,ls=awayWin?b.h:b.a;
+  const marg=ws-ls,tot=ws+ls;
+  const line=b.line||{},la=line.aw||[],lh=line.hm||[];
+  const n=Math.max(la.length,lh.length);
+  let ca=0,ch=0,defAway=0,defHome=0;
+  for(let i=0;i<n;i++){ca+=la[i]||0;ch+=lh[i]||0;defAway=Math.max(defAway,ch-ca);defHome=Math.max(defHome,ca-ch);}
+  const deficit=awayWin?defAway:defHome;
+  const lastInn=lh[lh.length-1]||0;
+  const walkoff=!awayWin&&lastInn>0&&(b.h-lastInn)<=b.a;
+  const shutout=ls===0;
+  const c=[];
+  if(walkoff)c.push({s:80,text:`再見安打！${wN} ${ws}:${ls} 氣走 ${lN}`});
+  if(shutout)c.push({s:deficit>=3?72:56,text:`${wN} 完封 ${lN}（${ws}:0）`});
+  if(deficit>=4)c.push({s:60+deficit,text:`大逆轉！${wN} 克服 ${deficit} 分落後，終場 ${ws}:${ls} 逆轉 ${lN}`});
+  if(marg>=9)c.push({s:40+marg,text:`${wN} 以 ${ws}:${ls} 大勝 ${lN}`});
+  if(tot>=15)c.push({s:44+tot,text:`打擊大戰！${awN} ${b.a}:${b.h} ${hmN}（合計 ${tot} 分）`});
+  const wk=boxTeamSum(b,wTeam,"pit",5),lhit=boxHitsTeam(b,lTeam);
+  if(wk>=12&&lhit<=4)c.push({s:50+wk,text:`${wN} 投手群發威，${lN} 僅 ${lhit} 安、吞 ${wk} 次三振`});
+  if(!c.length)c.push({s:10,text:`${wN} ${ws}:${ls} 擊敗 ${lN}`});
+  let best=c.sort((x,y)=>y.s-x.s)[0];
+  if(me&&(b.aw===me||b.hm===me))best={s:best.s+18,text:best.text};
+  return best;
+}
+function buildDayPaper(dayIdx){
+  const se=S.season;if(!se)return null;
+  const me=se.playerTeam;
+  const boxes=(se.boxes&&se.boxes[dayIdx])||[];
+  const items=boxes.map(b=>b&&gameHeadline(b,me)).filter(Boolean).sort((x,y)=>y.s-x.s);
+  if(!items.length)return null;
+  se.papers=se.papers||[];
+  const top=items.slice(0,3).map(x=>x.text);
+  se.papers.push({day:dayIdx+1,items:top});
+  if(se.papers.length>10)se.papers.shift();
+  return top;
+}
+function paperBlock(){
+  const se=S.season,list=(se&&se.papers)||[];
+  if(!list.length)return "";
+  const rows=list.slice().reverse().map(p=>`<div class="paper"><div class="pday">第 ${p.day} 日</div>
+    <ul>${p.items.map((t,i)=>`<li class="${i===0?"top":""}">${esc(t)}</li>`).join("")}</ul></div>`).join("");
+  return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）。</p>${rows}`;
+}

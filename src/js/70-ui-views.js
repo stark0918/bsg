@@ -631,6 +631,7 @@ function viewLeague(){
     <p class="muted">聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th></tr>${srows}</table>
+    ${paperBlock()}
     <div class="hr"></div><h3>最近賽事</h3>${games}
     <div class="hr"></div>${nav}
     <div class="hr"></div><button class="btn sm blk" data-act="backHub">← 回球季總部</button></div>`;

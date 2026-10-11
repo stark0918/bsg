@@ -212,6 +212,7 @@ function processGameEnd(m){
     if(se.news.length>5)se.news.shift();
     if(!S.flash)S.flash=special;
   }
+  buildDayPaper(m.dayIndex);
   S.season.day++;
   leagueNews(m.dayIndex);
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表

@@ -213,6 +213,11 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 .news{background:#0b141f;color:#c7d8ea;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12px}
 .news p{margin:2px 0}
 .news p:before{content:"▸ ";color:var(--gold)}
+.paper{background:#0b141f;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:4px;padding:6px 10px;margin:6px 0}
+.paper .pday{font-size:11px;color:var(--muted);letter-spacing:.08em}
+.paper ul{margin:2px 0 0;padding-left:18px}
+.paper li{font-size:12.5px;color:#c7d8ea;margin:2px 0}
+.paper li.top{color:#ffe6a8;font-weight:700}
 .daysep td{background:#16283d;color:#a6d4e8;font-weight:700;letter-spacing:.1em;font-size:12px}
 .daysep td:before{content:"▸ "}
 .grade{display:inline-block;font-weight:900;font-family:Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:4px;color:#fff}
@@ -1165,6 +1170,7 @@ function processGameEnd(m){
     if(se.news.length>5)se.news.shift();
     if(!S.flash)S.flash=special;
   }
+  buildDayPaper(m.dayIndex);
   S.season.day++;
   leagueNews(m.dayIndex);
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表
@@ -1918,6 +1924,59 @@ function checkMilestones(){
 function playerMilestones(pid){
   const ms=(CAREER.milestones||{})[pid]||{};
   return MILESTONES.filter(def=>ms[def.cat]>0).map(def=>`生涯 ${ms[def.cat]} ${def.label}`);
+}
+
+/* ---------- 聯盟日報：每日頭條 ---------- */
+function boxTeamSum(b,teamId,field,idx){
+  let t=0;for(const pid in (b[field]||{})){if(teamOfPlayer({id:pid})===teamId)t+=(b[field][pid][idx]||0);}return t;
+}
+function gameHeadline(b,me){
+  const awN=getTeam(b.aw).name,hmN=getTeam(b.hm).name;
+  if(b.a===b.h)return {s:5,text:`${awN} ${b.a}:${b.h} ${hmN} 和局收場`};
+  const awayWin=b.a>b.h;
+  const wTeam=awayWin?b.aw:b.hm,lTeam=awayWin?b.hm:b.aw;
+  const wN=awayWin?awN:hmN,lN=awayWin?hmN:awN;
+  const ws=awayWin?b.a:b.h,ls=awayWin?b.h:b.a;
+  const marg=ws-ls,tot=ws+ls;
+  const line=b.line||{},la=line.aw||[],lh=line.hm||[];
+  const n=Math.max(la.length,lh.length);
+  let ca=0,ch=0,defAway=0,defHome=0;
+  for(let i=0;i<n;i++){ca+=la[i]||0;ch+=lh[i]||0;defAway=Math.max(defAway,ch-ca);defHome=Math.max(defHome,ca-ch);}
+  const deficit=awayWin?defAway:defHome;
+  const lastInn=lh[lh.length-1]||0;
+  const walkoff=!awayWin&&lastInn>0&&(b.h-lastInn)<=b.a;
+  const shutout=ls===0;
+  const c=[];
+  if(walkoff)c.push({s:80,text:`再見安打！${wN} ${ws}:${ls} 氣走 ${lN}`});
+  if(shutout)c.push({s:deficit>=3?72:56,text:`${wN} 完封 ${lN}（${ws}:0）`});
+  if(deficit>=4)c.push({s:60+deficit,text:`大逆轉！${wN} 克服 ${deficit} 分落後，終場 ${ws}:${ls} 逆轉 ${lN}`});
+  if(marg>=9)c.push({s:40+marg,text:`${wN} 以 ${ws}:${ls} 大勝 ${lN}`});
+  if(tot>=15)c.push({s:44+tot,text:`打擊大戰！${awN} ${b.a}:${b.h} ${hmN}（合計 ${tot} 分）`});
+  const wk=boxTeamSum(b,wTeam,"pit",5),lhit=boxHitsTeam(b,lTeam);
+  if(wk>=12&&lhit<=4)c.push({s:50+wk,text:`${wN} 投手群發威，${lN} 僅 ${lhit} 安、吞 ${wk} 次三振`});
+  if(!c.length)c.push({s:10,text:`${wN} ${ws}:${ls} 擊敗 ${lN}`});
+  let best=c.sort((x,y)=>y.s-x.s)[0];
+  if(me&&(b.aw===me||b.hm===me))best={s:best.s+18,text:best.text};
+  return best;
+}
+function buildDayPaper(dayIdx){
+  const se=S.season;if(!se)return null;
+  const me=se.playerTeam;
+  const boxes=(se.boxes&&se.boxes[dayIdx])||[];
+  const items=boxes.map(b=>b&&gameHeadline(b,me)).filter(Boolean).sort((x,y)=>y.s-x.s);
+  if(!items.length)return null;
+  se.papers=se.papers||[];
+  const top=items.slice(0,3).map(x=>x.text);
+  se.papers.push({day:dayIdx+1,items:top});
+  if(se.papers.length>10)se.papers.shift();
+  return top;
+}
+function paperBlock(){
+  const se=S.season,list=(se&&se.papers)||[];
+  if(!list.length)return "";
+  const rows=list.slice().reverse().map(p=>`<div class="paper"><div class="pday">第 ${p.day} 日</div>
+    <ul>${p.items.map((t,i)=>`<li class="${i===0?"top":""}">${esc(t)}</li>`).join("")}</ul></div>`).join("");
+  return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）。</p>${rows}`;
 }
 /* ===================== 48-draft.js ===================== */
 /* ---------- 新人選秀（球季結束後、開新球季前） ---------- */
@@ -3016,6 +3075,7 @@ function viewLeague(){
     <p class="muted">聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th></tr>${srows}</table>
+    ${paperBlock()}
     <div class="hr"></div><h3>最近賽事</h3>${games}
     <div class="hr"></div>${nav}
     <div class="hr"></div><button class="btn sm blk" data-act="backHub">← 回球季總部</button></div>`;
@@ -3398,7 +3458,8 @@ window.GK = {
   viewAwards, computeAwards, playerAwards,
   viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
   applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer,
-  recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp
+  recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
+  buildDayPaper, gameHeadline, paperBlock
 };
 })();
 
