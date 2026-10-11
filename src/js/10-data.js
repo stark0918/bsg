@@ -21,11 +21,19 @@ let CAREER={seasons:0,pending:false,ov:{},records:{}};
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
   c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};
+  c.lastTeam=c.lastTeam||null;
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
 function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
 function seasonNo(){return (CAREER.seasons||0)+1;}
+/* 上一季率領的球隊（優先取目前球季，其次生涯記錄），用於「續任原隊」 */
+function lastTeamId(){
+  if(S.season&&S.season.playerTeam)return S.season.playerTeam;
+  if(CAREER.lastTeam)return CAREER.lastTeam;
+  const h=CAREER.history||[];
+  return h.length?h[h.length-1].team:null;
+}
 function baseAge(id){return 19+(hashStr("age-"+id)%20);}      // 19~38
 function applyOv(p){
   p.age=baseAge(p.id);

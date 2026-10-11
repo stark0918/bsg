@@ -80,6 +80,7 @@ function newSeason(playerTeam){
     started:Date.now()
   };
   TEAM_DEFS.forEach(t=>S.season.records[t.id]={w:0,l:0,t:0,rs:0,ra:0});
+  CAREER.lastTeam=playerTeam;saveCareer();
   saveGame();
 }
 /* 讓舊存檔也能顯示全聯盟球員排行：補齊欄位，並為已完成但當時未記錄的比賽補生成個人成績 */

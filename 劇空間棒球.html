@@ -395,11 +395,19 @@ let CAREER={seasons:0,pending:false,ov:{},records:{}};
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
   c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};
+  c.lastTeam=c.lastTeam||null;
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
 function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
 function seasonNo(){return (CAREER.seasons||0)+1;}
+/* 上一季率領的球隊（優先取目前球季，其次生涯記錄），用於「續任原隊」 */
+function lastTeamId(){
+  if(S.season&&S.season.playerTeam)return S.season.playerTeam;
+  if(CAREER.lastTeam)return CAREER.lastTeam;
+  const h=CAREER.history||[];
+  return h.length?h[h.length-1].team:null;
+}
 function baseAge(id){return 19+(hashStr("age-"+id)%20);}      // 19~38
 function applyOv(p){
   p.age=baseAge(p.id);
@@ -2407,6 +2415,7 @@ function newSeason(playerTeam){
     started:Date.now()
   };
   TEAM_DEFS.forEach(t=>S.season.records[t.id]={w:0,l:0,t:0,rs:0,ra:0});
+  CAREER.lastTeam=playerTeam;saveCareer();
   saveGame();
 }
 /* 讓舊存檔也能顯示全聯盟球員排行：補齊欄位，並為已完成但當時未記錄的比賽補生成個人成績 */
@@ -2602,6 +2611,8 @@ function viewTitle(){
   if(hasSave()){
     cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季（第 ${seasonNo()} 季）</button>`;
   }
+  const lt=lastTeamId();
+  const renew=(!hasSave()&&lt)?`<button class="btn gold blk" data-act="pickTeam" data-arg="${lt}">🔁 續任 ${teamBadge(lt)}（第 ${seasonNo()} 季）</button>`:"";
   const hasCareer=!!((CAREER.history&&CAREER.history.length)||(CAREER.awards&&CAREER.awards.length)||CAREER.seasons>0);
   const danger=S.confirm?confirmBoxHTML()
     :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
@@ -2612,6 +2623,7 @@ function viewTitle(){
     你將扮演球團監督，在九局對戰中以戰術決勝負，並帶領球隊打完整季。</p>
     <div class="hr"></div>
     <button class="btn green blk" data-act="newgame">⚾ 新球季開始（選擇球隊）</button>
+    ${renew}
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
     <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
@@ -2670,8 +2682,13 @@ function viewSaveManager(){
 
 /* ----- 選隊 ----- */
 function viewNewGame(){
+  const lt=lastTeamId();
+  const renew=lt?`<button class="btn gold blk" data-act="pickTeam" data-arg="${lt}">🔁 續任 ${teamBadge(lt)}（第 ${seasonNo()} 季）</button>
+    <p class="muted center" style="margin:2px 0 6px">一鍵延續你上一季的球隊；想換個東家再往下挑選。</p>
+    <div class="hr"></div>`:"";
   return `<div class="panel">
     <h2>選擇你要率領的球隊</h2>
+    ${renew}
     <p class="muted">${TEAM_DEFS.length} 支球團各有優劣（＋為整體評價）。選定後展開 ${(TEAM_DEFS.length-1)*2} 場例行賽，爭取前四名晉級季後賽。</p>
     ${TEAM_DEFS.map(t=>{
       const tc=getTeam(t.id);
@@ -3706,7 +3723,7 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
-  seasonNo, viewSeasonInfo
+  seasonNo, viewSeasonInfo, lastTeamId
 };
 })();
 
