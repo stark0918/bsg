@@ -1,3 +1,11 @@
+/* ----- 共用：確認框 ----- */
+function confirmBoxHTML(){
+  const c=S.confirm;if(!c)return"";
+  return `<div class="confirmbox"><p>${esc(c.msg)}</p>
+    <button class="btn red blk" data-act="confirmYes">確定</button>
+    <button class="btn blk" data-act="confirmNo">取消</button></div>`;
+}
+
 /* ----- 標題 ----- */
 function viewTitle(){
   let cont="";
@@ -5,11 +13,7 @@ function viewTitle(){
     cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季</button>`;
   }
   const hasCareer=!!((CAREER.history&&CAREER.history.length)||(CAREER.awards&&CAREER.awards.length)||CAREER.seasons>0);
-  const cf=S.confirm;
-  const danger=cf
-    ?`<div class="confirmbox"><p>${esc(cf.msg)}</p>
-        <button class="btn red blk" data-act="confirmYes">確定刪除</button>
-        <button class="btn blk" data-act="confirmNo">取消</button></div>`
+  const danger=S.confirm?confirmBoxHTML()
     :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
       ${hasCareer?`<button class="btn blk" data-act="ask" data-arg="wipeCareer">🗑 清除生涯成就</button>`:""}`;
   return `<div class="panel center">
@@ -22,6 +26,7 @@ function viewTitle(){
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
     <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
+    <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
     ${danger}
   </div>
   <div class="panel">
@@ -29,6 +34,47 @@ function viewTitle(){
     <div class="two">
       ${TEAM_DEFS.map(t=>`<div class="teamcard"><div><div class="nm">${teamBadge(t.id)}</div><div class="meta">主場：${t.stadium}</div></div><div class="pill off">${t.str>=0?"+"+t.str:t.str}</div></div>`).join("")}
     </div>
+  </div>`;
+}
+
+/* ----- 存檔管理 ----- */
+function viewSaveManager(){
+  const cur=payloadMeta(exportPayload());
+  let rows="";
+  for(let n=1;n<=SAVE_SLOTS;n++){
+    const s=readSlot(n),m=payloadMeta(s);
+    rows+=`<div class="slotcard ${m?"":"empty"}">
+      <div class="slotinfo">
+        <div class="nm">槽 ${n}｜${m?esc(m.teamName):"（空）"}</div>
+        <div class="meta">${m?`第 ${m.seasonNo} 季　第 ${m.day} 日　生涯 ${m.seasons} 季／獎項 ${m.awards}　<span class="muted">${fmtDate(m.at)}</span>`:"尚未使用"}</div>
+      </div>
+      <div class="slotbtns">
+        <button class="btn sm" data-act="${m?"ask":"slotSave"}" data-arg="${m?"slotSave:"+n:n}">存入</button>
+        ${m?`<button class="btn sm gold" data-act="ask" data-arg="slotLoad:${n}">讀取</button>
+             <button class="btn sm red" data-act="ask" data-arg="slotDel:${n}">刪除</button>`:""}
+      </div></div>`;
+  }
+  return `<div class="panel"><h2>💾 存檔管理</h2>
+    <p class="muted">把進度存成檔案備份，或存到下面的槽位。若瀏覽器資料被清除，可用「匯入檔案」把進度救回來。</p>
+    <div class="hr"></div>
+    <h3>目前進度</h3>
+    <div class="slotcard">
+      <div class="slotinfo">
+        <div class="nm">${cur.hasSeason?esc(cur.teamName):"（尚未開季）"}</div>
+        <div class="meta">${cur.hasSeason?`第 ${cur.seasonNo} 季　第 ${cur.day} 日　`:""}生涯 ${cur.seasons} 季／獎項 ${cur.awards}</div>
+      </div>
+      <div class="slotbtns">
+        <button class="btn sm green" data-act="exportSave">⬇ 匯出檔案</button>
+        <button class="btn sm blue" data-act="pickImport">⬆ 匯入檔案</button>
+      </div>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    <div class="hr"></div>
+    <h3>存檔槽（${SAVE_SLOTS} 格）</h3>
+    ${rows}
+    <div class="hr"></div>
+    ${S.confirm?confirmBoxHTML():""}
+    <button class="btn blk" data-act="backFromSave">← 返回</button>
   </div>`;
 }
 

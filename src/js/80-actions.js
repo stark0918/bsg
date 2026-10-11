@@ -1,4 +1,12 @@
 /* ---------- 事件分派 ---------- */
+function confirmMsg(t,arg){
+  if(t==="wipeCareer")return "「清除生涯成就」會刪除所有跨季紀錄（生涯戰績、歷屆榮譽、生涯紀錄榜、獲獎紀錄），且無法復原。確定嗎？";
+  if(t==="wipeSeason")return "「刪除本季進度」會移除目前的球季存檔，但會保留你的生涯成就（歷史戰績、獎項、紀錄）。確定嗎？";
+  if(t==="slotSave")return `槽 ${arg} 已有存檔，確定要用目前的進度覆蓋嗎？`;
+  if(t==="slotLoad")return `讀取槽 ${arg} 會覆蓋你目前的進度（尚未存檔的變更會遺失）。確定嗎？`;
+  if(t==="slotDel")return `確定要刪除槽 ${arg} 的存檔嗎？`;
+  return "確定嗎？";
+}
 const ACT={
   newgame(){S.screen="newgame";render();},
   toTitle(){S.screen="title";render();},
@@ -10,26 +18,34 @@ const ACT={
   continue(){
     if(loadGame()){S.season&&(S.screen="hub");render();}
   },
-  ask(act){
-    S.confirm={act,msg:act==="wipeCareer"
-      ?"「清除生涯成就」會刪除所有跨季紀錄（生涯戰績、歷屆榮譽、生涯紀錄榜、獲獎紀錄），且無法復原。確定嗎？"
-      :"「刪除本季進度」會移除目前的球季存檔，但會保留你的生涯成就（歷史戰績、獎項、紀錄）。確定嗎？"};
+  ask(a){
+    const i=String(a).indexOf(":"),t=i<0?String(a):String(a).slice(0,i),arg=i<0?null:String(a).slice(i+1);
+    S.confirm={act:t,arg,msg:confirmMsg(t,arg)};
     render();
   },
   confirmNo(){S.confirm=null;render();},
-  confirmYes(){
-    const act=S.confirm&&S.confirm.act;S.confirm=null;
-    if(act==="wipeSeason"){
-      try{localStorage.removeItem(SAVEKEY);}catch(e){}
-      S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");
-    }else if(act==="wipeCareer"){
-      try{localStorage.removeItem(CAREERKEY);}catch(e){}
-      CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
-      for(const k in teamCache)delete teamCache[k];
-      flash("已清除生涯成就");
-    }
-    render();
+  confirmYes(){const c=S.confirm;S.confirm=null;if(c&&ACT[c.act])ACT[c.act](c.arg);else render();},
+  wipeSeason(){
+    try{localStorage.removeItem(SAVEKEY);}catch(e){}
+    S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");render();
   },
+  wipeCareer(){
+    try{localStorage.removeItem(CAREERKEY);}catch(e){}
+    CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
+    for(const k in teamCache)delete teamCache[k];
+    flash("已清除生涯成就");render();
+  },
+  saveManager(){S.screen="save";S.confirm=null;render();},
+  backFromSave(){S.screen=S.season?"hub":"title";S.confirm=null;render();},
+  slotSave(a){const n=+a;if(writeSlot(n,exportPayload()))flash("已存入槽 "+n);render();},
+  slotLoad(a){
+    const n=+a,p=readSlot(n);
+    if(!p){flash("槽位是空的");render();return;}
+    applyPayload(p);saveCareer();flash("已讀取槽 "+n);render();
+  },
+  slotDel(a){const n=+a;deleteSlotStorage(n);flash("已刪除槽 "+n);render();},
+  exportSave(){flash(exportSaveFile()?"已匯出存檔檔（請確認下載）":"匯出失敗");render();},
+  pickImport(){const el=document.getElementById("importFile");if(el)el.click();},
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},
@@ -101,4 +117,8 @@ document.addEventListener("click",e=>{
   if(!el||busy)return;
   const a=el.dataset.act,arg=el.dataset.arg;
   if(ACT[a])ACT[a](arg);
+});
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el&&el.id==="importFile"&&el.files&&el.files[0])importSaveFile(el.files[0]);
 });

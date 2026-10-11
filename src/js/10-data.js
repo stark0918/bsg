@@ -18,7 +18,12 @@ const TEAM_DEFS=[
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
 const CAREERKEY="gekikuukan_career_v1";
 let CAREER={seasons:0,pending:false,ov:{},records:{}};
-function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r){const d=JSON.parse(r);CAREER=Object.assign({seasons:0,pending:false,ov:{},records:{}},d);CAREER.ov=CAREER.ov||{};CAREER.records=CAREER.records||{};CAREER.history=CAREER.history||[];CAREER.career=CAREER.career||{bat:{},pit:{}};}}catch(e){}}
+function normalizeCareer(d){
+  const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
+  c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};
+  return c;
+}
+function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
 function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
 function baseAge(id){return 19+(hashStr("age-"+id)%20);}      // 19~38
 function applyOv(p){

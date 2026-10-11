@@ -188,6 +188,13 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 /* 刪除確認 */
 .confirmbox{border:1px solid #9c4a6e;background:#21141c;border-radius:6px;padding:10px;margin-top:8px}
 .confirmbox p{margin:0 0 8px;font-size:13px;line-height:1.5;color:#f6c3d9;text-align:left}
+/* 存檔管理 */
+.slotcard{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0;background:#0d1520}
+.slotcard.empty{opacity:.6}
+.slotinfo{min-width:0}
+.slotinfo .nm{font-weight:700;color:var(--ink,#e8e2d0)}
+.slotinfo .meta{font-size:11.5px;color:var(--muted,#8a93a5);margin-top:2px}
+.slotbtns{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap}
 
 .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;color:#cfe9ff;background:#16283d;border:1px solid var(--line);margin-left:4px}
 .pill.on{background:rgba(79,211,154,.15);color:#a9e6c6;border-color:#3f8f6b}
@@ -277,6 +284,7 @@ const rpick=(rnd,a)=>a[Math.floor(rnd()*a.length)];
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function fmtDate(ts){if(!ts)return"";const d=new Date(ts),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function nrm(rnd,mean,sd){return mean+((rnd()+rnd()+rnd()+rnd()-2)/2)*sd;}
 function weightedPick(pairs){let t=0;for(const p of pairs)t+=p[1];let r=Math.random()*t;for(const p of pairs){r-=p[1];if(r<=0)return p[0];}return pairs[pairs.length-1][0];}
@@ -371,7 +379,12 @@ const TEAM_DEFS=[
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
 const CAREERKEY="gekikuukan_career_v1";
 let CAREER={seasons:0,pending:false,ov:{},records:{}};
-function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r){const d=JSON.parse(r);CAREER=Object.assign({seasons:0,pending:false,ov:{},records:{}},d);CAREER.ov=CAREER.ov||{};CAREER.records=CAREER.records||{};CAREER.history=CAREER.history||[];CAREER.career=CAREER.career||{bat:{},pit:{}};}}catch(e){}}
+function normalizeCareer(d){
+  const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
+  c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};
+  return c;
+}
+function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
 function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
 function baseAge(id){return 19+(hashStr("age-"+id)%20);}      // 19~38
 function applyOv(p){
@@ -1976,6 +1989,61 @@ function loadGame(){
 }
 function hasSave(){try{return !!localStorage.getItem(SAVEKEY);}catch(e){return false;}}
 
+/* ---------- 存檔槽與匯出／匯入 ---------- */
+const SAVE_SLOTS=3;
+const SLOTPREFIX="gekikuukan_slot_v1_";
+const slotKey=n=>SLOTPREFIX+n;
+function exportPayload(){return {v:1,at:Date.now(),season:S.season||null,career:CAREER};}
+function payloadMeta(p){
+  if(!p)return null;
+  const se=p.season,c=p.career||{},team=se?getTeam(se.playerTeam):null;
+  return {at:p.at||0,team:se?se.playerTeam:null,teamName:team?team.name:"（無球季）",
+    seasonNo:(c.seasons||0)+(se?1:0),day:se?(se.day||0):0,
+    seasons:(c.history||[]).length,awards:(c.awards||[]).length,hasSeason:!!se};
+}
+function readSlot(n){try{const r=localStorage.getItem(slotKey(n));return r?JSON.parse(r):null;}catch(e){return null;}}
+function writeSlot(n,p){try{localStorage.setItem(slotKey(n),JSON.stringify(p));return true;}catch(e){return false;}}
+function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));}catch(e){}}
+function applyPayload(p){
+  CAREER=normalizeCareer(p.career);
+  S.season=p.season||null;S.match=null;S.confirm=null;
+  try{
+    if(S.season)localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:p.at||Date.now()}));
+    else localStorage.removeItem(SAVEKEY);
+    localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));
+  }catch(e){}
+  for(const k in teamCache)delete teamCache[k];
+}
+function exportSaveFile(){
+  try{
+    const p=exportPayload(),meta=payloadMeta(p);
+    const blob=new Blob([JSON.stringify(p)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="劇空間棒球_存檔_"+meta.teamName+"_第"+meta.seasonNo+"季.json";
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+    return true;
+  }catch(e){return false;}
+}
+function importSaveText(text){
+  try{
+    const p=JSON.parse(text);
+    if(!p||typeof p!=="object"||(!p.season&&!p.career))throw new Error("bad");
+    applyPayload(p);saveCareer();return payloadMeta(p);
+  }catch(e){return null;}
+}
+function importSaveFile(file){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const m=importSaveText(rd.result);
+    flash(m?"已匯入存檔："+(m.hasSeason?m.teamName:"生涯紀錄"):"匯入失敗：檔案格式不符");
+    S.screen=S.season?"hub":"title";render();
+  };
+  rd.onerror=()=>{flash("匯入失敗：讀取錯誤");render();};
+  rd.readAsText(file);
+}
+
 /* ---------- 遊戲狀態 ---------- */
 const S={screen:"title",season:null,match:null,flash:"",leadCat:"avg"};
 
@@ -2109,6 +2177,7 @@ function render(){
   else if(S.screen==="draft")app.innerHTML=viewDraft();
   else if(S.screen==="help")app.innerHTML=viewHelp();
   else if(S.screen==="league")app.innerHTML=viewLeague();
+  else if(S.screen==="save")app.innerHTML=viewSaveManager();
   else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
@@ -2169,6 +2238,14 @@ function gradeOf(v){return v>=88?"S":v>=78?"A":v>=66?"B":v>=54?"C":"D";}
 function gradeBadge(p){const v=playerOverall(p),g=gradeOf(v);return `<span class="grade g-${g}" title="綜合 ${v}">${g}</span>`;}
 function ageNote(a){if(a<=22)return ' <span style="color:#1f8f4a" title="成長期">▲</span>';if(a>=34)return ' <span style="color:#b5533a" title="衰退期">▼</span>';return ' <span style="color:#6b6455" title="巔峰">–</span>';}
 /* ===================== 70-ui-views.js ===================== */
+/* ----- 共用：確認框 ----- */
+function confirmBoxHTML(){
+  const c=S.confirm;if(!c)return"";
+  return `<div class="confirmbox"><p>${esc(c.msg)}</p>
+    <button class="btn red blk" data-act="confirmYes">確定</button>
+    <button class="btn blk" data-act="confirmNo">取消</button></div>`;
+}
+
 /* ----- 標題 ----- */
 function viewTitle(){
   let cont="";
@@ -2176,11 +2253,7 @@ function viewTitle(){
     cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季</button>`;
   }
   const hasCareer=!!((CAREER.history&&CAREER.history.length)||(CAREER.awards&&CAREER.awards.length)||CAREER.seasons>0);
-  const cf=S.confirm;
-  const danger=cf
-    ?`<div class="confirmbox"><p>${esc(cf.msg)}</p>
-        <button class="btn red blk" data-act="confirmYes">確定刪除</button>
-        <button class="btn blk" data-act="confirmNo">取消</button></div>`
+  const danger=S.confirm?confirmBoxHTML()
     :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
       ${hasCareer?`<button class="btn blk" data-act="ask" data-arg="wipeCareer">🗑 清除生涯成就</button>`:""}`;
   return `<div class="panel center">
@@ -2193,6 +2266,7 @@ function viewTitle(){
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
     <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
+    <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
     ${danger}
   </div>
   <div class="panel">
@@ -2200,6 +2274,47 @@ function viewTitle(){
     <div class="two">
       ${TEAM_DEFS.map(t=>`<div class="teamcard"><div><div class="nm">${teamBadge(t.id)}</div><div class="meta">主場：${t.stadium}</div></div><div class="pill off">${t.str>=0?"+"+t.str:t.str}</div></div>`).join("")}
     </div>
+  </div>`;
+}
+
+/* ----- 存檔管理 ----- */
+function viewSaveManager(){
+  const cur=payloadMeta(exportPayload());
+  let rows="";
+  for(let n=1;n<=SAVE_SLOTS;n++){
+    const s=readSlot(n),m=payloadMeta(s);
+    rows+=`<div class="slotcard ${m?"":"empty"}">
+      <div class="slotinfo">
+        <div class="nm">槽 ${n}｜${m?esc(m.teamName):"（空）"}</div>
+        <div class="meta">${m?`第 ${m.seasonNo} 季　第 ${m.day} 日　生涯 ${m.seasons} 季／獎項 ${m.awards}　<span class="muted">${fmtDate(m.at)}</span>`:"尚未使用"}</div>
+      </div>
+      <div class="slotbtns">
+        <button class="btn sm" data-act="${m?"ask":"slotSave"}" data-arg="${m?"slotSave:"+n:n}">存入</button>
+        ${m?`<button class="btn sm gold" data-act="ask" data-arg="slotLoad:${n}">讀取</button>
+             <button class="btn sm red" data-act="ask" data-arg="slotDel:${n}">刪除</button>`:""}
+      </div></div>`;
+  }
+  return `<div class="panel"><h2>💾 存檔管理</h2>
+    <p class="muted">把進度存成檔案備份，或存到下面的槽位。若瀏覽器資料被清除，可用「匯入檔案」把進度救回來。</p>
+    <div class="hr"></div>
+    <h3>目前進度</h3>
+    <div class="slotcard">
+      <div class="slotinfo">
+        <div class="nm">${cur.hasSeason?esc(cur.teamName):"（尚未開季）"}</div>
+        <div class="meta">${cur.hasSeason?`第 ${cur.seasonNo} 季　第 ${cur.day} 日　`:""}生涯 ${cur.seasons} 季／獎項 ${cur.awards}</div>
+      </div>
+      <div class="slotbtns">
+        <button class="btn sm green" data-act="exportSave">⬇ 匯出檔案</button>
+        <button class="btn sm blue" data-act="pickImport">⬆ 匯入檔案</button>
+      </div>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    <div class="hr"></div>
+    <h3>存檔槽（${SAVE_SLOTS} 格）</h3>
+    ${rows}
+    <div class="hr"></div>
+    ${S.confirm?confirmBoxHTML():""}
+    <button class="btn blk" data-act="backFromSave">← 返回</button>
   </div>`;
 }
 
@@ -2985,6 +3100,14 @@ function viewHelp(){
 }
 /* ===================== 80-actions.js ===================== */
 /* ---------- 事件分派 ---------- */
+function confirmMsg(t,arg){
+  if(t==="wipeCareer")return "「清除生涯成就」會刪除所有跨季紀錄（生涯戰績、歷屆榮譽、生涯紀錄榜、獲獎紀錄），且無法復原。確定嗎？";
+  if(t==="wipeSeason")return "「刪除本季進度」會移除目前的球季存檔，但會保留你的生涯成就（歷史戰績、獎項、紀錄）。確定嗎？";
+  if(t==="slotSave")return `槽 ${arg} 已有存檔，確定要用目前的進度覆蓋嗎？`;
+  if(t==="slotLoad")return `讀取槽 ${arg} 會覆蓋你目前的進度（尚未存檔的變更會遺失）。確定嗎？`;
+  if(t==="slotDel")return `確定要刪除槽 ${arg} 的存檔嗎？`;
+  return "確定嗎？";
+}
 const ACT={
   newgame(){S.screen="newgame";render();},
   toTitle(){S.screen="title";render();},
@@ -2996,26 +3119,34 @@ const ACT={
   continue(){
     if(loadGame()){S.season&&(S.screen="hub");render();}
   },
-  ask(act){
-    S.confirm={act,msg:act==="wipeCareer"
-      ?"「清除生涯成就」會刪除所有跨季紀錄（生涯戰績、歷屆榮譽、生涯紀錄榜、獲獎紀錄），且無法復原。確定嗎？"
-      :"「刪除本季進度」會移除目前的球季存檔，但會保留你的生涯成就（歷史戰績、獎項、紀錄）。確定嗎？"};
+  ask(a){
+    const i=String(a).indexOf(":"),t=i<0?String(a):String(a).slice(0,i),arg=i<0?null:String(a).slice(i+1);
+    S.confirm={act:t,arg,msg:confirmMsg(t,arg)};
     render();
   },
   confirmNo(){S.confirm=null;render();},
-  confirmYes(){
-    const act=S.confirm&&S.confirm.act;S.confirm=null;
-    if(act==="wipeSeason"){
-      try{localStorage.removeItem(SAVEKEY);}catch(e){}
-      S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");
-    }else if(act==="wipeCareer"){
-      try{localStorage.removeItem(CAREERKEY);}catch(e){}
-      CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
-      for(const k in teamCache)delete teamCache[k];
-      flash("已清除生涯成就");
-    }
-    render();
+  confirmYes(){const c=S.confirm;S.confirm=null;if(c&&ACT[c.act])ACT[c.act](c.arg);else render();},
+  wipeSeason(){
+    try{localStorage.removeItem(SAVEKEY);}catch(e){}
+    S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");render();
   },
+  wipeCareer(){
+    try{localStorage.removeItem(CAREERKEY);}catch(e){}
+    CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
+    for(const k in teamCache)delete teamCache[k];
+    flash("已清除生涯成就");render();
+  },
+  saveManager(){S.screen="save";S.confirm=null;render();},
+  backFromSave(){S.screen=S.season?"hub":"title";S.confirm=null;render();},
+  slotSave(a){const n=+a;if(writeSlot(n,exportPayload()))flash("已存入槽 "+n);render();},
+  slotLoad(a){
+    const n=+a,p=readSlot(n);
+    if(!p){flash("槽位是空的");render();return;}
+    applyPayload(p);saveCareer();flash("已讀取槽 "+n);render();
+  },
+  slotDel(a){const n=+a;deleteSlotStorage(n);flash("已刪除槽 "+n);render();},
+  exportSave(){flash(exportSaveFile()?"已匯出存檔檔（請確認下載）":"匯出失敗");render();},
+  pickImport(){const el=document.getElementById("importFile");if(el)el.click();},
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},
@@ -3088,6 +3219,10 @@ document.addEventListener("click",e=>{
   const a=el.dataset.act,arg=el.dataset.arg;
   if(ACT[a])ACT[a](arg);
 });
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el&&el.id==="importFile"&&el.files&&el.files[0])importSaveFile(el.files[0]);
+});
 /* ===================== 90-main.js ===================== */
 /* ---------- 啟動 ---------- */
 loadCareer();
@@ -3111,7 +3246,9 @@ window.GK = {
   ensurePlayoff, playoffProgress, playoffNextGame, playoffSimAll, startPlayoffMatch,
   finalizeSeason, logGame, viewHistory, render, viewAbilities, ACT,
   seasonCSV, careerMerged, viewRecords, viewPlayer, viewLeague, viewGameDetail,
-  viewAwards, computeAwards, playerAwards
+  viewAwards, computeAwards, playerAwards,
+  viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
+  applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer
 };
 })();
 

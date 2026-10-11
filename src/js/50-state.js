@@ -9,6 +9,61 @@ function loadGame(){
 }
 function hasSave(){try{return !!localStorage.getItem(SAVEKEY);}catch(e){return false;}}
 
+/* ---------- 存檔槽與匯出／匯入 ---------- */
+const SAVE_SLOTS=3;
+const SLOTPREFIX="gekikuukan_slot_v1_";
+const slotKey=n=>SLOTPREFIX+n;
+function exportPayload(){return {v:1,at:Date.now(),season:S.season||null,career:CAREER};}
+function payloadMeta(p){
+  if(!p)return null;
+  const se=p.season,c=p.career||{},team=se?getTeam(se.playerTeam):null;
+  return {at:p.at||0,team:se?se.playerTeam:null,teamName:team?team.name:"（無球季）",
+    seasonNo:(c.seasons||0)+(se?1:0),day:se?(se.day||0):0,
+    seasons:(c.history||[]).length,awards:(c.awards||[]).length,hasSeason:!!se};
+}
+function readSlot(n){try{const r=localStorage.getItem(slotKey(n));return r?JSON.parse(r):null;}catch(e){return null;}}
+function writeSlot(n,p){try{localStorage.setItem(slotKey(n),JSON.stringify(p));return true;}catch(e){return false;}}
+function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));}catch(e){}}
+function applyPayload(p){
+  CAREER=normalizeCareer(p.career);
+  S.season=p.season||null;S.match=null;S.confirm=null;
+  try{
+    if(S.season)localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:p.at||Date.now()}));
+    else localStorage.removeItem(SAVEKEY);
+    localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));
+  }catch(e){}
+  for(const k in teamCache)delete teamCache[k];
+}
+function exportSaveFile(){
+  try{
+    const p=exportPayload(),meta=payloadMeta(p);
+    const blob=new Blob([JSON.stringify(p)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="劇空間棒球_存檔_"+meta.teamName+"_第"+meta.seasonNo+"季.json";
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+    return true;
+  }catch(e){return false;}
+}
+function importSaveText(text){
+  try{
+    const p=JSON.parse(text);
+    if(!p||typeof p!=="object"||(!p.season&&!p.career))throw new Error("bad");
+    applyPayload(p);saveCareer();return payloadMeta(p);
+  }catch(e){return null;}
+}
+function importSaveFile(file){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const m=importSaveText(rd.result);
+    flash(m?"已匯入存檔："+(m.hasSeason?m.teamName:"生涯紀錄"):"匯入失敗：檔案格式不符");
+    S.screen=S.season?"hub":"title";render();
+  };
+  rd.onerror=()=>{flash("匯入失敗：讀取錯誤");render();};
+  rd.readAsText(file);
+}
+
 /* ---------- 遊戲狀態 ---------- */
 const S={screen:"title",season:null,match:null,flash:"",leadCat:"avg"};
 

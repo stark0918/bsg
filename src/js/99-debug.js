@@ -16,5 +16,7 @@ window.GK = {
   ensurePlayoff, playoffProgress, playoffNextGame, playoffSimAll, startPlayoffMatch,
   finalizeSeason, logGame, viewHistory, render, viewAbilities, ACT,
   seasonCSV, careerMerged, viewRecords, viewPlayer, viewLeague, viewGameDetail,
-  viewAwards, computeAwards, playerAwards
+  viewAwards, computeAwards, playerAwards,
+  viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
+  applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer
 };

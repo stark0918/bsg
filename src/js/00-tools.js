@@ -9,6 +9,7 @@ const rpick=(rnd,a)=>a[Math.floor(rnd()*a.length)];
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function fmtDate(ts){if(!ts)return"";const d=new Date(ts),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function nrm(rnd,mean,sd){return mean+((rnd()+rnd()+rnd()+rnd()-2)/2)*sd;}
 function weightedPick(pairs){let t=0;for(const p of pairs)t+=p[1];let r=Math.random()*t;for(const p of pairs){r-=p[1];if(r<=0)return p[0];}return pairs[pairs.length-1][0];}
