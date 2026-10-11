@@ -68,6 +68,8 @@ const ACT={
     if(S.season){if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];saveCareer();}
     S.luSel=null;flash("已回復預設打線");render();
   },
+  allstar(){S.screen="allstar";render();},
+  allstarSim(){const a=simAllstar();render();},
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},

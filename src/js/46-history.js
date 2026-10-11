@@ -119,11 +119,22 @@ function histMilePanel(){
     <div class="actions">${tabs}</div>
     <table class="grid"><tr><th>#</th><th>球員</th><th>現屬球隊</th><th>生涯${title}</th></tr>${rows}</table></div>`;
 }
+function histAllstarPanel(){
+  const list=(CAREER.allstars||[]).slice().reverse();
+  if(!list.length)return `<div class="panel"><h2>明星賽</h2><p class="muted">尚未舉辦過明星賽。</p></div>`;
+  const rows=list.map(x=>`<tr><td class="num">第 ${x.no} 季</td>
+    <td class="name">${x.winner==="red"?"🔴 紅隊":"🔵 藍隊"}</td>
+    <td class="num">${x.red} : ${x.blue}</td>
+    <td class="name">${esc(x.mvp)}　${x.team?teamBadge(x.team):""}</td></tr>`).join("");
+  return `<div class="panel"><h2>明星賽</h2>
+    <p class="muted">歷屆明星賽結果與 MVP。</p>
+    <table class="grid"><tr><th>球季</th><th>勝隊</th><th>比數</th><th>MVP</th></tr>${rows}</table></div>`;
+}
 function viewHistory(){
   const tab=S.histTab||"games";
-  const tabs=[["games","逐場賽果"],["seasons","跨季生涯"],["mile","生涯里程碑"]];
+  const tabs=[["games","逐場賽果"],["seasons","跨季生涯"],["mile","生涯里程碑"],["allstar","明星賽"]];
   const bar=tabs.map(t=>`<button class="btn sm ${t[0]===tab?"gold":""}" data-act="histTab" data-arg="${t[0]}">${t[1]}</button>`).join("");
-  const body=tab==="seasons"?histSeasonsPanel():tab==="mile"?histMilePanel():histGamesPanel();
+  const body=tab==="seasons"?histSeasonsPanel():tab==="mile"?histMilePanel():tab==="allstar"?histAllstarPanel():histGamesPanel();
   return `<div class="panel"><h2>📜 遊戲紀錄</h2>
     <p class="muted">回顧你的每一場比賽、每個球季，以及跨季累積的生涯里程碑。</p>
     <div class="actions">${bar}</div></div>

@@ -130,6 +130,7 @@ function viewHub(){
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
       <button class="btn blk" data-act="abilities">🧮 選手能力</button>
       <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
+      <button class="btn blk" data-act="allstar">⭐ 明星賽</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>

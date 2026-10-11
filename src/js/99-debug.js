@@ -21,5 +21,6 @@ window.GK = {
   applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer,
   recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
   buildDayPaper, gameHeadline, paperBlock,
-  viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup
+  viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup,
+  asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength
 };
