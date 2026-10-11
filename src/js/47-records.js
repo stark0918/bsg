@@ -68,11 +68,11 @@ function recPanel(book,title){
   return `<div class="panel"><h2>${title}</h2>
     <table class="grid"><tr><th>項目</th><th>紀錄值</th><th>締造者</th></tr>${rows}</table></div>`;
 }
-const REC_TABS=[["single","🏅 單場"],["season","📊 本季團隊"],["career","🏛 生涯榜"]];
+const REC_TABS=[["single","🏅 單場"],["season","📊 本季團隊"],["seasonbest","📈 單季紀錄"],["career","🏛 生涯榜"]];
 function viewRecords(){
   const tab=S.recTab||"single";
   const tabbar=`<div class="tabbar">${REC_TABS.map(([k,l])=>`<button class="tab ${tab===k?"on":""}" data-act="recTab" data-arg="${k}">${l}</button>`).join("")}</div>`;
-  const body=tab==="single"?recTabSingle():tab==="season"?recTabSeason():recTabCareer();
+  const body=tab==="single"?recTabSingle():tab==="season"?recTabSeason():tab==="seasonbest"?recTabSeasonBest():recTabCareer();
   return `<div class="panel"><div class="hallhead">
     <h2 style="margin:0 0 2px">🏛 劇空間紀錄殿堂</h2>
     <p class="muted" style="margin:0">每一項數字，都是這些球季留下來的足跡。</p></div>
@@ -224,4 +224,125 @@ function downloadCSV(){
     const w=window.open("","_blank");
     if(w){w.document.write("<pre>"+csv.replace(/</g,"&lt;")+"</pre>");w.document.close();}
   }
+}
+
+/* ---------- 單季紀錄（跨季最佳單季成績） ---------- */
+function seasonBestUp(cat,key,val,name,team,no,higher){
+  if(val==null||!isFinite(val))return;
+  const B=CAREER.seasonBest||(CAREER.seasonBest={bat:{},pit:{}});
+  if(!B[cat])B[cat]={};
+  const cur=B[cat][key];
+  if(!cur||(higher?val>cur.val:val<cur.val))B[cat][key]={val,name,team,no};
+}
+function recordSeasonBest(ps,no){
+  if(!ps)return;
+  for(const pid in (ps.bat||{})){
+    const s=ps.bat[pid]||{},nm=recName(pid),tm=recTeam(pid);
+    if((s.ab||0)>=25)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true);
+    seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
+    seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true);
+    seasonBestUp("bat","h",s.h||0,nm,tm,no,true);
+    seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true);
+  }
+  for(const pid in (ps.pit||{})){
+    const s=ps.pit[pid]||{},nm=recName(pid),tm=recTeam(pid);
+    if((s.outs||0)>=27)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false);
+    seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
+    seasonBestUp("pit","k",s.k||0,nm,tm,no,true);
+    seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true);
+  }
+}
+const SEASON_BEST=[
+  ["bat","avg","單季打擊率",v=>fmtAvg(v)],
+  ["bat","hr","單季全壘打",String],
+  ["bat","rbi","單季打點",String],
+  ["bat","h","單季安打",String],
+  ["bat","sb","單季盜壘",String],
+  ["pit","era","單季防禦率",v=>v.toFixed(2)],
+  ["pit","w","單季勝投",String],
+  ["pit","k","單季三振",String],
+  ["pit","sv","單季救援",String]
+];
+function seasonBestTable(cat,title){
+  const B=(CAREER.seasonBest||{})[cat]||{};
+  const rows=SEASON_BEST.filter(x=>x[0]===cat).map(x=>{
+    const r=B[x[1]];
+    return `<tr><td>${x[2]}</td><td class="num">${r?`<b>${x[3](r.val)}</b>`:'<span class="muted">－</span>'}</td>
+      <td class="name">${r?`${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">第 ${r.no} 季</span>`:""}</td></tr>`;
+  }).join("");
+  return `<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">${esc(title)}</h3>
+    <table class="grid"><tr><th>項目</th><th>紀錄值</th><th>締造者</th></tr>${rows}</table></div>`;
+}
+/* ---------- 特殊事蹟：無安打／完全比賽 ---------- */
+const NH_LABELS={no:"無安打比賽",perfect:"完全比賽"};
+function boxHitsTeam(b,teamId){let t=0;for(const pid in b.bat){if(teamOfPlayer({id:pid})===teamId)t+=(b.bat[pid][1]||0);}return t;}
+function boxWalksTeam(b,teamId){let t=0;for(const pid in b.bat){if(teamOfPlayer({id:pid})===teamId)t+=(b.bat[pid][4]||0);}return t;}
+function boxPitcherNames(b,teamId){const a=[];for(const pid in b.pit){if(teamOfPlayer({id:pid})===teamId)a.push(recName(pid));}return a;}
+function detectNoHitter(b){
+  if(!b||b.a===b.h)return null;
+  const winSide=b.a>b.h?"away":"home";
+  const winTeam=winSide==="away"?b.aw:b.hm,loseTeam=winSide==="away"?b.hm:b.aw;
+  const innings=Math.max(((b.line&&b.line.aw)||[]).length,((b.line&&b.line.hm)||[]).length);
+  if(innings<9)return null;
+  if(boxHitsTeam(b,loseTeam)!==0)return null;
+  const errsWin=(b.e&&(winSide==="away"?b.e.away:b.e.home))||0;
+  const kind=(boxWalksTeam(b,loseTeam)===0&&errsWin===0)?"perfect":"no";
+  return {kind,team:winTeam,against:loseTeam,pitchers:boxPitcherNames(b,winTeam)};
+}
+function recordNoHitter(b,label){
+  const d=detectNoHitter(b);if(!d)return null;
+  const se=S.season;if(!se)return null;
+  d.label=label||"";
+  (se.noHitters||(se.noHitters=[])).push(d);
+  (CAREER.noHitters||(CAREER.noHitters=[])).push(Object.assign({no:(CAREER.seasons||0)+1},d));
+  return d;
+}
+function noHitterPanel(){
+  const se=S.season,mine=(se&&se.noHitters)||[],all=CAREER.noHitters||[];
+  const row=(d,withNo)=>`<tr><td class="name">${withNo?`第 ${d.no} 季 `:""}${d.label?esc(d.label):""}</td>
+    <td class="name">${teamBadge(d.team)}</td><td class="name">${esc((d.pitchers||[]).join("、"))}</td>
+    <td class="name">${NH_LABELS[d.kind]||d.kind}<span class="muted">　vs ${esc(getTeam(d.against).name)}</span></td></tr>`;
+  const recent=all.slice(-8).reverse().map(d=>row(d,true)).join("");
+  const cur=mine.map(d=>row(d,false)).join("");
+  return `<div class="panel"><h2>特殊事蹟</h2>
+    <p class="muted">無安打比賽／完全比賽（投手群整場未被擊出安打）。</p>
+    <table class="grid"><tr><th>場合</th><th>球隊</th><th>投手</th><th>事蹟</th></tr>${cur||recent||'<tr><td colspan="4" class="muted">尚未出現。</td></tr>'}</table></div>`;
+}
+function recTabSeasonBest(){
+  return seasonBestTable("bat","單季打擊紀錄")+seasonBestTable("pit","單季投球紀錄")+noHitterPanel();
+}
+/* ---------- 生涯里程碑 ---------- */
+const MILESTONES=[
+  {cat:"hr",step:25,label:"全壘打",pit:false},
+  {cat:"h",step:100,label:"安打",pit:false},
+  {cat:"rbi",step:100,label:"打點",pit:false},
+  {cat:"sb",step:50,label:"盜壘",pit:false},
+  {cat:"w",step:25,label:"勝投",pit:true},
+  {cat:"k",step:100,label:"三振",pit:true},
+  {cat:"sv",step:25,label:"救援成功",pit:true}
+];
+function milestoneText(mile,pid){return `${recName(pid)} 達成生涯第 ${mile.val} ${mile.label}！`;}
+/* 檢查跨季里程碑；記錄全聯盟，回傳「玩家球隊」當日的達成清單（供提示） */
+function checkMilestones(){
+  const se=S.season;if(!se)return[];
+  const me=se.playerTeam,merged=careerMerged();
+  CAREER.milestones=CAREER.milestones||{};
+  const hit=[];
+  const scan=(pool,isPit)=>{
+    for(const pid in pool){
+      const s=pool[pid]||{},ms=CAREER.milestones[pid]||(CAREER.milestones[pid]={});
+      MILESTONES.forEach(def=>{
+        if(def.pit!==isPit)return;
+        const crossed=Math.floor((s[def.cat]||0)/def.step)*def.step;
+        if(crossed<=0)return;
+        if(crossed>(ms[def.cat]||0)){ms[def.cat]=crossed;if(teamOfPlayer({id:pid})===me)hit.push({pid,cat:def.cat,label:def.label,val:crossed});}
+      });
+    }
+  };
+  scan(merged.bat,false);scan(merged.pit,true);
+  return hit;
+}
+function playerMilestones(pid){
+  const ms=(CAREER.milestones||{})[pid]||{};
+  return MILESTONES.filter(def=>ms[def.cat]>0).map(def=>`生涯 ${ms[def.cat]} ${def.label}`);
 }

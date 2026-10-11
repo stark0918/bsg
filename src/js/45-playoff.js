@@ -55,7 +55,9 @@ function simSeriesGame(s,label){
   s.games.push({home:home,away:away,scoreHi:hiScore,scoreLo:loScore,winner:winnerId});
   logGame(null,label||"季後賽",away,home,awayScore,homeScore);
   const L=synthGameStats(away,home,awayScore,homeScore,false);
-  (S.season.poBoxes||(S.season.poBoxes=[])).push(boxFromSim(away,home,{a:awayScore,b:homeScore},L,label||"季後賽"));
+  const bx=boxFromSim(away,home,{a:awayScore,b:homeScore},L,label||"季後賽");
+  (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
+  recordNoHitter(bx,label||"季後賽");
   if(winnerId===s.hi)s.winsHi++;else s.winsLo++;
   if(s.winsHi>=seriesNeed(s.best)||s.winsLo>=seriesNeed(s.best))s.winner=winnerId;
 }
@@ -116,7 +118,12 @@ function recordPlayoffResult(m){
   const stName=m.po.stage==="semi"?"準決賽":"冠軍戰";
   checkMatchRecords(m,`${stName}·第${m.po.gameNo+1}戰`);
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
-  (S.season.poBoxes||(S.season.poBoxes=[])).push(boxFromMatch(m));
+  const bx=boxFromMatch(m);
+  (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
+  const nh=recordNoHitter(bx,stName+"·第"+(m.po.gameNo+1)+"戰");
+  const miles=checkMilestones();
+  if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;
+  if(!S.flash&&miles.length)S.flash="★ "+milestoneText(miles[0],miles[0].pid);
   playoffProgress();
   saveGame();
 }

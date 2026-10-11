@@ -198,6 +198,20 @@ function processGameEnd(m){
     checkLineRecords(L.home,x.home,when);
     checkSimTeamRecords(x.away,x.home,r.a,r.b,when);
   });
+  /* 特殊事蹟與生涯里程碑（本日全部打完後結算） */
+  let special="";
+  (boxes[m.dayIndex]||[]).forEach(b=>{
+    const d=b&&recordNoHitter(b,"第"+(m.dayIndex+1)+"日");
+    if(d&&d.team===S.season.playerTeam)special="★ "+NH_LABELS[d.kind]+"！"+getTeam(d.team).name+" 投手群寫下紀錄";
+  });
+  const miles=checkMilestones();
+  if(!special&&miles.length)special="★ "+milestoneText(miles[0],miles[0].pid)+(miles.length>1?"　（本日共 "+miles.length+" 項）":"");
+  if(special){
+    const se=S.season;se.news=se.news||[];
+    se.news.push({day:m.dayIndex+1,text:special,special:true});
+    if(se.news.length>5)se.news.shift();
+    if(!S.flash)S.flash=special;
+  }
   S.season.day++;
   leagueNews(m.dayIndex);
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表

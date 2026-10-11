@@ -49,6 +49,9 @@ function finalizeSeason(){
       kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
     });
   }
+  /* 單季紀錄榜（跨季最佳單季成績）＋ 季末里程碑補檢 */
+  recordSeasonBest(ps,CAREER.seasons+1);
+  checkMilestones();
   saveCareer();
 }
 

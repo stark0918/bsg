@@ -537,6 +537,9 @@ function viewPlayer(){
   const aws=playerAwards(pid);
   const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
     :`<p class="muted">尚無獲獎紀錄。</p>`;
+  const miles=playerMilestones(pid);
+  const mileHTML=miles.length?`<ul class="awardlist">${miles.map(x=>`<li>🎖 ${esc(x)}</li>`).join("")}</ul>`
+    :`<p class="muted">尚未達成生涯里程碑（跨季累計）。</p>`;
   return `<div class="panel"><h2>球員資料</h2>
     <div class="matchup">
       ${playerAvatar(p,56)}
@@ -548,6 +551,7 @@ function viewPlayer(){
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
     <h3>生涯累計（跨季）</h3>${careerTable}
     <h3>本季亮眼</h3>${bestHTML}
+    <h3>生涯里程碑</h3>${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>

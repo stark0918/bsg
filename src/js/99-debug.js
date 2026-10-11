@@ -18,5 +18,6 @@ window.GK = {
   seasonCSV, careerMerged, viewRecords, viewPlayer, viewLeague, viewGameDetail,
   viewAwards, computeAwards, playerAwards,
   viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
-  applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer
+  applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer,
+  recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp
 };
