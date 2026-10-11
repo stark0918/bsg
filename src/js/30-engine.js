@@ -101,7 +101,7 @@ function resolveOut(bases,batter,outs,groundBias){
 /* ---------- 比賽狀態 ---------- */
 function sideName(m,side){return getTeam(side==="home"?m.homeId:m.awayId).name;}
 function currentBatter(m){const lu=m.lineups[offenseSide(m)];return lu[m.batterIdx[offenseSide(m)]%lu.length];}
-function defenseSide(m){return m.half==="top"?"away":"home";}
+function defenseSide(m){return m.half==="top"?"home":"away";}
 function offenseSide(m){return m.half==="top"?"away":"home";}
 function playerIsOffense(m){const s=S.season.playerTeam;return m.half==="top"?m.awayId===s:m.homeId===s;}
 function getBat(m,pid){if(!m.stats[pid])m.stats[pid]={ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0};return m.stats[pid];}
