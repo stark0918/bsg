@@ -69,6 +69,8 @@ const S={screen:"title",season:null,match:null,flash:"",leadCat:"avg"};
 
 function newSeason(playerTeam){
   const oldDraft = S.season?.draft;
+  const oldDraftLog = S.season?.draftLog;
+  const wasDrafted = S.season?.drafted;   // 上季選秀是否已完成
   S.season={
     playerTeam,
     day:0,
@@ -84,6 +86,12 @@ function newSeason(playerTeam){
   if(oldDraft && !oldDraft.done && oldDraft.idx < oldDraft.picks.length){
     S.season.draft = oldDraft;
   }
+  // 保留選秀記錄（用於顯示選秀結果）
+  if(oldDraftLog && oldDraftLog.length){
+    S.season.draftLog = oldDraftLog;
+  }
+  // 標記上季選秀已完成：總部首頁顯示「✅ 選秀完成」面板（不設 drafted，避免影響下季 prepareDraft）
+  if(wasDrafted)S.season.draftJustCompleted=true;
   TEAM_DEFS.forEach(t=>S.season.records[t.id]={w:0,l:0,t:0,rs:0,ra:0});
   CAREER.lastTeam=playerTeam;saveCareer();
   saveGame();

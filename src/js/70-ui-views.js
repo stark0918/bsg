@@ -128,6 +128,15 @@ function viewHub(){
   const oppId=g.away===s.playerTeam?g.home:g.away;
   const opp=getTeam(oppId);
   const isHome=g.home===s.playerTeam;
+  // 檢查是否剛完成選秀（新球季開始時標記；draftLog 的 season 標記為「哪一季結束時的選秀」）
+  let draftCompleteMsg="";
+  if(s.draftJustCompleted && s.draftLog){
+    const recentPicks=s.draftLog.filter(x=>x.season===seasonNo()-1);
+    if(recentPicks.length){
+      const names=recentPicks.map(x=>`${x.name}(${x.pos})`).join("、");
+      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${recentPicks.map(x=>`${x.name}(${x.pos})`).join("、")}</p></div>`;
+    }
+  }
   main=`<div class="panel">
     <h2>第 ${seasonNo()} 季　第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
     <div class="teamcard"><div><div class="nm">${isHome?"🏠 主場":"🚌 客場"}</div>
@@ -136,6 +145,7 @@ function viewHub(){
     <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
     ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : (s.allstar && !s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽週到了！點擊進行表演賽</button>` : "")}
     ${s.draft && !s.drafted ? `<div class="hr"></div><div class="panel" style="background:#3a2a1a;border-color:#e6c877"><h3>⚠️ 選秀進行中</h3><p class="muted">你的球團在第 ${s.draft.idx+1} 位（共 ${s.draft.picks.length} 位）。請到「新人選秀」完成指名，或點「自動選最強」一鍵完成。</p><button class="btn gold blk" data-act="draft">➡ 前往選秀</button></div>` : ""}
+    ${draftCompleteMsg}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>

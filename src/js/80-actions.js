@@ -11,17 +11,35 @@ const ACT={
   newgame(){
     const d=S.season?.draft;
     if(d&&!d.done&&d.idx<d.picks.length){
-      S.confirm={act:"autoDraftThenNewgame",arg:null,msg:"選秀尚未完成。點擊確定將自動完成剩餘選秀並開始新球季，或取消後前往選秀畫面手動指名。"};
+      const remain = d.picks.length - d.idx;
+      S.confirm={act:"autoDraftThenNewgame",arg:null,msg:`選秀尚未完成（剩 ${remain} 位）。點擊確定將自動完成剩餘選秀並開始新球季，或取消後前往選秀畫面手動指名。`};
       S.screen="newgame";render();return;
     }
     S.screen="newgame";render();
   },
   autoDraftThenNewgame(){
+    const d=S.season.draft;
+    const remain=d?(d.picks.length-d.idx):0;   // 先記下剩餘人數（draftAuto 後 draft 會被清掉）
     ACT.draftAuto();
+    const drafted=remain?(S.season.draftLog||[]).slice(-remain):[];
+    if(drafted.length){
+      const names = drafted.map(x=>`${x.name}(${x.pos})`).join("、");
+      flash(`⚾ 選秀自動完成：${names}`);
+    }
     S.screen="newgame";render();
   },
   toTitle(){S.screen="title";render();},
   pickTeam(id){
+    // 若有未完成選秀，先自動完成並提示結果（須先於老化：否則新人會被多算一歲、且 draftLog 的 season 標記會不一致）
+    const oldDraft = S.season?.draft;
+    if(oldDraft && !oldDraft.done && oldDraft.idx < oldDraft.picks.length){
+      ACT.draftAuto();
+      const drafted = S.season.draftLog?.slice(-oldDraft.picks.length + oldDraft.idx) || [];
+      if(drafted.length){
+        const names = drafted.map(x=>`${x.name}(${x.pos})`).join("、");
+        flash(`⚾ 選秀自動完成：${names}`);
+      }
+    }
     if(CAREER.pending)advanceCareer();
     newSeason(id);
     S.screen="hub";render();
@@ -122,7 +140,20 @@ const ACT={
     submit(()=>{autoGame(S.match);});
   },
   backToHub(){S.screen="hub";S.match=null;render();},
-  nextGame(){S.match=null;startMatch();if(S.match)render();else{S.screen="hub";render();}},
+  nextGame(){
+    // 檢查是否到達明星賽週
+    if(S.season && asReady() && S.season.allstar && !S.season.allstar.played){
+      S.match=null;
+      const a=simAllstar();
+      S.screen="allstar";
+      render();
+      return;
+    }
+    S.match=null;
+    startMatch();
+    if(S.match)render();
+    else{S.screen="hub";render();}
+  },
   simPlayoff(){playoffSimAll();render();},
   autoInning(){const m=S.match;if(!m||m.over)return;submit(()=>{autoHalf(m);if(!m.over&&m.outs>=3)endHalf(m);playSnd(m);});},
   simGame(){const m=S.match;if(!m||m.over)return;submit(()=>{autoGame(m);if(m.walkoff)setTimeout(()=>SFX.cheer(),250);});},

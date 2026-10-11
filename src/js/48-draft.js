@@ -66,7 +66,7 @@ function applyDraftRookie(pick,rookie){
   keys.forEach(k=>{trend+=rookie[k]-(p?p[k]:52);o[k]=rookie[k];});
   o.name=rookie.name;o.age=rookie.age;o.trend=trend;
   if(CAREER.career){delete CAREER.career.bat[pick.pid];delete CAREER.career.pit[pick.pid];}
-  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,pid:pick.pid});
+  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){
   if(!S.season.draft)return;
