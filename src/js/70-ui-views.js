@@ -4,6 +4,14 @@ function viewTitle(){
   if(hasSave()){
     cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季</button>`;
   }
+  const hasCareer=!!((CAREER.history&&CAREER.history.length)||(CAREER.awards&&CAREER.awards.length)||CAREER.seasons>0);
+  const cf=S.confirm;
+  const danger=cf
+    ?`<div class="confirmbox"><p>${esc(cf.msg)}</p>
+        <button class="btn red blk" data-act="confirmYes">確定刪除</button>
+        <button class="btn blk" data-act="confirmNo">取消</button></div>`
+    :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
+      ${hasCareer?`<button class="btn blk" data-act="ask" data-arg="wipeCareer">🗑 清除生涯成就</button>`:""}`;
   return `<div class="panel center">
     <h2 style="text-align:center">歡迎來到劇空間</h2>
     <p class="muted">這是一款向古早 CGI 棒球遊戲致敬的作品。<br>
@@ -13,8 +21,8 @@ function viewTitle(){
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
     <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
-    ${(hasSave()||(CAREER.history&&CAREER.history.length))?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
-    ${hasSave()?`<button class="btn blk" data-act="wipe">✕ 刪除存檔</button>`:""}
+    ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
+    ${danger}
   </div>
   <div class="panel">
     <h2>收錄球團</h2>

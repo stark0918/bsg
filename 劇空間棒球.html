@@ -185,6 +185,10 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 .awardlist{margin:4px 0 0;padding-left:18px}
 .awardlist li{margin:2px 0;color:#f0e0b0}
 
+/* 刪除確認 */
+.confirmbox{border:1px solid #9c4a6e;background:#21141c;border-radius:6px;padding:10px;margin-top:8px}
+.confirmbox p{margin:0 0 8px;font-size:13px;line-height:1.5;color:#f6c3d9;text-align:left}
+
 .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;color:#cfe9ff;background:#16283d;border:1px solid var(--line);margin-left:4px}
 .pill.on{background:rgba(79,211,154,.15);color:#a9e6c6;border-color:#3f8f6b}
 .pill.off{background:rgba(224,85,154,.15);color:#f2b9d2;border-color:#9c4a6e}
@@ -2083,7 +2087,10 @@ function standingsList(){
 }
 /* ===================== 60-ui-core.js ===================== */
 /* ---------- 畫面渲染 ---------- */
+/* 需要「進行中的球季」才成立的畫面；無球季時退回標題，避免存取 null。 */
+const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1};
 function render(){
+  if(!S.season&&NEED_SEASON[S.screen])S.screen="title";
   if(S.season&&S.season.statSchema!==2)migrateSeasonStats();
   const app=$("#app");
   if(S.screen==="title")app.innerHTML=viewTitle();
@@ -2168,6 +2175,14 @@ function viewTitle(){
   if(hasSave()){
     cont=`<button class="btn gold blk" data-act="continue">▷ 繼續上季球季</button>`;
   }
+  const hasCareer=!!((CAREER.history&&CAREER.history.length)||(CAREER.awards&&CAREER.awards.length)||CAREER.seasons>0);
+  const cf=S.confirm;
+  const danger=cf
+    ?`<div class="confirmbox"><p>${esc(cf.msg)}</p>
+        <button class="btn red blk" data-act="confirmYes">確定刪除</button>
+        <button class="btn blk" data-act="confirmNo">取消</button></div>`
+    :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
+      ${hasCareer?`<button class="btn blk" data-act="ask" data-arg="wipeCareer">🗑 清除生涯成就</button>`:""}`;
   return `<div class="panel center">
     <h2 style="text-align:center">歡迎來到劇空間</h2>
     <p class="muted">這是一款向古早 CGI 棒球遊戲致敬的作品。<br>
@@ -2177,8 +2192,8 @@ function viewTitle(){
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
     <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
-    ${(hasSave()||(CAREER.history&&CAREER.history.length))?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
-    ${hasSave()?`<button class="btn blk" data-act="wipe">✕ 刪除存檔</button>`:""}
+    ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
+    ${danger}
   </div>
   <div class="panel">
     <h2>收錄球團</h2>
@@ -2981,7 +2996,26 @@ const ACT={
   continue(){
     if(loadGame()){S.season&&(S.screen="hub");render();}
   },
-  wipe(){try{localStorage.removeItem(SAVEKEY);localStorage.removeItem(CAREERKEY);}catch(e){}CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}}};for(const k in teamCache)delete teamCache[k];render();},
+  ask(act){
+    S.confirm={act,msg:act==="wipeCareer"
+      ?"「清除生涯成就」會刪除所有跨季紀錄（生涯戰績、歷屆榮譽、生涯紀錄榜、獲獎紀錄），且無法復原。確定嗎？"
+      :"「刪除本季進度」會移除目前的球季存檔，但會保留你的生涯成就（歷史戰績、獎項、紀錄）。確定嗎？"};
+    render();
+  },
+  confirmNo(){S.confirm=null;render();},
+  confirmYes(){
+    const act=S.confirm&&S.confirm.act;S.confirm=null;
+    if(act==="wipeSeason"){
+      try{localStorage.removeItem(SAVEKEY);}catch(e){}
+      S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");
+    }else if(act==="wipeCareer"){
+      try{localStorage.removeItem(CAREERKEY);}catch(e){}
+      CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
+      for(const k in teamCache)delete teamCache[k];
+      flash("已清除生涯成就");
+    }
+    render();
+  },
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},

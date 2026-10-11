@@ -10,7 +10,26 @@ const ACT={
   continue(){
     if(loadGame()){S.season&&(S.screen="hub");render();}
   },
-  wipe(){try{localStorage.removeItem(SAVEKEY);localStorage.removeItem(CAREERKEY);}catch(e){}CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}}};for(const k in teamCache)delete teamCache[k];render();},
+  ask(act){
+    S.confirm={act,msg:act==="wipeCareer"
+      ?"「清除生涯成就」會刪除所有跨季紀錄（生涯戰績、歷屆榮譽、生涯紀錄榜、獲獎紀錄），且無法復原。確定嗎？"
+      :"「刪除本季進度」會移除目前的球季存檔，但會保留你的生涯成就（歷史戰績、獎項、紀錄）。確定嗎？"};
+    render();
+  },
+  confirmNo(){S.confirm=null;render();},
+  confirmYes(){
+    const act=S.confirm&&S.confirm.act;S.confirm=null;
+    if(act==="wipeSeason"){
+      try{localStorage.removeItem(SAVEKEY);}catch(e){}
+      S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");
+    }else if(act==="wipeCareer"){
+      try{localStorage.removeItem(CAREERKEY);}catch(e){}
+      CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
+      for(const k in teamCache)delete teamCache[k];
+      flash("已清除生涯成就");
+    }
+    render();
+  },
   help(){S.screen="help";render();},
   backHub(){S.screen="hub";S.match=null;render();},
   roster(){S.screen="roster";render();},

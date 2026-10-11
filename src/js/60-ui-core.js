@@ -1,5 +1,8 @@
 /* ---------- 畫面渲染 ---------- */
+/* 需要「進行中的球季」才成立的畫面；無球季時退回標題，避免存取 null。 */
+const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1};
 function render(){
+  if(!S.season&&NEED_SEASON[S.screen])S.screen="title";
   if(S.season&&S.season.statSchema!==2)migrateSeasonStats();
   const app=$("#app");
   if(S.screen==="title")app.innerHTML=viewTitle();
