@@ -223,9 +223,15 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 .lurow{display:flex;align-items:center;gap:8px;background:#0d1520;border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 .lurow.sel{border-color:var(--gold);background:#1b2233}
 .luord{width:20px;height:20px;flex:0 0 20px;text-align:center;line-height:20px;background:#16283d;border-radius:50%;font-weight:700;font-size:12px}
-.luname{flex:1;min-width:0}
+.luname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lups{font-size:12px;color:var(--muted);width:34px;text-align:center}
 .lubtns{display:flex;gap:3px}
+.lumain{flex:1;min-width:0}
+.lustats{font-size:11px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.lustats2{font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.lustats b,.lustats2 b{color:#e8e2d4;font-weight:700}
+.lustavg{color:#ffd777}
+.lusthr{color:#ff7b7b}.lustrbi{color:#7bdfff}.lustobp{color:#ffd777}
 .daysep td{background:#16283d;color:#a6d4e8;font-weight:700;letter-spacing:.1em;font-size:12px}
 .daysep td:before{content:"▸ "}
 .grade{display:inline-block;font-weight:900;font-family:Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:4px;color:#fff}

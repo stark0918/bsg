@@ -4,17 +4,18 @@ function newRecBook(){
           pit:{k:null,ip:null},
           team:{r:null,margin:null,innings:null}};
 }
-function recUp(book,cat,key,val,name,team,when){
+function recUp(book,cat,key,val,name,team,when,extra){
   if(!book||!book[cat])return;
   const cur=book[cat][key];
-  if(!cur||val>cur.val)book[cat][key]={val:val,name:name,team:team,when:when};
+  if(!cur||val>cur.val)book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0};
 }
 function recUpBoth(cat,key,val,name,team,when){
   if(S.season&&!S.season.recs)S.season.recs=newRecBook();
   recUp(S.season.recs,cat,key,val,name,team,when);
   const c=CAREER.records||(CAREER.records={});
   if(!c.bat)c.bat={};if(!c.pit)c.pit={};if(!c.team)c.team={};
-  recUp(c,cat,key,val,name,team,when);
+  // 存入跨季紀錄：加上季數，方便顯示「第 N 季 第 X 日」
+  recUp(c,cat,key,val,name,team,when,{season:seasonNo()});
 }
 function recName(pid){const p=playerById(pid);return p?p.name:pid;}
 function recTeam(pid){return teamOfPlayer({id:pid});}
@@ -59,8 +60,9 @@ const REC_LABELS={
 function recRow(book,cat,key){
   const r=book&&book[cat]&&book[cat][key];
   if(!r)return `<tr><td>${REC_LABELS[cat][key]}</td><td class="num muted">－</td><td></td></tr>`;
+  const when=r.season?`第 ${r.season} 季 ${r.when}`:r.when;
   return `<tr><td>${REC_LABELS[cat][key]}</td><td class="num"><b>${r.val}</b></td>
-    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">${esc(r.when||"")}</span></td></tr>`;
+    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">${esc(when||"")}</span></td></tr>`;
 }
 function recPanel(book,title){
   let rows="";
@@ -125,17 +127,17 @@ function careerMerged(){
   return {bat:cb,pit:cp};
 }
 const CAREER_BAT_REC=[
-  ["生涯打擊率",s=>s.ab?Math.round(s.h/s.ab*1000):null,fmtAvg,120,true],
-  ["生涯全壘打",s=>s.hr||0,Number,5,true],
-  ["生涯打點",s=>s.rbi||0,Number,10,true],
-  ["生涯安打",s=>s.h||0,Number,30,true],
-  ["生涯盜壘",s=>s.sb||0,Number,3,true]
+  ["生涯打擊率",s=>s.ab?s.h/s.ab:null,fmtAvg,120,true],
+  ["生涯全壘打",s=>s.hr||0,Number,120,true],
+  ["生涯打點",s=>s.rbi||0,Number,120,true],
+  ["生涯安打",s=>s.h||0,Number,120,true],
+  ["生涯盜壘",s=>s.sb||0,Number,120,true]
 ];
 const CAREER_PIT_REC=[
-  ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,s=>(s.er!=null&&s.outs)?fmtERA(s.er,s.outs):"-.--",90,false],
-  ["生涯勝投",s=>s.w||0,Number,4,true],
-  ["生涯三振",s=>s.k||0,Number,40,true],
-  ["生涯救援",s=>s.sv||0,Number,3,true]
+  ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),120,false],
+  ["生涯勝投",s=>s.w||0,Number,120,true],
+  ["生涯三振",s=>s.k||0,Number,120,true],
+  ["生涯救援",s=>s.sv||0,Number,120,true]
 ];
 function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   const arr=[];
@@ -175,17 +177,28 @@ function recTabCareer(){
     `<div class="panel"><h2>生涯紀錄榜（跨季累計）</h2>
     <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
 }
-/* 歷屆榮譽（總冠軍＋三大獎） */
+/* 歷屆榮譽（總冠軍＋三大獎＋各項王座） */
 function awardsAxis(){
   const A=CAREER.awards||[];
   if(!A.length)return "";
-  const rows=A.slice().reverse().map(a=>`<tr><td class="num">第 ${a.no} 季</td>
-    <td class="name">${a.champ?teamBadge(a.champ):"－"}</td>
-    <td class="name">${a.mvp?esc(a.mvp.name)+" "+teamBadge(a.mvp.team):"－"}</td>
-    <td class="name">${a.cy?esc(a.cy.name)+" "+teamBadge(a.cy.team):"－"}</td>
-    <td class="name">${a.rookie?esc(a.rookie.name)+" "+teamBadge(a.rookie.team):"－"}</td></tr>`).join("");
+  // 王座項目：打擊部門 + 投手部門（含安打王、得分王、防禦率王）
+  const kingOrder=["avg","hr","rbi","h","sb","r","era","k","w","sv"];
+  const kingLabel={avg:"打擊王",hr:"全壘打王",rbi:"打點王",h:"安打王",sb:"盜壘王",r:"得分王",era:"防禦率王",k:"三振王",w:"勝投王",sv:"救援王"};
+  const rows=A.slice().reverse().map(a=>{
+    const kingCells=kingOrder.map(k=>{
+      const e=(a.kings||[]).find(x=>x.kind===k);
+      return e?`<td class="name">${esc(e.name)} ${teamBadge(e.team)}<br><span class="muted" style="font-size:11px">${esc(e.val)}</span></td>`:"<td class=\"muted\">－</td>";
+    }).join("");
+    return `<tr><td class="num">第 ${a.no} 季</td>
+      <td class="name">${a.champ?teamBadge(a.champ):"－"}</td>
+      <td class="name">${a.mvp?esc(a.mvp.name)+" "+teamBadge(a.mvp.team):"－"}</td>
+      <td class="name">${a.cy?esc(a.cy.name)+" "+teamBadge(a.cy.team):"－"}</td>
+      <td class="name">${a.rookie?esc(a.rookie.name)+" "+teamBadge(a.rookie.team):"－"}</td>
+      ${kingCells}</tr>`;
+  }).join("");
+  const kingHeaders=kingOrder.map(k=>`<th>${kingLabel[k]}</th>`).join("");
   return `<div class="panel"><h2>歷屆榮譽</h2>
-    <table class="grid"><tr><th>球季</th><th>總冠軍</th><th>MVP</th><th>最佳投手</th><th>新人王</th></tr>${rows}</table></div>`;
+    <table class="grid"><tr><th>球季</th><th>總冠軍</th><th>MVP</th><th>最佳投手</th><th>新人王</th>${kingHeaders}</tr>${rows}</table></div>`;
 }
 /* ---------- 逐場 CSV 匯出 ---------- */
 function csvCell(v){v=(v==null?"":String(v));return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
@@ -239,17 +252,17 @@ function recordSeasonBest(ps,no){
   for(const pid in (ps.bat||{})){
     const s=ps.bat[pid]||{},nm=recName(pid),tm=recTeam(pid);
     if((s.ab||0)>=25)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true);
-    seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
-    seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true);
-    seasonBestUp("bat","h",s.h||0,nm,tm,no,true);
-    seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true);
+    if((s.ab||0)>=120){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
+      seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true);
+      seasonBestUp("bat","h",s.h||0,nm,tm,no,true);
+      seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true);}
   }
   for(const pid in (ps.pit||{})){
     const s=ps.pit[pid]||{},nm=recName(pid),tm=recTeam(pid);
     if((s.outs||0)>=27)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false);
-    seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
-    seasonBestUp("pit","k",s.k||0,nm,tm,no,true);
-    seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true);
+    if((s.outs||0)>=120){seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
+      seasonBestUp("pit","k",s.k||0,nm,tm,no,true);
+      seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true);}
   }
 }
 const SEASON_BEST=[

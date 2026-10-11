@@ -198,6 +198,14 @@ function playoffHubMain(po){
       <p class="center">第 ${seasonNo()} 季　本季總冠軍：<b>${teamBadge(po.champion)}</b></p>
       <p class="muted center">${won?"你率領的球隊登上本季王座，太神了！":"你的球季到此結束，明年再來。"}</p>
       <div class="hr"></div>
+      <div class="two">
+        <button class="btn blk" data-act="roster">👥 陣容與成績</button>
+        <button class="btn blk" data-act="abilities">🧮 選手能力</button>
+        <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
+        <button class="btn blk" data-act="records">📕 單場紀錄</button>
+        <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+      </div>
+      <div class="hr"></div>
       <button class="btn red blk" data-act="newgame">開始新球季</button>
       ${draftBtn}
       <button class="btn gold blk" data-act="awards">🏆 季後頒獎典禮</button>
@@ -223,6 +231,14 @@ function playoffHubMain(po){
       <button class="btn green blk" data-act="play">⚾ 進行${stageName}（即時戰術）</button>
       <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
       <div class="hr"></div>
+      <div class="two">
+        <button class="btn blk" data-act="roster">👥 陣容與成績</button>
+        <button class="btn blk" data-act="abilities">🧮 選手能力</button>
+        <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
+        <button class="btn blk" data-act="records">📕 單場紀錄</button>
+        <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+      </div>
+      <div class="hr"></div>
       ${poNav()}
       <div class="hr"></div>
       <button class="btn sm blk" data-act="saveNow">💾 手動存檔</button>
@@ -231,6 +247,14 @@ function playoffHubMain(po){
   }
   return `<div class="panel"><h2>季後賽</h2>
     <p class="center muted">你的球隊未參與目前的季後賽賽事。</p>
+    <div class="hr"></div>
+    <div class="two">
+      <button class="btn blk" data-act="roster">👥 陣容與成績</button>
+      <button class="btn blk" data-act="abilities">🧮 選手能力</button>
+      <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
+      <button class="btn blk" data-act="records">📕 單場紀錄</button>
+      <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
+    </div>
     <div class="hr"></div>
     <button class="btn gold blk" data-act="simPlayoff">⏩ 模擬剩餘季後賽</button>
     <div class="hr"></div>

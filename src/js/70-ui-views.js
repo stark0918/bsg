@@ -133,6 +133,7 @@ function viewHub(){
       <div class="meta">vs ${esc(opp.name)}　·　${isHome?esc(team.stadium):esc(opp.stadium)}</div></div></div>
     <button class="btn green blk" data-act="play">⚾ 進行比賽（即時戰術）</button>
     <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
+    ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : ""}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
@@ -233,13 +234,23 @@ function viewSeasonInfo(){
 }
 
 /* ----- 打線／守位編輯 ----- */
+function luStatLine(b){
+  const s=S.season&&S.season.playerStats&&S.season.playerStats.bat[b.id];
+  const ab=s?s.ab:0,h=s?s.h:0,hr=s?s.hr:0,rbi=s?s.rbi:0,bb=s?s.bb:0;
+  const obp=ab+bb>0?((h+bb)/(ab+bb)):0;
+  return `<div class="lustats">打 <b>${b.meet}</b>　力 <b>${b.power}</b>　選 <b>${b.eye}</b>　走 <b>${b.speed}</b>　守 <b>${b.defense}</b></div>
+    <div class="lustats2">本季 ${ab?fmtAvg(h/ab):"－"}　<span class="lusthr">HR <b>${hr}</b></span>　<span class="lustrbi">RBI <b>${rbi}</b></span>　<span class="lustobp">OBP ${obp>0?fmtAvg(obp):"－"}</span></div>`;
+}
 function viewLineup(){
   const se=S.season,team=getTeam(se.playerTeam);
   const lu=buildLineup(team),bench=buildBench(team);
   const sel=S.luSel==null?-1:S.luSel;
   const rows=lu.map((b,i)=>`<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
       <span class="luord">${i+1}</span>
-      <span class="luname">${esc(b.name)}${b.bench?' <span class="pill off">板凳</span>':""}</span>
+      <div class="lumain">
+        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}</div>
+        ${luStatLine(b)}
+      </div>
       <span class="lups">${esc(b.posLabel||"")}</span>
       <span class="lubtns">
         <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
@@ -248,18 +259,23 @@ function viewLineup(){
     </div>`).join("");
   const brows=bench.length?bench.map(b=>`<div class="lurow benchrow">
       <span class="luord">–</span>
-      <span class="luname">${esc(b.name)}</span>
+      <div class="lumain">
+        <div class="luname">${esc(b.name)} ${gradeBadge(b)}</div>
+        ${luStatLine(b)}
+      </div>
       <span class="lups">${esc(b.posLabel||"")}</span>
       <button class="btn sm gold" data-act="luSwap" data-arg="${b.id}">⇄ 換入${sel>=0?"第 "+(sel+1)+" 棒":""}</button>
     </div>`).join(""):`<p class="muted">沒有可替換的球員。</p>`;
   return `<div class="panel"><h2>🧢 打線／守位編輯</h2>
     <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
+    <p class="muted" style="font-size:11px">數值：<b>打</b>＝打擊　<b>力</b>＝力量　<b>選</b>＝選球　<b>走</b>＝速度　<b>守</b>＝守備；後方為本季打率（安打／打數）。</p>
     <div class="hr"></div><h3>先發打線</h3>
     <div class="lulist">${rows}</div>
     <div class="hr"></div><h3>板凳</h3>
     <div class="lulist">${brows}</div>
     <div class="hr"></div>
     <div class="two">
+      <button class="btn blk" data-act="luAuto">🤖 自動排序打線</button>
       <button class="btn blk" data-act="luReset">↺ 回復預設打線</button>
       <button class="btn blk" data-act="backHub">← 回球季總部</button>
     </div></div>`;
