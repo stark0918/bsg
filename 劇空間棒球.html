@@ -1216,7 +1216,8 @@ function processGameEnd(m){
   leagueNews(m.dayIndex);
   if(S.season.day>=Math.floor(S.season.schedule.length/2)&&!S.season.asNotified){
     S.season.asNotified=true;
-    if(!S.flash)S.flash="★ 明星賽週到了！到「⭐ 明星賽」選出紅藍兩隊";
+    if(!S.flash)S.flash="★ 明星賽週到了！紅藍名單已自動生成";
+    ensureAllstarRoster();  // 自動生成明星賽名單
   }
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表
   saveGame();
@@ -1447,14 +1448,6 @@ function playoffHubMain(po){
       <p class="center">第 ${seasonNo()} 季　本季總冠軍：<b>${teamBadge(po.champion)}</b></p>
       <p class="muted center">${won?"你率領的球隊登上本季王座，太神了！":"你的球季到此結束，明年再來。"}</p>
       <div class="hr"></div>
-      <div class="two">
-        <button class="btn blk" data-act="roster">👥 陣容與成績</button>
-        <button class="btn blk" data-act="abilities">🧮 選手能力</button>
-        <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
-        <button class="btn blk" data-act="records">📕 單場紀錄</button>
-        <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
-      </div>
-      <div class="hr"></div>
       <button class="btn red blk" data-act="newgame">開始新球季</button>
       ${draftBtn}
       <button class="btn gold blk" data-act="awards">🏆 季後頒獎典禮</button>
@@ -1595,7 +1588,8 @@ function histGamesPanel(){
   const gl=(se&&se.gl)||[];
   if(!gl.length)return `<div class="panel"><h2>逐場賽果</h2><p class="muted">本季尚無比賽紀錄。</p></div>`;
   let rows="",lastKey=null;
-  gl.forEach(g=>{
+  let debugInfo = [];
+  gl.forEach((g,gi)=>{
     const key=g.d?("D"+g.d):("S"+g.st);
     if(key!==lastKey){
       lastKey=key;
@@ -1606,13 +1600,36 @@ function histGamesPanel(){
     const tie=g.a===g.h;
     const winner=tie?null:(g.a>g.h?g.aw:g.hm);
     const res=tie?'<span class="muted">和局</span>':`${teamBadge(winner)} 勝`;
-    rows+=`<tr class="${mine?"me":""}"><td class="name">${teamBadge(g.aw)} vs ${teamBadge(g.hm)}</td>
-      <td class="num">${g.a}：${g.h}</td><td class="name">${res}</td></tr>`;
+    // 找對應的 box
+    let box=null,inningHtml="";
+    if(g.d!=null){
+      const dayBoxes=(se.boxes||[])[g.d-1]||[];
+      const idx=dayBoxes.findIndex(b=>b.aw===g.aw&&b.hm===g.hm);
+      if(idx>=0)box=dayBoxes[idx];
+    }else if(g.st!=null){
+      box=(se.poBoxes||[]).find(b=>b.aw===g.aw&&b.hm===g.hm);
+    }
+    if(box){
+      const a=box.line.aw||[],h=box.line.hm||[];
+      const N=Math.max(a.length,h.length,1);
+      const mk=(arr,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v!=null?v:0}</td>`).join("")+`<td class="num"><b>${arr.reduce((s,v)=>s+(v||0),0)}</b></td></tr>`;
+      const toggleId=`inning-${gi}`;
+      inningHtml=`<tr id="${toggleId}" class="inning-detail" style="display:none"><td colspan="3">
+        <table class="grid" style="margin:4px 0;font-size:11px"><tr><th></th>`+
+        Array.from({length:N},(_,i)=>`<th>${i+1}</th>`).join("")+`<th>R</th></tr>`+
+        mk(a,box.aw)+mk(h,box.hm)+`</table></td></tr>`;
+      rows+=`<tr class="${mine?"me":""}" onclick="document.getElementById('${toggleId}').style.display=''"><td class="name">${teamBadge(g.aw)} vs ${teamBadge(g.hm)}</td>
+        <td class="num">${g.a}：${g.h}</td><td class="name">${res} <span class="pill" style="font-size:10px">▼ 局數</span></td></tr>`;
+      rows+=inningHtml;
+    }else{
+      rows+=`<tr class="${mine?"me":""}"><td class="name">${teamBadge(g.aw)} vs ${teamBadge(g.hm)}</td>
+        <td class="num">${g.a}：${g.h}</td><td class="name">${res}</td></tr>`;
+    }
   });
   return `<div class="panel"><h2>逐場賽果</h2>
-    <p class="muted">本季所有比賽（例行賽＋季後賽）。＊標記者為你的球隊。</p>
+    <p class="muted">本季所有比賽（例行賽＋季後賽）。＊標記者為你的球隊。點擊比賽列展開每局得分。</p>
     <table class="grid"><tr><th>對戰（客 vs 主）</th><th>比數（客：主）</th><th>結果</th></tr>${rows}</table>
-    <p class="muted" style="font-size:11px;margin-top:6px">※ 比數以「客隊：主隊」顯示。</p></div>`;
+    <p class="muted" style="font-size:11px;margin-top:6px">※ 比數以「客隊：主隊」顯示。0 分顯示為 0。點擊列展開局數細節。</p></div>`;
 }
 function histSeasonsPanel(){
   const h=CAREER.history||[];
@@ -2919,7 +2936,7 @@ function viewHub(){
       <div class="meta">vs ${esc(opp.name)}　·　${isHome?esc(team.stadium):esc(opp.stadium)}</div></div></div>
     <button class="btn green blk" data-act="play">⚾ 進行比賽（即時戰術）</button>
     <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
-    ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : ""}
+    ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : (s.allstar && !s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽週到了！點擊進行表演賽</button>` : "")}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
@@ -3567,7 +3584,7 @@ function inningLineTable(box){
   let head="<tr><th></th>";
   for(let i=1;i<=N;i++)head+=`<th>${i}</th>`;
   head+="<th>R</th></tr>";
-  const mk=(arr,score,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v||""}</td>`).join("")+`<td class="num"><b>${score}</b></td></tr>`;
+  const mk=(arr,score,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v!=null?v:0}</td>`).join("")+`<td class="num"><b>${score}</b></td></tr>`;
   return `<table class="grid">${head}${mk(a,box.a,box.aw)}${mk(h,box.h,box.hm)}</table>`;
 }
 function boxBatTable(box,side){
@@ -3942,7 +3959,7 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
-  seasonNo, viewSeasonInfo, lastTeamId
+  seasonNo, viewSeasonInfo, lastTeamId, histGamesPanel
 };
 })();
 

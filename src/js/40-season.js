@@ -217,7 +217,8 @@ function processGameEnd(m){
   leagueNews(m.dayIndex);
   if(S.season.day>=Math.floor(S.season.schedule.length/2)&&!S.season.asNotified){
     S.season.asNotified=true;
-    if(!S.flash)S.flash="★ 明星賽週到了！到「⭐ 明星賽」選出紅藍兩隊";
+    if(!S.flash)S.flash="★ 明星賽週到了！紅藍名單已自動生成";
+    ensureAllstarRoster();  // 自動生成明星賽名單
   }
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表
   saveGame();

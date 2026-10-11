@@ -198,14 +198,6 @@ function playoffHubMain(po){
       <p class="center">第 ${seasonNo()} 季　本季總冠軍：<b>${teamBadge(po.champion)}</b></p>
       <p class="muted center">${won?"你率領的球隊登上本季王座，太神了！":"你的球季到此結束，明年再來。"}</p>
       <div class="hr"></div>
-      <div class="two">
-        <button class="btn blk" data-act="roster">👥 陣容與成績</button>
-        <button class="btn blk" data-act="abilities">🧮 選手能力</button>
-        <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
-        <button class="btn blk" data-act="records">📕 單場紀錄</button>
-        <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
-      </div>
-      <div class="hr"></div>
       <button class="btn red blk" data-act="newgame">開始新球季</button>
       ${draftBtn}
       <button class="btn gold blk" data-act="awards">🏆 季後頒獎典禮</button>

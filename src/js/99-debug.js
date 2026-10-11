@@ -23,5 +23,5 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
-  seasonNo, viewSeasonInfo, lastTeamId
+  seasonNo, viewSeasonInfo, lastTeamId, histGamesPanel
 };

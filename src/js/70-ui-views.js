@@ -133,7 +133,7 @@ function viewHub(){
       <div class="meta">vs ${esc(opp.name)}　·　${isHome?esc(team.stadium):esc(opp.stadium)}</div></div></div>
     <button class="btn green blk" data-act="play">⚾ 進行比賽（即時戰術）</button>
     <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
-    ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : ""}
+    ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : (s.allstar && !s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽週到了！點擊進行表演賽</button>` : "")}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
@@ -781,7 +781,7 @@ function inningLineTable(box){
   let head="<tr><th></th>";
   for(let i=1;i<=N;i++)head+=`<th>${i}</th>`;
   head+="<th>R</th></tr>";
-  const mk=(arr,score,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v||""}</td>`).join("")+`<td class="num"><b>${score}</b></td></tr>`;
+  const mk=(arr,score,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v!=null?v:0}</td>`).join("")+`<td class="num"><b>${score}</b></td></tr>`;
   return `<table class="grid">${head}${mk(a,box.a,box.aw)}${mk(h,box.h,box.hm)}</table>`;
 }
 function boxBatTable(box,side){

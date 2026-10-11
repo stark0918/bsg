@@ -80,7 +80,8 @@ function histGamesPanel(){
   const gl=(se&&se.gl)||[];
   if(!gl.length)return `<div class="panel"><h2>逐場賽果</h2><p class="muted">本季尚無比賽紀錄。</p></div>`;
   let rows="",lastKey=null;
-  gl.forEach(g=>{
+  let debugInfo = [];
+  gl.forEach((g,gi)=>{
     const key=g.d?("D"+g.d):("S"+g.st);
     if(key!==lastKey){
       lastKey=key;
@@ -91,13 +92,36 @@ function histGamesPanel(){
     const tie=g.a===g.h;
     const winner=tie?null:(g.a>g.h?g.aw:g.hm);
     const res=tie?'<span class="muted">和局</span>':`${teamBadge(winner)} 勝`;
-    rows+=`<tr class="${mine?"me":""}"><td class="name">${teamBadge(g.aw)} vs ${teamBadge(g.hm)}</td>
-      <td class="num">${g.a}：${g.h}</td><td class="name">${res}</td></tr>`;
+    // 找對應的 box
+    let box=null,inningHtml="";
+    if(g.d!=null){
+      const dayBoxes=(se.boxes||[])[g.d-1]||[];
+      const idx=dayBoxes.findIndex(b=>b.aw===g.aw&&b.hm===g.hm);
+      if(idx>=0)box=dayBoxes[idx];
+    }else if(g.st!=null){
+      box=(se.poBoxes||[]).find(b=>b.aw===g.aw&&b.hm===g.hm);
+    }
+    if(box){
+      const a=box.line.aw||[],h=box.line.hm||[];
+      const N=Math.max(a.length,h.length,1);
+      const mk=(arr,tid)=>`<tr><td class="name">${teamBadge(tid)}</td>`+arr.slice(0,N).map(v=>`<td class="num">${v!=null?v:0}</td>`).join("")+`<td class="num"><b>${arr.reduce((s,v)=>s+(v||0),0)}</b></td></tr>`;
+      const toggleId=`inning-${gi}`;
+      inningHtml=`<tr id="${toggleId}" class="inning-detail" style="display:none"><td colspan="3">
+        <table class="grid" style="margin:4px 0;font-size:11px"><tr><th></th>`+
+        Array.from({length:N},(_,i)=>`<th>${i+1}</th>`).join("")+`<th>R</th></tr>`+
+        mk(a,box.aw)+mk(h,box.hm)+`</table></td></tr>`;
+      rows+=`<tr class="${mine?"me":""}" onclick="document.getElementById('${toggleId}').style.display=''"><td class="name">${teamBadge(g.aw)} vs ${teamBadge(g.hm)}</td>
+        <td class="num">${g.a}：${g.h}</td><td class="name">${res} <span class="pill" style="font-size:10px">▼ 局數</span></td></tr>`;
+      rows+=inningHtml;
+    }else{
+      rows+=`<tr class="${mine?"me":""}"><td class="name">${teamBadge(g.aw)} vs ${teamBadge(g.hm)}</td>
+        <td class="num">${g.a}：${g.h}</td><td class="name">${res}</td></tr>`;
+    }
   });
   return `<div class="panel"><h2>逐場賽果</h2>
-    <p class="muted">本季所有比賽（例行賽＋季後賽）。＊標記者為你的球隊。</p>
+    <p class="muted">本季所有比賽（例行賽＋季後賽）。＊標記者為你的球隊。點擊比賽列展開每局得分。</p>
     <table class="grid"><tr><th>對戰（客 vs 主）</th><th>比數（客：主）</th><th>結果</th></tr>${rows}</table>
-    <p class="muted" style="font-size:11px;margin-top:6px">※ 比數以「客隊：主隊」顯示。</p></div>`;
+    <p class="muted" style="font-size:11px;margin-top:6px">※ 比數以「客隊：主隊」顯示。0 分顯示為 0。點擊列展開局數細節。</p></div>`;
 }
 function histSeasonsPanel(){
   const h=CAREER.history||[];
