@@ -68,6 +68,7 @@ function importSaveFile(file){
 const S={screen:"title",season:null,match:null,flash:"",leadCat:"avg"};
 
 function newSeason(playerTeam){
+  const oldDraft = S.season?.draft;
   S.season={
     playerTeam,
     day:0,
@@ -79,6 +80,10 @@ function newSeason(playerTeam){
     statSchema:2,
     started:Date.now()
   };
+  // 保留未完成的選秀到新球季
+  if(oldDraft && !oldDraft.done && oldDraft.idx < oldDraft.picks.length){
+    S.season.draft = oldDraft;
+  }
   TEAM_DEFS.forEach(t=>S.season.records[t.id]={w:0,l:0,t:0,rs:0,ra:0});
   CAREER.lastTeam=playerTeam;saveCareer();
   saveGame();

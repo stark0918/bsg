@@ -8,7 +8,18 @@ function confirmMsg(t,arg){
   return "確定嗎？";
 }
 const ACT={
-  newgame(){S.screen="newgame";render();},
+  newgame(){
+    const d=S.season?.draft;
+    if(d&&!d.done&&d.idx<d.picks.length){
+      S.confirm={act:"autoDraftThenNewgame",arg:null,msg:"選秀尚未完成。點擊確定將自動完成剩餘選秀並開始新球季，或取消後前往選秀畫面手動指名。"};
+      S.screen="newgame";render();return;
+    }
+    S.screen="newgame";render();
+  },
+  autoDraftThenNewgame(){
+    ACT.draftAuto();
+    S.screen="newgame";render();
+  },
   toTitle(){S.screen="title";render();},
   pickTeam(id){
     if(CAREER.pending)advanceCareer();
@@ -84,7 +95,13 @@ const ACT={
   allstarSim(){const a=simAllstar();render();},
   seasonInfo(){S.screen="season";render();},
   help(){S.screen="help";render();},
-  backHub(){S.screen="hub";S.match=null;render();},
+  backHub(){
+    const d=S.season?.draft;
+    if(d&&!d.done&&d.idx<d.picks.length){
+      S.confirm={act:"forceLeaveDraft",arg:null,msg:"選秀尚未完成，確定要離開？未完成的選秀將自動由系統代選最強新人。"};render();return;
+    }
+    S.screen="hub";S.match=null;render();
+  },
   roster(){S.screen="roster";render();},
   abilities(){S.screen="abilities";render();},
   abilTeam(id){S.abilTeam=id;render();},
@@ -146,7 +163,9 @@ const ACT={
   draftAuto(){const d=S.season.draft;if(!d)return;
     while(d.idx<d.picks.length){const pick=d.picks[d.idx];const cs=draftCandidates(pick);
       applyDraftRookie(pick,cs[draftBest(cs)]);d.idx++;}
-    draftJudge();render();}
+    draftJudge();render();},
+  confirmLeaveDraft(){S.confirm={act:"forceLeaveDraft",arg:null,msg:"選秀尚未完成，確定要離開？未完成的選秀將自動由系統代選最強新人。"};render();},
+  forceLeaveDraft(){const d=S.season.draft;if(d){ACT.draftAuto();}S.confirm=null;render();}
 };
 let flashTimer=null;
 function flash(msg){S.flash=msg;clearTimeout(flashTimer);}

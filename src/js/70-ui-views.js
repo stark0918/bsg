@@ -105,6 +105,7 @@ function viewNewGame(){
     }).join("")}
     <div class="hr"></div>
     <button class="btn blk" data-act="toTitle">← 返回</button>
+    ${S.confirm?confirmBoxHTML():""}
   </div>`;
 }
 
@@ -134,6 +135,7 @@ function viewHub(){
     <button class="btn green blk" data-act="play">⚾ 進行比賽（即時戰術）</button>
     <button class="btn gold blk" data-act="simPlay">⏩ 快速模擬本場</button>
     ${s.allstar && s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽結果（MVP：${esc(s.allstar.mvp.name)}）</button>` : (s.allstar && !s.allstar.played ? `<div class="hr"></div><button class="btn gold blk" data-act="allstar">⭐ 明星賽週到了！點擊進行表演賽</button>` : "")}
+    ${s.draft && !s.drafted ? `<div class="hr"></div><div class="panel" style="background:#3a2a1a;border-color:#e6c877"><h3>⚠️ 選秀進行中</h3><p class="muted">你的球團在第 ${s.draft.idx+1} 位（共 ${s.draft.picks.length} 位）。請到「新人選秀」完成指名，或點「自動選最強」一鍵完成。</p><button class="btn gold blk" data-act="draft">➡ 前往選秀</button></div>` : ""}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
