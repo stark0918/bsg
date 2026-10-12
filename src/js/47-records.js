@@ -198,24 +198,43 @@ function recTabCareer(){
 function awardsAxis(){
   const A=CAREER.awards||[];
   if(!A.length)return "";
-  // 王座項目：打擊部門 + 投手部門（含安打王、得分王、防禦率王）
-  const kingOrder=["avg","hr","rbi","h","sb","r","era","k","w","sv"];
-  const kingLabel={avg:"打擊王",hr:"全壘打王",rbi:"打點王",h:"安打王",sb:"盜壘王",r:"得分王",era:"防禦率王",k:"三振王",w:"勝投王",sv:"救援王"};
-  const rows=A.slice().reverse().map(a=>{
-    const kingCells=kingOrder.map(k=>{
-      const e=(a.kings||[]).find(x=>x.kind===k);
-      return e?`<td class="name">${esc(e.name)} ${teamBadge(e.team)}<br><span class="muted" style="font-size:11px">${esc(e.val)}</span></td>`:"<td class=\"muted\">－</td>";
-    }).join("");
-    return `<tr><td class="num">第 ${a.no} 季</td>
+  // 主要獎項表
+  const majorRows=A.slice().reverse().map(a=>`
+    <tr class="${a.isChamp?"me":""}">
+      <td class="num">第 ${a.no} 季</td>
       <td class="name">${a.champ?teamBadge(a.champ):"－"}</td>
       <td class="name">${a.mvp?esc(a.mvp.name)+" "+teamBadge(a.mvp.team):"－"}</td>
       <td class="name">${a.cy?esc(a.cy.name)+" "+teamBadge(a.cy.team):"－"}</td>
       <td class="name">${a.rookie?esc(a.rookie.name)+" "+teamBadge(a.rookie.team):"－"}</td>
-      ${kingCells}</tr>`;
+    </tr>`).join("");
+  // 王座項目：分兩組顯示（打擊/投手）
+  const batKings=["avg","hr","rbi","h","sb","r"];
+  const pitKings=["era","k","w","sv"];
+  const kingLabel={avg:"打擊王",hr:"全壘打王",rbi:"打點王",h:"安打王",sb:"盜壘王",r:"得分王",era:"防禦率王",k:"三振王",w:"勝投王",sv:"救援王"};
+  const kingRowsBat=A.slice().reverse().map(a=>{
+    const cells=batKings.map(k=>{
+      const e=(a.kings||[]).find(x=>x.kind===k);
+      return e?`<td class="name">${esc(e.name)} ${teamBadge(e.team)}<br><span class="muted" style="font-size:11px">${esc(e.val)}</span></td>`:"<td class=\"muted\">－</td>";
+    }).join("");
+    return `<tr><td class="num">第 ${a.no} 季</td>${cells}</tr>`;
   }).join("");
-  const kingHeaders=kingOrder.map(k=>`<th>${kingLabel[k]}</th>`).join("");
-  return `<div class="panel"><h2>歷屆榮譽</h2>
-    <table class="grid"><tr><th>球季</th><th>總冠軍</th><th>MVP</th><th>最佳投手</th><th>新人王</th>${kingHeaders}</tr>${rows}</table></div>`;
+  const kingRowsPit=A.slice().reverse().map(a=>{
+    const cells=pitKings.map(k=>{
+      const e=(a.kings||[]).find(x=>x.kind===k);
+      return e?`<td class="name">${esc(e.name)} ${teamBadge(e.team)}<br><span class="muted" style="font-size:11px">${esc(e.val)}</span></td>`:"<td class=\"muted\">－</td>";
+    }).join("");
+    return `<tr><td class="num">第 ${a.no} 季</td>${cells}</tr>`;
+  }).join("");
+  const batHeaders=batKings.map(k=>`<th>${kingLabel[k]}</th>`).join("");
+  const pitHeaders=pitKings.map(k=>`<th>${kingLabel[k]}</th>`).join("");
+  return `
+    <div class="panel"><h2>歷屆榮譽</h2>
+      <table class="grid"><tr><th>球季</th><th>總冠軍</th><th>MVP</th><th>最佳投手</th><th>新人王</th></tr>${majorRows}</table></div>
+    <div class="panel"><h3>打擊部門王座</h3>
+      <table class="grid"><tr><th>球季</th>${batHeaders}</tr>${kingRowsBat}</table></div>
+    <div class="panel"><h3>投手部門王座</h3>
+      <table class="grid"><tr><th>球季</th>${pitHeaders}</tr>${kingRowsPit}</table></div>
+  `;
 }
 /* ---------- 逐場 CSV 匯出 ---------- */
 function csvCell(v){v=(v==null?"":String(v));return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}

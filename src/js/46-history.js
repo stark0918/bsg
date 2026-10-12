@@ -164,20 +164,35 @@ function histMilePanel(){
 function histAllstarPanel(){
   const list=(CAREER.allstars||[]).slice().reverse();
   if(!list.length)return `<div class="panel"><h2>明星賽</h2><p class="muted">尚未舉辦過明星賽。</p></div>`;
-  const rows=list.map(x=>{
-    const redNames=(x.red||[]).map(p=>`${esc(p.name)}(${p.pos?esc(p.pos):"P"})`).join("、")||"無";
-    const blueNames=(x.blue||[]).map(p=>`${esc(p.name)}(${p.pos?esc(p.pos):"P"})`).join("、")||"無";
+  const cards=list.map(x=>{
+    const redNames=(x.red||[]).map(p=>`<span class="player-tag">${esc(p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
+    const blueNames=(x.blue||[]).map(p=>`<span class="player-tag">${esc(p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
     const wName=x.winner==="red"?"🔴 紅隊":"🔵 藍隊";
     const mvpTxt=x.mvp?esc(x.mvp):"－";
-    return `<tr><td class="num">第 ${x.no} 季</td>
-      <td class="name">${wName} 勝　<span class="muted">(${x.score?.red||0}:${x.score?.blue||0})</span></td>
-      <td class="name">${teamBadge(x.mvpTeam)} ${mvpTxt}</td>
-      <td class="name"><div style="max-width:280px;line-height:1.5">${redNames}</div></td>
-      <td class="name"><div style="max-width:280px;line-height:1.5">${blueNames}</div></td></tr>`;
+    const mvpTeam=x.mvpTeam?teamBadge(x.mvpTeam):"";
+    return `
+      <div class="panel card">
+        <div class="card-head">
+          <span class="num">第 ${x.no} 季</span>
+          <span class="name">${wName} 勝 <span class="muted">(${x.score?.red||0}:${x.score?.blue||0})</span></span>
+          <span class="name">${mvpTeam} <b>${mvpTxt}</b> <span class="pill on">MVP</span></span>
+        </div>
+        <div class="card-body">
+          <div class="roster">
+            <h4>🔴 紅隊</h4>
+            <div class="tags">${redNames}</div>
+          </div>
+          <div class="roster">
+            <h4>🔵 藍隊</h4>
+            <div class="tags">${blueNames}</div>
+          </div>
+        </div>
+      </div>
+    `;
   }).join("");
   return `<div class="panel"><h2>明星賽</h2>
     <p class="muted">歷屆明星賽結果、MVP、完整名單。入選依據：綜合能力 60% + 本季表現 40%。</p>
-    <table class="grid"><tr><th>球季</th><th>結果</th><th>MVP</th><th>紅隊名單</th><th>藍隊名單</th></tr>${rows}</table></div>`;
+    <div class="cards">${cards}</div></div>`;
 }
 function histSeasonDetailPanel(){
   const list=(CAREER.seasonDetails||[]).slice().reverse();
