@@ -136,6 +136,8 @@ function viewHub(){
       const names=recentPicks.map(x=>`${x.name}(${x.pos})`).join("、");
       draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${recentPicks.map(x=>`${x.name}(${x.pos})`).join("、")}</p></div>`;
     }
+    // 顯示完畢，清除標記，避免整季都顯示
+    s.draftJustCompleted=false;
   }
   main=`<div class="panel">
     <h2>第 ${seasonNo()} 季　第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
