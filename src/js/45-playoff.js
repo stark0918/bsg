@@ -210,13 +210,6 @@ function playoffHubMain(po){
       ?`<button class="btn gold blk" data-act="draft">⭐ 新人選秀開始！</button>`:"";
     const draftReminder = (S.season.draft && !S.season.drafted && S.season.draft.idx < S.season.draft.picks.length)
       ? `<div class="hr"></div><div class="panel" style="background:#3a2a1a;border-color:#e6c877"><h3>⚠️ 選秀進行中</h3><p class="muted">你的球團在第 ${S.season.draft.idx+1} 位（共 ${S.season.draft.picks.length} 位）。請到「新人選秀」完成指名，或點「自動選最強」一鍵完成。</p><button class="btn gold blk" data-act="draft">➡ 前往選秀</button></div>` : "";
-  if(po.champion){
-    const won=po.champion===me;
-    if(won&&!S.season._champSfx){S.season._champSfx=true;}
-    const draftBtn=(S.season.draft&&!S.season.drafted)
-      ?`<button class="btn gold blk" data-act="draft">⭐ 新人選秀開始！</button>`:"";
-    const draftReminder = (S.season.draft && !S.season.drafted && S.season.draft.idx < S.season.draft.picks.length)
-      ? `<div class="hr"></div><div class="panel" style="background:#3a2a1a;border-color:#e6c877"><h3>⚠️ 選秀進行中</h3><p class="muted">你的球團在第 ${S.season.draft.idx+1} 位（共 ${S.season.draft.picks.length} 位）。請到「新人選秀」完成指名，或點「自動選最強」一鍵完成。</p><button class="btn gold blk" data-act="draft">➡ 前往選秀</button></div>` : "";
     return `<div class="panel">${won?confetti():""}<h2 style="font-size:22px">${won?"🏆 恭喜奪冠！":"🏆 季後賽結束"}</h2>
       <p class="center" style="font-size:16px">第 ${seasonNo()} 季　本季總冠軍：<b style="font-size:18px">${teamBadge(po.champion)}</b></p>
       <p class="muted center">${won?"你率領的球隊登上本季王座，太神了！":"你的球季到此結束，明年再來。"}</p>
