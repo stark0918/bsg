@@ -391,9 +391,11 @@ function viewGame(){
       win===null?"和局收場":`比賽結束　${esc(getTeam(win==="home"?m.homeId:m.awayId).name)} 獲勝`;
     const hasReg=!!nextPlayerGame(),hasPo=!!playoffNextGame();
     const nextBtn=(hasReg||hasPo)?`<button class="btn green blk" data-act="nextGame">⏭ ${hasReg?"繼續下一場":"繼續季後賽"}</button>`:"";
+    const poInfo = (S.season&&S.season.playoff)?`<p class="center muted" style="font-size:12px">季後賽狀態：${S.season.playoff.champion?"已結束（總冠軍 ${teamBadge(S.season.playoff.champion)}）":(S.season.playoff.stage==="final"?"冠軍戰進行中":"準決賽進行中")}　${S.season.playoff.seeds&&S.season.playoff.seeds.indexOf(S.season.playerTeam)>=0?"（你已晉級）":""}</p>`:"";
     result=`<div class="panel" id="gameresult"><h2>${title}</h2>
       <p class="center">最終比數　<b class="bignum">${esc(getTeam(m.awayId).name)} ${m.score.away} － ${m.score.home} ${esc(getTeam(m.homeId).name)}</b></p>
       ${m.hero?`<p class="center" style="margin-top:8px">◆ Player of the Game：${teamBadge(teamOfPlayer({id:m.hero.pid}))}　<b>${esc(m.hero.name)}</b>　${m.hero.isPit?`<span class="pill on">三振 ${m.hero.s.k} 次</span>`:`<span class="pill on">安打 ${m.hero.s.h}／打點 ${m.hero.s.rbi}</span>`}</p>`:""}
+      ${poInfo}
       ${boxScore(m)}
       <div class="hr"></div>
       ${nextBtn}
