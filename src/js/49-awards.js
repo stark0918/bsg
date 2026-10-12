@@ -77,10 +77,10 @@ function viewAwards(){
   if(step>=6)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>
-       <button class="btn blk" data-act="backHub">← 回球季總部</button>`
+       <button class="btn blk" data-act="backToHub">← 回球季總部</button>`
     : `<button class="btn gold blk" data-act="awardStep">▶ 宣布下一項</button>
        <button class="btn blk" data-act="awardAll">全部展開</button>
-       <button class="btn blk" data-act="backHub">← 回球季總部</button>`;
+       <button class="btn blk" data-act="backToHub">← 回球季總部</button>`;
   return parts.join("")+`<div class="panel"><div class="hr"></div>${nav}</div>`;
 }
 
