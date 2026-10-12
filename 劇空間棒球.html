@@ -2361,12 +2361,14 @@ function computeAwards(){
 }
 function awardPodium(list,label,emoji,isPit){
   const row=a=>{
+    const p = playerById(a.pid);
+    const age = p ? p.age : (a.s?.age||"");
     const s=a.s||{};
     const stats=isPit
       ? `防禦率 ${s.er!=null&&s.outs?fmtERA(s.er,s.outs):"-.--"}　勝投 ${s.w||0}　三振 ${s.k||0}　救援 ${s.sv||0}　局數 ${s.outs?fmtIP(s.outs):"0.0"}`
       : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`;
     return `<tr class="${a.rank===1?"me":""}"><td class="num">${a.rank<=3?`<span class="medal g${a.rank}">${a.rank}</span>`:a.rank}</td>
-      <td class="name">${esc(a.name)}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
+      <td class="name">${esc(a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
       <td class="num">${a.pts} 分</td><td class="muted" style="font-size:11px">${esc(stats)}</td></tr>`;
   };
   const statHeader=isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘";
