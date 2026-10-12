@@ -1673,15 +1673,15 @@ function histAllstarPanel(){
   const list=(CAREER.allstars||[]).slice().reverse();
   if(!list.length)return `<div class="panel"><h2>明星賽</h2><p class="muted">尚未舉辦過明星賽。</p></div>`;
   const rows=list.map(x=>{
-    const redNames=x.red?.map(p=>`${esc(p.name)}(${p.pos?esc(p.pos):"P"})`).join("、")||"無";
-    const blueNames=x.blue?.map(p=>`${esc(p.name)}(${p.pos?esc(p.pos):"P"})`).join("、")||"無";
+    const redNames=(x.red||[]).map(p=>`${esc(p.name)}(${p.pos?esc(p.pos):"P"})`).join("、")||"無";
+    const blueNames=(x.blue||[]).map(p=>`${esc(p.name)}(${p.pos?esc(p.pos):"P"})`).join("、")||"無";
     const wName=x.winner==="red"?"🔴 紅隊":"🔵 藍隊";
-    const mvp=x.mvpPid?`<span class="pill on">MVP: ${esc(x.mvp)}</span>`:`<b>${esc(x.mvp)}</b>`;
+    const mvpTxt=x.mvp?esc(x.mvp):"－";
     return `<tr><td class="num">第 ${x.no} 季</td>
-      <td class="name">${wName} 勝（${x.score?.red||0}:${x.score?.blue||0}）</td>
-      <td class="name">${mvp} ${teamBadge(x.mvpTeam)}</td>
-      <td class="name" style="font-size:11px">紅：${redNames}</td>
-      <td class="name" style="font-size:11px">藍：${blueNames}</td></tr>`;
+      <td class="name">${wName} 勝　<span class="muted">(${x.score?.red||0}:${x.score?.blue||0})</span></td>
+      <td class="name">${teamBadge(x.mvpTeam)} ${mvpTxt}</td>
+      <td class="name"><div style="max-width:280px;line-height:1.5">${redNames}</div></td>
+      <td class="name"><div style="max-width:280px;line-height:1.5">${blueNames}</div></td></tr>`;
   }).join("");
   return `<div class="panel"><h2>明星賽</h2>
     <p class="muted">歷屆明星賽結果、MVP、完整名單。入選依據：綜合能力 60% + 本季表現 40%。</p>
