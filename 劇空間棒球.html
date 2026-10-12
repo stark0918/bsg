@@ -3963,19 +3963,31 @@ const ACT={
   },
   backToHub(){S.screen="hub";S.match=null;render();},
   nextGame(){
-    // 檢查是否到達明星賽週
-    if(S.season && asReady() && S.season.allstar && !S.season.allstar.played){
+    const se=S.season;
+    if(se && se.allstar && !se.allstar.played && asReady()){
       S.match=null;
       const a=simAllstar();
+      se.news=se.news||[];
+      se.news.push({day:se.day+1,text:`⭐ 明星賽週已到！已自動進行明星賽（MVP：${a.mvp?.name||"－"}）`,special:true});
+      if(se.news.length>15)se.news.shift();
+      if(!S.flash) S.flash="⭐ 明星賽週到了！自動進行明星賽";
       S.screen="allstar";
       render();
       return;
     }
-    S.match=null;
-    startMatch();
-    if(S.match)render();
-    else{S.screen="hub";render();}
-  },
+    if(se){
+      // 提醒季後賽、季末
+      const total=(se.schedule||[]).length;
+      if(se.day >= total){ ensurePlayoff(); render(); return; }   // 例行賽結束
+      if(se.day === total-1){ if(!S.flash) S.flash=`⚠️ 下一場就是最後一日（第 ${total} 日）例行賽！`; }
+      if(asReady() && se.allstar && !se.allstar.played && se.day < total-0){
+        // 晚點會自動觸發
+      }
+      if(se.playoff){
+        if(!S.flash) S.flash="季後賽已建立，請從總部繼續季後賽";
+        S.screen="hub"; render(); return;
+      }
+    }
   simPlayoff(){playoffSimAll();render();},
   autoInning(){const m=S.match;if(!m||m.over)return;submit(()=>{autoHalf(m);if(!m.over&&m.outs>=3)endHalf(m);playSnd(m);});},
   simGame(){const m=S.match;if(!m||m.over)return;submit(()=>{autoGame(m);if(m.walkoff)setTimeout(()=>SFX.cheer(),250);});},
