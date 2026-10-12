@@ -23,7 +23,7 @@ const ACT={
     ACT.draftAuto();
     const drafted=remain?(S.season.draftLog||[]).slice(-remain):[];
     if(drafted.length){
-      const names = drafted.map(x=>`${x.name}(${x.pos})`).join("、");
+      const names = drafted.map(x=>`${teamBadge(x.teamId)} ${x.name}(${x.pos})`).join("、");
       flash(`⚾ 選秀自動完成：${names}`);
     }
     S.screen="newgame";render();
@@ -36,7 +36,7 @@ const ACT={
       ACT.draftAuto();
       const drafted = S.season.draftLog?.slice(-oldDraft.picks.length + oldDraft.idx) || [];
       if(drafted.length){
-        const names = drafted.map(x=>`${x.name}(${x.pos})`).join("、");
+        const names = drafted.map(x=>`${teamBadge(x.teamId)} ${x.name}(${x.pos})`).join("、");
         flash(`⚾ 選秀自動完成：${names}`);
       }
     }
