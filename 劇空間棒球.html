@@ -2190,7 +2190,7 @@ function paperBlock(){
   }
   if(specials.length){
     rows+=specials.map(n=>`<div class="paper special"><div class="pday">第 ${n.day} 日 <span class="pill on">特殊</span></div>
-      <ul><li class="top">${esc(n.text)}</li></ul></div>`).join("");
+      <ul><li class="top">${n.text}</li></ul></div>`).join("");
   }
   if(!rows)return "";
   return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）與特殊事蹟。</p>${rows}`;
@@ -2264,7 +2264,7 @@ function applyDraftRookie(pick,rookie){
   keys.forEach(k=>{trend+=rookie[k]-(p?p[k]:52);o[k]=rookie[k];});
   o.name=rookie.name;o.age=rookie.age;o.trend=trend;
   if(CAREER.career){delete CAREER.career.bat[pick.pid];delete CAREER.career.pit[pick.pid];}
-  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,pid:pick.pid,season:seasonNo()});
+  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){
   if(!S.season.draft)return;
@@ -2295,10 +2295,10 @@ function candCard(c,pick,idx){
 function viewDraft(){
   const se=S.season;
   if(!se.draft||se.draft.idx>=se.draft.picks.length){
-    const log=(se.draftLog||[]).map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.pos)}</td></tr>`).join("");
+    const log=(se.draftLog||[]).map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
     return `<div class="panel center"><h2>⭐ 新人選秀結束</h2>
       <p class="muted">新人們已陸續入團，下一球季就靠他們了！</p></div>
-      <div class="panel"><h2>指名結果</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th></tr>${log}</table>
+      <div class="panel"><h2>指名結果</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${log}</table>
       <div class="hr"></div>
       <button class="btn red blk" data-act="newgame">開始新球季</button>
       <button class="btn blk" data-act="awards">🏆 頒獎典禮</button>
