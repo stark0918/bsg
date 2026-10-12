@@ -884,9 +884,9 @@ function leadersQualify(){
   const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
   return {
     gp,
-    bat: Math.max(1,Math.ceil(gp*0.5)),          // 野手：約半數出賽
-    pit: Math.min(2,gp)||1,                       // 投手：至少 1~2 場出賽
-    eraOuts: Math.min(15,Math.max(3,gp*4))        // 防禦率：隨賽程增加至 15 局(5局)
+    bat: Math.max(3,Math.ceil(gp*0.8)),          // 野手：須達到約 80% 出賽場次
+    pit: Math.max(3,gp>=10?5:3),                 // 投手：明顯提升門檻，避免打沒幾場就領獎
+    eraOuts: Math.min(40,Math.max(12,gp*3))      // 防禦率：較高局數門檻
   };
 }
 function leadersList(kind){

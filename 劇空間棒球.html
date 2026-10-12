@@ -2339,7 +2339,9 @@ function awardPts(s,isPit){
   return Math.round((s.h||0)*0.8+(s.hr||0)*2.5+(s.rbi||0)*1+(s.sb||0)*0.5+(s.r||0)*0.8+(s.h/ab)*110);
 }
 function computeAwards(){
-  const ps=S.season.playerStats,q=leadersQualify();
+  const ps=S.season.playerStats,q={gp: (S.season&&S.season.day)||0, bat:3, pit:3, eraOuts:12}; // 先用保守值，實際用 leadersQualify 也行
+  const q2 = leadersQualify();
+  const qf = q2 || q;
   const kings=AWARD_KINGS.map(([kind,title])=>{
     const top=leadersList(kind)[0];
     return {kind,title,val:top?top.val:null,name:top?top.p.name:"",pid:top?top.pid:"",team:top?top.pid.replace(/[bp]\d+$/,""):""};
@@ -2347,13 +2349,13 @@ function computeAwards(){
   const batters=[],pitchers=[],rookies=[];
   for(const pid in ps.bat){
     const s=ps.bat[pid],p=playerById(pid);
-    if(!p||(s.g||0)<q.bat)continue;
+    if(!p||(s.g||0)<qf.bat)continue;
     batters.push({pid,p,s,pts:awardPts(s,false)});
     if(p.age<=22)rookies.push({pid,p,s,pts:awardPts(s,false)});
   }
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
-    if(!p||(s.g||0)<q.pit)continue;
+    if(!p||(s.g||0)<qf.pit)continue;
     pitchers.push({pid,p,s,pts:awardPts(s,true)});
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
@@ -3737,9 +3739,9 @@ function leadersQualify(){
   const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
   return {
     gp,
-    bat: Math.max(1,Math.ceil(gp*0.5)),          // 野手：約半數出賽
-    pit: Math.min(2,gp)||1,                       // 投手：至少 1~2 場出賽
-    eraOuts: Math.min(15,Math.max(3,gp*4))        // 防禦率：隨賽程增加至 15 局(5局)
+    bat: Math.max(3,Math.ceil(gp*0.8)),          // 野手：須達到約 80% 出賽場次
+    pit: Math.max(3,gp>=10?5:3),                 // 投手：明顯提升門檻，避免打沒幾場就領獎
+    eraOuts: Math.min(40,Math.max(12,gp*3))      // 防禦率：較高局數門檻
   };
 }
 function leadersList(kind){
