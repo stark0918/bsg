@@ -173,8 +173,8 @@ function viewHub(){
 function hubFrame(team,st,myRank,myRec,main){
   const rows=st.map((x,i)=>{
     const cls=x.id===S.season.playerTeam?"me":"";
-    return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
-      <td class="name">${teamBadge(x.id)}${x.id===S.season.playerTeam?"（你）":""}</td>
+    return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
+      <td class="name">${teamBadge(x.id)}${x.id===S.season.playerTeam?"　<span class=\"pill on\">你</span>":""}</td>
       <td class="num">${x.w}</td><td class="num">${x.l}</td><td class="num">${x.t}</td>
       <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`;
   }).join("");
@@ -717,8 +717,8 @@ function viewLeague(){
   if(!se)return `<div class="panel"><h2>🏟 劇空間</h2><p class="muted">尚未開始球季，先到主選單展開新球季吧。</p>
     <button class="btn blk" data-act="toTitle">← 回主選單</button></div>`;
   const st=standingsList();
-  const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
-    <td class="name">${teamBadge(x.id)}${x.id===se.playerTeam?"（你）":""}</td>
+  const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
+    <td class="name">${teamBadge(x.id)}${x.id===se.playerTeam?"　<span class=\"pill on\">你</span>":""}</td>
     <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`).join("");
   const days=[];
   for(let i=0;i<Math.min(se.day,se.schedule.length);i++)days.push(i);
