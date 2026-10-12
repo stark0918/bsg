@@ -2609,9 +2609,9 @@ function viewAllstar(){
       <p class="muted" style="font-size:12px">入選依據：綜合能力 60% + 本季表現 40%</p></div>`;
   }
   const nav=a.played
-    ? `<button class="btn blk" data-act="backHub">← 回球季總部</button>`
+    ? `<button class="btn blk" data-act="backToHub">← 回球季總部</button>`
     : `<button class="btn gold blk" data-act="allstarSim">▶ 進行明星賽</button>
-       <button class="btn blk" data-act="backHub">← 回球季總部</button>`;
+       <button class="btn blk" data-act="backToHub">← 回球季總部</button>`;
   return head+redPanel+bluePanel+result+`<div class="panel"><div class="hr"></div>${nav}</div>`;
 }
 /* ===================== 50-state.js ===================== */
@@ -4035,8 +4035,19 @@ const ACT={
       if(se.day >= total){ ensurePlayoff(); render(); return; }
       if(se.day === total-1){ if(!S.flash) S.flash=`⚠️ 下一場就是最後一日（第 ${total} 日）例行賽！`; }
       if(se.playoff){
-        if(!S.flash) S.flash="季後賽已建立，請從總部繼續季後賽";
-        S.screen="hub"; render(); return;
+        const pg=playoffNextGame();
+        if(pg){
+          const s=pg.series, gameNo=pg.gameNo;
+          const hiHost=homeIsHi(gameNo);
+          const home=hiHost?s.hi:s.lo, away=hiHost?s.lo:s.hi;
+          const isHome=home===se.playerTeam;
+          startMatch();
+          if(S.match)render();
+          else S.screen="hub";
+        }else{
+          S.screen="hub"; render();
+        }
+        return;
       }
     }
     S.match=null;

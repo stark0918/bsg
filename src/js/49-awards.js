@@ -236,8 +236,8 @@ function viewAllstar(){
       <p class="muted" style="font-size:12px">入選依據：綜合能力 60% + 本季表現 40%</p></div>`;
   }
   const nav=a.played
-    ? `<button class="btn blk" data-act="backHub">← 回球季總部</button>`
+    ? `<button class="btn blk" data-act="backToHub">← 回球季總部</button>`
     : `<button class="btn gold blk" data-act="allstarSim">▶ 進行明星賽</button>
-       <button class="btn blk" data-act="backHub">← 回球季總部</button>`;
+       <button class="btn blk" data-act="backToHub">← 回球季總部</button>`;
   return head+redPanel+bluePanel+result+`<div class="panel"><div class="hr"></div>${nav}</div>`;
 }

@@ -158,8 +158,19 @@ const ACT={
       if(se.day >= total){ ensurePlayoff(); render(); return; }
       if(se.day === total-1){ if(!S.flash) S.flash=`⚠️ 下一場就是最後一日（第 ${total} 日）例行賽！`; }
       if(se.playoff){
-        if(!S.flash) S.flash="季後賽已建立，請從總部繼續季後賽";
-        S.screen="hub"; render(); return;
+        const pg=playoffNextGame();
+        if(pg){
+          const s=pg.series, gameNo=pg.gameNo;
+          const hiHost=homeIsHi(gameNo);
+          const home=hiHost?s.hi:s.lo, away=hiHost?s.lo:s.hi;
+          const isHome=home===se.playerTeam;
+          startMatch();
+          if(S.match)render();
+          else S.screen="hub";
+        }else{
+          S.screen="hub"; render();
+        }
+        return;
       }
     }
     S.match=null;
