@@ -86,11 +86,18 @@ function playoffProgress(){
       if(f&&!f.winner&&f.hi!==me&&f.lo!==me)simSeriesToEnd(f,"冠軍戰");
       if(f&&f.winner){
         po.champion=f.winner;po.stage="done";
+        const won = po.champion===me;
+        const se=S.season;
+        // 季後賽冠軍／晉級日報
+        se.news=se.news||[];
+        se.news.push({day:se.schedule.length+1,text:`★ 季後賽結束：總冠軍 ${getTeam(po.champion).name}${won?"（你率領奪冠！）":""}`,special:true});
+        if(won) se.news.push({day:se.schedule.length+1,text:`🏆 恭喜！你率領 ${getTeam(me).name} 奪得本季總冠軍！`,special:true});
+        if(se.news.length>10)se.news.shift();
         computeAwards();                      // 季後頒獎
         finalizeSeason();                     // 累計生涯、寫入跨季紀錄
         prepareDraft();                       // 新人選秀（有退休缺口才展開）
         CAREER.pending=true;saveCareer();saveGame();
-        if(po.champion===me)setTimeout(()=>SFX.champ(),220);
+        if(won){S.flash=S.flash||`🏆 總冠軍 ${getTeam(me).name}！恭喜奪冠！`; setTimeout(()=>SFX.champ(),220);} else {S.flash=S.flash||`季後賽結束：總冠軍 ${getTeam(po.champion).name}`;}
       }
       break;
     }
@@ -124,7 +131,14 @@ function recordPlayoffResult(m){
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;
   if(!S.flash&&miles.length)S.flash="★ "+milestoneText(miles[0],miles[0].pid);
-  playoffProgress();
+  // 季後賽場次日報
+  const se=S.season; se.news=se.news||[];
+  const winTeam = m.score.home>m.score.away?m.homeId:m.awayId;
+  const loseTeam = m.score.home>m.score.away?m.awayId:m.homeId;
+  const poDay = (se.poBoxes?se.poBoxes.length:0);
+  const poTxt = `${stName}·第${m.po.gameNo+1}戰：${teamBadge(winTeam)} ${m.score.away>m.score.home?m.score.away:m.score.home}:${m.score.away>m.score.home?m.score.home:m.score.away} ${teamBadge(loseTeam)}`;
+  se.news.push({day:se.schedule.length, text:poTxt, special:true});
+  if(se.news.length>15)se.news.shift();
   saveGame();
 }
 
