@@ -1745,17 +1745,34 @@ function newRecBook(){
           team:{r:null,margin:null,innings:null}};
 }
 function recUp(book,cat,key,val,name,team,when,extra){
-  if(!book||!book[cat])return;
+  if(!book||!book[cat])return null;
   const cur=book[cat][key];
-  if(!cur||val>cur.val)book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0};
+  if(!cur||val>cur.val){
+    const old = cur ? cur.val : null;
+    book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0};
+    return {old, val, isNew: !cur};
+  }
+  return null;
 }
 function recUpBoth(cat,key,val,name,team,when){
   if(S.season&&!S.season.recs)S.season.recs=newRecBook();
-  recUp(S.season.recs,cat,key,val,name,team,when);
+  const br1 = recUp(S.season.recs,cat,key,val,name,team,when);
   const c=CAREER.records||(CAREER.records={});
   if(!c.bat)c.bat={};if(!c.pit)c.pit={};if(!c.team)c.team={};
-  // 存入跨季紀錄：加上季數，方便顯示「第 N 季 第 X 日」
-  recUp(c,cat,key,val,name,team,when,{season:seasonNo()});
+  const br2 = recUp(c,cat,key,val,name,team,when,{season:seasonNo()});
+  const br = br1 || br2;
+  if(br && S.season){
+    const lbl = REC_LABELS[cat]&&REC_LABELS[cat][key]||key;
+    const verb = br.isNew ? "締造" : "刷新";
+    const diff = (br.old!=null && br.val!=br.old) ? `（原紀錄 ${br.old}）` : "";
+    const teamTag = team ? teamBadge(team)+" " : "";
+    const txt = `★ 單場紀錄 ${verb}：${teamTag}${esc(name)}　${lbl} ${br.val}${diff}`;
+    const se=S.season;
+    se.news = se.news||[];
+    se.news.push({day:se.day+1,text:txt,special:true});
+    if(se.news.length>10)se.news.shift();
+    if(!S.flash) S.flash = txt;
+  }
 }
 function recName(pid){const p=playerById(pid);return p?p.name:pid;}
 function recTeam(pid){return teamOfPlayer({id:pid});}
