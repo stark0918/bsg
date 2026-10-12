@@ -25,11 +25,11 @@ function recUpBoth(cat,key,val,name,team,when){
     const lbl = REC_LABELS[cat]&&REC_LABELS[cat][key]||key;
     const verb = br.isNew ? "締造" : "刷新";
     const diff = (br.old!=null && br.val!=br.old) ? `（原紀錄 ${br.old}）` : "";
-    const teamTag = team ? teamBadge(team)+" " : "";
-    const txt = `★ 單場紀錄 ${verb}：${teamTag}${esc(name)}　${lbl} ${br.val}${diff}`;
+    const teamName = team ? getTeam(team).name : "";
+    const txt = `★ 單場紀錄 ${verb}：${teamName}${teamName?" ":""}${esc(name)}　${lbl} ${br.val}${diff}`;
     const se=S.season;
     se.news = se.news||[];
-    se.news.push({day:se.day+1,text:txt,special:true});
+    se.news.push({day:se.day+1,text:txt,special:true,team:team||null});
     if(se.news.length>10)se.news.shift();
     if(!S.flash) S.flash = txt;
   }
@@ -435,7 +435,7 @@ function paperBlock(){
   }
   if(specials.length){
     rows+=specials.map(n=>`<div class="paper special"><div class="pday">第 ${n.day} 日 <span class="pill on">特殊</span></div>
-      <ul><li class="top">${n.text}</li></ul></div>`).join("");
+      <ul><li class="top">${n.team?teamBadge(n.team)+" ":""}${n.text}</li></ul></div>`).join("");
   }
   if(!rows)return "";
   return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）與特殊事蹟。</p>${rows}`;
