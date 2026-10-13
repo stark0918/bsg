@@ -142,7 +142,7 @@ const ACT={
   backToHub(){S.screen="hub";S.match=null;render();},
   nextGame(){
     const se=S.season;
-    if(se && se.allstar && !se.allstar.played && asReady()){
+    if(se && se.allstar && !se.allstar.played && GK.asReady()){
       S.match=null;
       const a=simAllstar();
       se.news=se.news||[];
@@ -155,15 +155,10 @@ const ACT={
     }
     if(se){
       const total=(se.schedule||[]).length;
-      if(se.day >= total){ ensurePlayoff(); render(); return; }
-      if(se.day === total-1){ if(!S.flash) S.flash=`⚠️ 下一場就是最後一日（第 ${total} 日）例行賽！`; }
+      // 季後賽已建立：優先處理季後賽流程
       if(se.playoff){
         const pg=playoffNextGame();
         if(pg){
-          const s=pg.series, gameNo=pg.gameNo;
-          const hiHost=homeIsHi(gameNo);
-          const home=hiHost?s.hi:s.lo, away=hiHost?s.lo:s.hi;
-          const isHome=home===se.playerTeam;
           startMatch();
           if(S.match)render();
           else S.screen="hub";
@@ -171,6 +166,24 @@ const ACT={
           S.screen="hub"; render();
         }
         return;
+      }
+      if(se.day >= total){
+        ensurePlayoff();
+        // 建立季後賽後，若玩家還有下一場季後賽要打，直接開始
+        if(se.playoff){
+          const pg=playoffNextGame();
+          if(pg){
+            startMatch();
+            if(S.match)render();
+            else S.screen="hub";
+            return;
+          }
+        }
+        render();
+        return;
+      }
+      if(se.day === total-1){
+        if(!S.flash) S.flash=`⚠️ 下一場就是最後一日（第 ${total} 日）例行賽！`;
       }
     }
     S.match=null;

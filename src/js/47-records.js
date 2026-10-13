@@ -151,10 +151,10 @@ const CAREER_BAT_REC=[
   ["生涯盜壘",s=>s.sb||0,Number,120,true]
 ];
 const CAREER_PIT_REC=[
-  ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),120,false],
-  ["生涯勝投",s=>s.w||0,Number,120,true],
-  ["生涯三振",s=>s.k||0,Number,120,true],
-  ["生涯救援",s=>s.sv||0,Number,120,true]
+  ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),50,false],
+  ["生涯勝投",s=>s.w||0,Number,50,true],
+  ["生涯三振",s=>s.k||0,Number,50,true],
+  ["生涯救援",s=>s.sv||0,Number,50,true]
 ];
 function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   const arr=[];
@@ -190,8 +190,17 @@ function recTabCareer(){
   const m=careerMerged();
   const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],r[3],false,r[4])).join("");
   const pitP=CAREER_PIT_REC.map(r=>careLeaderTable(m.pit,r[0],r[1],r[2],r[3],true,r[4])).join("");
-  return careerAxis()+awardsAxis()+
+  
+  /* 里程碑摘要 */
+  const totalMiles=Object.values(CAREER.milestones||{}).reduce((sum,ms)=>sum+Object.keys(ms).length,0);
+  const topMilers=Object.entries(CAREER.milestones||{}).map(([pid,ms])=>({pid,count:Object.keys(ms).length})).sort((a,b)=>b.count-a.count).slice(0,5);
+  const milerRows=topMilers.map((x,i)=>{const p=playerById(x.pid);return p?`<tr><td class="num">${i+1}</td><td class="name">${esc(p.name)} ${teamBadge(x.pid.replace(/[bp]\d+$/,""))}</td><td class="num">${x.count} 項</td></tr>`:"";}).join("");
+  const milerTable=topMilers.length?`<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">里程碑達成王</h3>
+    <table class="grid"><tr><th>#</th><th>球員</th><th>項數</th></tr>${milerRows}</table></div>`:"";
+  
+  return careerAxis()+awardsAxis()+milerTable+
     `<div class="panel"><h2>生涯紀錄榜（跨季累計）</h2>
+    <p class="muted" style="font-size:12px">共 ${totalMiles} 項里程碑達成</p>
     <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
 }
 /* 歷屆榮譽（總冠軍＋三大獎＋各項王座） */
@@ -361,14 +370,15 @@ function recTabSeasonBest(){
   return seasonBestTable("bat","單季打擊紀錄")+seasonBestTable("pit","單季投球紀錄")+noHitterPanel();
 }
 /* ---------- 生涯里程碑 ---------- */
+/* 更有意義的門檻：避免太頻繁觸發，重大里程碑才通知 */
 const MILESTONES=[
-  {cat:"hr",step:25,label:"全壘打",pit:false},
-  {cat:"h",step:100,label:"安打",pit:false},
-  {cat:"rbi",step:100,label:"打點",pit:false},
-  {cat:"sb",step:50,label:"盜壘",pit:false},
-  {cat:"w",step:25,label:"勝投",pit:true},
-  {cat:"k",step:100,label:"三振",pit:true},
-  {cat:"sv",step:25,label:"救援成功",pit:true}
+  {cat:"hr",steps:[25,50,100,200,300,400,500],label:"全壘打",pit:false},
+  {cat:"h",steps:[100,200,500,1000,1500,2000,2500,3000],label:"安打",pit:false},
+  {cat:"rbi",steps:[100,200,500,1000,1500],label:"打點",pit:false},
+  {cat:"sb",steps:[50,100,200,300,400,500],label:"盜壘",pit:false},
+  {cat:"w",steps:[25,50,100,150,200,250,300],label:"勝投",pit:true},
+  {cat:"k",steps:[100,250,500,1000,1500,2000,2500,3000],label:"三振",pit:true},
+  {cat:"sv",steps:[25,50,100,150,200,300],label:"救援成功",pit:true}
 ];
 function milestoneText(mile,pid){return `${recName(pid)} 達成生涯第 ${mile.val} ${mile.label}！`;}
 /* 檢查跨季里程碑；記錄全聯盟，回傳「玩家球隊」當日的達成清單（供提示） */
@@ -382,9 +392,12 @@ function checkMilestones(){
       const s=pool[pid]||{},ms=CAREER.milestones[pid]||(CAREER.milestones[pid]={});
       MILESTONES.forEach(def=>{
         if(def.pit!==isPit)return;
-        const crossed=Math.floor((s[def.cat]||0)/def.step)*def.step;
-        if(crossed<=0)return;
-        if(crossed>(ms[def.cat]||0)){ms[def.cat]=crossed;if(teamOfPlayer({id:pid})===me)hit.push({pid,cat:def.cat,label:def.label,val:crossed});}
+        const val=s[def.cat]||0;
+        def.steps.forEach(step=>{
+          const crossed=Math.floor(val/step)*step;
+          if(crossed<=0)return;
+          if(crossed>(ms[def.cat]||0)){ms[def.cat]=crossed;if(teamOfPlayer({id:pid})===me)hit.push({pid,cat:def.cat,label:def.label,val:crossed});}
+        });
       });
     }
   };
@@ -393,7 +406,11 @@ function checkMilestones(){
 }
 function playerMilestones(pid){
   const ms=(CAREER.milestones||{})[pid]||{};
-  return MILESTONES.filter(def=>ms[def.cat]>0).map(def=>`生涯 ${ms[def.cat]} ${def.label}`);
+  const out=[];
+  MILESTONES.forEach(def=>{
+    if(ms[def.cat]>0)out.push(`生涯 ${ms[def.cat]} ${def.label}`);
+  });
+  return out;
 }
 
 /* ---------- 聯盟日報：每日頭條 ---------- */

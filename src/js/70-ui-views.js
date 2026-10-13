@@ -162,6 +162,11 @@ function viewHub(){
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
       <button class="btn blk" data-act="league">🏟 劇空間日報</button>
     </div>
+    <div class="hr"></div>
+    <div class="two">
+      <button class="btn blue blk" data-act="simToMid">⏭ 快進到季中（明星賽）</button>
+      <button class="btn blue blk" data-act="simToEnd">⏭ 快進到季末</button>
+    </div>
     ${(s.news&&s.news.length)?`<div class="hr"></div><div class="news">${s.news.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div>`:""}
     <div class="hr"></div>
     <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
@@ -656,6 +661,8 @@ function viewPlayer(){
   const miles=playerMilestones(pid);
   const mileHTML=miles.length?`<ul class="awardlist">${miles.map(x=>`<li>🎖 ${esc(x)}</li>`).join("")}</ul>`
     :`<p class="muted">尚未達成生涯里程碑（跨季累計）。</p>`;
+  const allMiles=(CAREER.milestones||{})[pid]||{};
+  const milestoneSummary=Object.keys(allMiles).length?`<p class="muted" style="font-size:12px">累計達成 ${Object.keys(allMiles).length} 項里程碑</p>`:"";
   return `<div class="panel"><h2>球員資料</h2>
     <div class="matchup">
       ${playerAvatar(p,56)}
@@ -667,7 +674,7 @@ function viewPlayer(){
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
     <h3>生涯累計（跨季）</h3>${careerTable}
     <h3>本季亮眼</h3>${bestHTML}
-    <h3>生涯里程碑</h3>${mileHTML}
+    <h3>生涯里程碑</h3>${mileSummary}${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>

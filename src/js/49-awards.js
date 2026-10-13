@@ -149,7 +149,7 @@ function asRosterTeams(){
   return {red:st.slice(0,4).map(x=>x.id),blue:st.slice(4,8).map(x=>x.id)};
 }
 function ensureAllstarRoster(){
-  const se=S.season;if(!se||!asReady())return;
+  const se=S.season;if(!se||!GK.asReady())return;
   if(se.allstar&&se.allstar.red)return;
   const g=asRosterTeams();
   se.allstar={played:false,red:asPick(g.red),blue:asPick(g.blue),redTeams:g.red,blueTeams:g.blue};
@@ -214,7 +214,7 @@ function asRosterTable(squad){
 }
 function viewAllstar(){
   const se=S.season;
-  if(!asReady()){
+  if(!GK.asReady()){
     const need=Math.floor(((se.schedule||[]).length)/2);
     return `<div class="panel"><h2>⭐ 明星賽</h2>
       <p class="muted">例行賽進行到一半（第 ${need} 日）後才會舉辦明星賽，屆時會依戰績分成紅隊與藍隊，各由四個球團的精銳組成。</p>

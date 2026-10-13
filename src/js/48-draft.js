@@ -82,6 +82,7 @@ function draftJudge(){
   }
 }
 /* ---------- 選秀畫面 ---------- */
+/* 選秀畫面增加球員年齡顯示、更好的候選人卡片 */
 function candCard(c,pick,idx){
   const grade=gradeOf(playerOverall(c));
   const bars=c.role!==undefined
