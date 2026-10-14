@@ -66,6 +66,9 @@ function applyDraftRookie(pick,rookie){
   keys.forEach(k=>{trend+=rookie[k]-(p?p[k]:52);o[k]=rookie[k];});
   o.name=rookie.name;o.age=rookie.age;o.trend=trend;
   if(CAREER.career){delete CAREER.career.bat[pick.pid];delete CAREER.career.pit[pick.pid];}
+  // 該 pid 由新人沿用：舊人的里程碑／明星賽出場次數一併清除，避免掛到新人頭上
+  if(CAREER.milestones)delete CAREER.milestones[pick.pid];
+  if(CAREER.allstarAppearances)delete CAREER.allstarAppearances[pick.pid];
   S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){

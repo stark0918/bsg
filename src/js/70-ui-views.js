@@ -716,11 +716,14 @@ function playerBestGame(pid,isPit){
 /* 該球員的歷屆獲獎紀錄（跨季，綁定頒獎典禮） */
 function playerAwards(pid){
   const out=[];
+  const me=playerById(pid),myName=me?me.name:null;
+  // 同時比對姓名：pid 會被選秀新人沿用，只比 pid 會把退休前人的獎掛到新人頭上
+  const same=(e)=>e&&e.pid===pid&&(!myName||!e.name||e.name===myName);
   (CAREER.awards||[]).forEach(a=>{
-    if(a.mvp&&a.mvp.pid===pid)out.push(`第 ${a.no} 季 最有價值球員（MVP）`);
-    if(a.cy&&a.cy.pid===pid)out.push(`第 ${a.no} 季 最佳投手`);
-    if(a.rookie&&a.rookie.pid===pid)out.push(`第 ${a.no} 季 新人王`);
-    (a.kings||[]).forEach(k=>{if(k.pid===pid)out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
+    if(same(a.mvp))out.push(`第 ${a.no} 季 最有價值球員（MVP）`);
+    if(same(a.cy))out.push(`第 ${a.no} 季 最佳投手`);
+    if(same(a.rookie))out.push(`第 ${a.no} 季 新人王`);
+    (a.kings||[]).forEach(k=>{if(same(k))out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
   });
   return out;
 }

@@ -2097,18 +2097,19 @@ function seasonBestUp(cat,key,val,name,team,no,higher){
 }
 function recordSeasonBest(ps,no){
   if(!ps)return;
+  // 門檻依 14 場例行賽調整（先發野手整季約 45~55 打數，先發投手約 60~90 出局數）
   for(const pid in (ps.bat||{})){
     const s=ps.bat[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.ab||0)>=25)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true);
-    if((s.ab||0)>=120){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
+    if((s.ab||0)>=20)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true);
+    if((s.ab||0)>=30){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
       seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true);
       seasonBestUp("bat","h",s.h||0,nm,tm,no,true);
       seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true);}
   }
   for(const pid in (ps.pit||{})){
     const s=ps.pit[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.outs||0)>=27)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false);
-    if((s.outs||0)>=120){seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
+    if((s.outs||0)>=21)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false);
+    if((s.outs||0)>=36){seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
       seasonBestUp("pit","k",s.k||0,nm,tm,no,true);
       seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true);}
   }
@@ -2189,6 +2190,17 @@ function checkMilestones(){
   const se=S.season;if(!se)return[];
   const me=se.playerTeam,merged=careerMerged();
   CAREER.milestones=CAREER.milestones||{};
+  // 自清：已記錄門檻高於目前累計總數 → 必為選秀回收舊 pid 的殘留（累計只會成長，不可能倒退），清除該項
+  for(const pid in CAREER.milestones){
+    const ms=CAREER.milestones[pid];
+    for(const cat in ms){
+      const def=MILESTONES.find(d=>d.cat===cat);
+      const pool=def&&def.pit?merged.pit:merged.bat;
+      const total=(pool[pid]||{})[cat]||0;
+      if(total<ms[cat])delete ms[cat];
+    }
+    if(!Object.keys(ms).length)delete CAREER.milestones[pid];
+  }
   const hit=[];
   const scan=(pool,isPit)=>{
     for(const pid in pool){
@@ -2348,6 +2360,9 @@ function applyDraftRookie(pick,rookie){
   keys.forEach(k=>{trend+=rookie[k]-(p?p[k]:52);o[k]=rookie[k];});
   o.name=rookie.name;o.age=rookie.age;o.trend=trend;
   if(CAREER.career){delete CAREER.career.bat[pick.pid];delete CAREER.career.pit[pick.pid];}
+  // 該 pid 由新人沿用：舊人的里程碑／明星賽出場次數一併清除，避免掛到新人頭上
+  if(CAREER.milestones)delete CAREER.milestones[pick.pid];
+  if(CAREER.allstarAppearances)delete CAREER.allstarAppearances[pick.pid];
   S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){
@@ -3650,11 +3665,14 @@ function playerBestGame(pid,isPit){
 /* 該球員的歷屆獲獎紀錄（跨季，綁定頒獎典禮） */
 function playerAwards(pid){
   const out=[];
+  const me=playerById(pid),myName=me?me.name:null;
+  // 同時比對姓名：pid 會被選秀新人沿用，只比 pid 會把退休前人的獎掛到新人頭上
+  const same=(e)=>e&&e.pid===pid&&(!myName||!e.name||e.name===myName);
   (CAREER.awards||[]).forEach(a=>{
-    if(a.mvp&&a.mvp.pid===pid)out.push(`第 ${a.no} 季 最有價值球員（MVP）`);
-    if(a.cy&&a.cy.pid===pid)out.push(`第 ${a.no} 季 最佳投手`);
-    if(a.rookie&&a.rookie.pid===pid)out.push(`第 ${a.no} 季 新人王`);
-    (a.kings||[]).forEach(k=>{if(k.pid===pid)out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
+    if(same(a.mvp))out.push(`第 ${a.no} 季 最有價值球員（MVP）`);
+    if(same(a.cy))out.push(`第 ${a.no} 季 最佳投手`);
+    if(same(a.rookie))out.push(`第 ${a.no} 季 新人王`);
+    (a.kings||[]).forEach(k=>{if(same(k))out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
   });
   return out;
 }
