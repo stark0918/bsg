@@ -46,7 +46,7 @@ function finalizeSeason(){
     champ:(se.playoff&&se.playoff.champion)||null,
     isChamp:!!(se.playoff&&se.playoff.champion===me),
     playoff:se.playoff?{stage:se.playoff.stage,champion:se.playoff.champion,semi:se.playoff.semi,final:se.playoff.final}:null,
-    awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,rookie:se.awards.rookie,sawamura:se.awards.sawamura,best9:se.awards.best9,gloves:se.awards.gloves,bestDH:se.awards.bestDH,kings:se.awards.kings}:null,
+    awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,reliever:se.awards.reliever,rookie:se.awards.rookie,sawamura:se.awards.sawamura,best9:se.awards.best9,gloves:se.awards.gloves,bestDH:se.awards.bestDH,kings:se.awards.kings}:null,
     leaders:se.awards?{bat:Object.keys(se.playerStats?.bat||{}).length,pit:Object.keys(se.playerStats?.pit||{}).length}:null,
     standings:st.map(x=>({id:x.id,w:x.w,l:x.l,t:x.t,pct:x.pct,rs:x.rs,ra:x.ra})),
     teamStats:{bat:{},pit:{}}
@@ -64,7 +64,7 @@ function finalizeSeason(){
     CAREER.awards.push({
       no:CAREER.seasons+1,
       champ:(se.playoff&&se.playoff.champion)||null,
-      mvp:top1(aw.mvp), cy:top1(aw.cy), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
+      mvp:top1(aw.mvp), cy:top1(aw.cy), reliever:top1(aw.reliever), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
       best9:(aw.best9||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team,pts:x.pts,s:x.s||null})),
       gloves:(aw.gloves||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team})),
       bestDH:top1(aw.bestDH),
@@ -229,7 +229,7 @@ function histSeasonDetailPanel(){
       return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
     const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
-    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=pick("bestDH");
+    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=pick("bestDH");
     const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
     const statOf=x=>{
@@ -245,7 +245,7 @@ function histSeasonDetailPanel(){
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
       <div class="card-body"><div class="roster"><h4>個人獎項</h4>
-        ${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手",cy,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div>
+        ${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div>
         <div class="roster"><h4>本季王座</h4>
         ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}
         <h4>最佳九人</h4>
@@ -254,7 +254,7 @@ function histSeasonDetailPanel(){
   }).join("");
   return `<div class="panel"><h2>球季詳細回顧</h2>
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
-    <p class="muted" style="font-size:11px">評分規則：MVP取綜合分最高的野手；最佳投手取全體投手綜合分最高；澤村賞限先發，綜合勝場・防禦率・三振・局數；新人王限22歲以下、生涯未滿30打席的野手；最佳九人取各守位綜合分最高（顯示成績）；最佳指定打擊取DH綜合分最高；王座取單項成績第一。（MVP・新人王的投打統一評分研究中）</p>
+    <p class="muted" style="font-size:11px">評分規則：MVP取綜合分最高的野手；最佳投手取先發綜合分最高；最佳後援取後援綜合分最高；澤村賞限先發，綜合勝場・防禦率・三振・局數；新人王限22歲以下、生涯未滿30打席的野手；最佳九人取各守位綜合分最高（顯示成績，投手席取先發最佳）；最佳指定打擊取DH綜合分最高；王座取單項成績第一。（MVP・新人王的投打統一評分研究中）</p>
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){

@@ -1,9 +1,18 @@
 /* ---------- 個人獎項（球季結束後頒獎） ---------- */
 const AWARD_KINGS=[["avg","打擊王"],["hr","全壘打王"],["rbi","打點王"],["h","安打王"],["sb","盜壘王"],["r","得分王"],["era","防禦率王"],["w","勝投王"],["k","三振王"],["sv","救援王"]];
 function awardPts(s,isPit){
-  if(isPit)return Math.round((s.w||0)*3+(s.sv||0)*2+(s.k||0)*0.15+(s.outs||0)*0.1-(s.er||0)*1.5);
+  if(isPit)return starterPts(s);
   const ab=s.ab||1;
   return Math.round((s.h||0)*0.8+(s.hr||0)*2.5+(s.rbi||0)*1+(s.sb||0)*0.5+(s.r||0)*0.8+(s.h/ab)*110);
+}
+/* 投手評分已拆分：先發用 starterPts、後援用 relieverPts */
+function starterPts(s){
+  const era=s.outs?(s.er/s.outs)*27:99;
+  return Math.round((s.w||0)*10+(s.k||0)*0.25+(s.outs||0)*0.07-era*7);
+}
+function relieverPts(s){
+  const era=s.outs?(s.er/s.outs)*27:99;
+  return Math.round((s.sv||0)*6+(s.w||0)*4+(s.k||0)*0.2-era*5);
 }
 function computeAwards(){
   const ps=S.season.playerStats,q={gp: (S.season&&S.season.day)||0, bat:3, pit:3, eraOuts:12}; // 先用保守值，實際用 leadersQualify 也行
@@ -13,7 +22,7 @@ function computeAwards(){
     const top=leadersList(kind)[0];
     return {kind,title,val:top?top.val:null,name:top?top.p.name:"",pid:top?top.pid:"",team:top?top.pid.replace(/[bp]\d+$/,""):""};
   });
-  const batters=[],pitchers=[],rookies=[];
+  const batters=[],starters=[],relievers=[],rookies=[];
   // 新人王資格：22 歲以下，且季初生涯累計未滿 30 打席（即第一個有意義的球季；參照 NPB 新人王以前年度出賽上限概念）
   const ROOKIE_MAX_CAREER_AB=30;
   for(const pid in ps.bat){
@@ -25,10 +34,16 @@ function computeAwards(){
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||(s.g||0)<qf.pit)continue;
-    pitchers.push({pid,p,s,pts:awardPts(s,true)});
+    if(p.starter){
+      if((s.outs||0)<45)continue;   // 先發需一定局數
+      starters.push({pid,p,s,pts:starterPts(s)});
+    }else{
+      if((s.outs||0)<15)continue;   // 後援需一定出賽量
+      relievers.push({pid,p,s,pts:relieverPts(s)});
+    }
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
+  S.season.awards={kings,mvp:pick3(batters),cy:pick3(starters),reliever:pick3(relievers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
 }
 /* 最佳九人：按守位選最佳打者＋最佳投手 */
 function pickBest9(ps,qf){
@@ -48,9 +63,9 @@ function pickBest9(ps,qf){
   let bestP=null;
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
-    if(!p)continue;
-    if((s.g||0)<qf.pit)continue;
-    const pts=awardPts(s,true);
+    if(!p||!p.starter)continue;   // 最佳九人投手席取先發最佳
+    if((s.g||0)<qf.pit||(s.outs||0)<45)continue;
+    const pts=starterPts(s);
     if(!bestP||pts>bestP.pts)bestP={pos:"P",name:p.name,pid,team:pid.replace(/[bp]\d+$/,""),pts,s};
   }
   if(bestP)out.push(bestP);
@@ -151,7 +166,7 @@ function champPanel(champ){
     <div class="champbanner">${teamBadge(champ)}</div>
     <p class="muted">恭喜奪下本季最高榮耀！</p></div>`;
 }
-const AWARD_MAX=10;
+const AWARD_MAX=11;
 function viewAwards(){
   const a=S.season.awards;
   if(!a)return `<div class="panel"><h2>🏆 頒獎典禮</h2><p class="muted">球季（含季後賽）結束後才會公布獎項。</p>
@@ -163,17 +178,18 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績）；最佳指定打擊＝DH綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝先發綜合分最高；最佳後援＝後援綜合分最高（救援比重高）；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績，投手席取先發最佳）；最佳指定打擊＝DH綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
-  if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手","🔥",true)}</div>`);
-  if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
-  if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
-  if(step>=7&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=8&&a.bestDH&&a.bestDH.length)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false)}</div>`);
-  if(step>=9)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
-  if(step>=10)parts.push(champPanel(champ));
+  if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手（先發）","🔥",true)}</div>`);
+  if(step>=5&&a.reliever&&a.reliever.length)parts.push(`<div class="panel ceremony">${awardPodium(a.reliever,"最佳後援","🧱",true)}</div>`);
+  if(step>=6&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
+  if(step>=7&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
+  if(step>=8&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
+  if(step>=9&&a.bestDH&&a.bestDH.length)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false)}</div>`);
+  if(step>=10)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=11)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>
        <button class="btn blk" data-act="backToHub">← 回球季總部</button>`
