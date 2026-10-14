@@ -28,7 +28,7 @@ function computeAwards(){
     pitchers.push({pid,p,s,pts:awardPts(s,true)});
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),gp:q.gp};
+  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
 }
 /* 最佳九人：按守位選最佳打者＋最佳投手 */
 function pickBest9(ps,qf){
@@ -55,6 +55,18 @@ function pickBest9(ps,qf){
   }
   if(bestP)out.push(bestP);
   return out;
+}
+/* 最佳指定打擊：DH 守位最佳打者（前三名） */
+function pickBestDH(ps,qf){
+  const arr=[];
+  for(const pid in ps.bat){
+    const s=ps.bat[pid],p=playerById(pid);
+    if(!p||p.pos!=="DH")continue;
+    if((s.g||0)<qf.bat)continue;
+    arr.push({pid,p,s,pts:awardPts(s,false)});
+  }
+  arr.sort((a,b)=>b.pts-a.pts);
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
 }
 /* 澤村賞：先發投手限定，勝場＋防禦率＋三振＋局數綜合評選 */
 function pickSawamura(ps,qf){
@@ -109,9 +121,9 @@ function awardBest9(list){
   }).join("");
   return `<h3>🌟 最佳九人</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>成績</th></tr>${rows}</table>`;
 }
-/* 金手套：按守位選守備能力最佳（失策未記到個人前以守備能力＋出賽為準） */
+/* 金手套：按守位選守備能力最佳（指定打擊不守備，不設此獎；失策記到個人前以守備能力＋出賽為準） */
 function pickGloves(ps,qf){
-  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF"];
   const out=[];
   posOrder.forEach(pos=>{
     let best=null;
@@ -139,7 +151,7 @@ function champPanel(champ){
     <div class="champbanner">${teamBadge(champ)}</div>
     <p class="muted">恭喜奪下本季最高榮耀！</p></div>`;
 }
-const AWARD_MAX=9;
+const AWARD_MAX=10;
 function viewAwards(){
   const a=S.season.awards;
   if(!a)return `<div class="panel"><h2>🏆 頒獎典禮</h2><p class="muted">球季（含季後賽）結束後才會公布獎項。</p>
@@ -151,7 +163,7 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績）；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績）；最佳指定打擊＝DH綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
@@ -159,8 +171,9 @@ function viewAwards(){
   if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
   if(step>=7&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
-  if(step>=9)parts.push(champPanel(champ));
+  if(step>=8&&a.bestDH&&a.bestDH.length)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false)}</div>`);
+  if(step>=9)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=10)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>
        <button class="btn blk" data-act="backToHub">← 回球季總部</button>`

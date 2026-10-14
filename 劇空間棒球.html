@@ -1603,7 +1603,7 @@ function finalizeSeason(){
     champ:(se.playoff&&se.playoff.champion)||null,
     isChamp:!!(se.playoff&&se.playoff.champion===me),
     playoff:se.playoff?{stage:se.playoff.stage,champion:se.playoff.champion,semi:se.playoff.semi,final:se.playoff.final}:null,
-    awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,rookie:se.awards.rookie,sawamura:se.awards.sawamura,best9:se.awards.best9,gloves:se.awards.gloves,kings:se.awards.kings}:null,
+    awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,rookie:se.awards.rookie,sawamura:se.awards.sawamura,best9:se.awards.best9,gloves:se.awards.gloves,bestDH:se.awards.bestDH,kings:se.awards.kings}:null,
     leaders:se.awards?{bat:Object.keys(se.playerStats?.bat||{}).length,pit:Object.keys(se.playerStats?.pit||{}).length}:null,
     standings:st.map(x=>({id:x.id,w:x.w,l:x.l,t:x.t,pct:x.pct,rs:x.rs,ra:x.ra})),
     teamStats:{bat:{},pit:{}}
@@ -1624,6 +1624,7 @@ function finalizeSeason(){
       mvp:top1(aw.mvp), cy:top1(aw.cy), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
       best9:(aw.best9||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team,pts:x.pts,s:x.s||null})),
       gloves:(aw.gloves||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team})),
+      bestDH:top1(aw.bestDH),
       kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
     });
   }
@@ -1785,7 +1786,7 @@ function histSeasonDetailPanel(){
       return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
     const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
-    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0];
+    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=pick("bestDH");
     const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
     const statOf=x=>{
@@ -1801,7 +1802,7 @@ function histSeasonDetailPanel(){
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
       <div class="card-body"><div class="roster"><h4>個人獎項</h4>
-        ${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手",cy,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}</div>
+        ${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手",cy,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div>
         <div class="roster"><h4>本季王座</h4>
         ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}
         <h4>最佳九人</h4>
@@ -1810,7 +1811,7 @@ function histSeasonDetailPanel(){
   }).join("");
   return `<div class="panel"><h2>球季詳細回顧</h2>
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
-    <p class="muted" style="font-size:11px">評分規則：MVP取綜合分最高的野手；最佳投手取全體投手綜合分最高；澤村賞限先發，綜合勝場・防禦率・三振・局數；新人王限22歲以下、生涯未滿30打席的野手；最佳九人取各守位綜合分最高（顯示成績）；王座取單項成績第一。（MVP・新人王的投打統一評分研究中）</p>
+    <p class="muted" style="font-size:11px">評分規則：MVP取綜合分最高的野手；最佳投手取全體投手綜合分最高；澤村賞限先發，綜合勝場・防禦率・三振・局數；新人王限22歲以下、生涯未滿30打席的野手；最佳九人取各守位綜合分最高（顯示成績）；最佳指定打擊取DH綜合分最高；王座取單項成績第一。（MVP・新人王的投打統一評分研究中）</p>
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){
@@ -2529,7 +2530,7 @@ function computeAwards(){
     pitchers.push({pid,p,s,pts:awardPts(s,true)});
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),gp:q.gp};
+  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
 }
 /* 最佳九人：按守位選最佳打者＋最佳投手 */
 function pickBest9(ps,qf){
@@ -2556,6 +2557,18 @@ function pickBest9(ps,qf){
   }
   if(bestP)out.push(bestP);
   return out;
+}
+/* 最佳指定打擊：DH 守位最佳打者（前三名） */
+function pickBestDH(ps,qf){
+  const arr=[];
+  for(const pid in ps.bat){
+    const s=ps.bat[pid],p=playerById(pid);
+    if(!p||p.pos!=="DH")continue;
+    if((s.g||0)<qf.bat)continue;
+    arr.push({pid,p,s,pts:awardPts(s,false)});
+  }
+  arr.sort((a,b)=>b.pts-a.pts);
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
 }
 /* 澤村賞：先發投手限定，勝場＋防禦率＋三振＋局數綜合評選 */
 function pickSawamura(ps,qf){
@@ -2610,9 +2623,9 @@ function awardBest9(list){
   }).join("");
   return `<h3>🌟 最佳九人</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>成績</th></tr>${rows}</table>`;
 }
-/* 金手套：按守位選守備能力最佳（失策未記到個人前以守備能力＋出賽為準） */
+/* 金手套：按守位選守備能力最佳（指定打擊不守備，不設此獎；失策記到個人前以守備能力＋出賽為準） */
 function pickGloves(ps,qf){
-  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF"];
   const out=[];
   posOrder.forEach(pos=>{
     let best=null;
@@ -2640,7 +2653,7 @@ function champPanel(champ){
     <div class="champbanner">${teamBadge(champ)}</div>
     <p class="muted">恭喜奪下本季最高榮耀！</p></div>`;
 }
-const AWARD_MAX=9;
+const AWARD_MAX=10;
 function viewAwards(){
   const a=S.season.awards;
   if(!a)return `<div class="panel"><h2>🏆 頒獎典禮</h2><p class="muted">球季（含季後賽）結束後才會公布獎項。</p>
@@ -2652,7 +2665,7 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績）；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績）；最佳指定打擊＝DH綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
@@ -2660,8 +2673,9 @@ function viewAwards(){
   if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
   if(step>=7&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
-  if(step>=9)parts.push(champPanel(champ));
+  if(step>=8&&a.bestDH&&a.bestDH.length)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false)}</div>`);
+  if(step>=9)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=10)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>
        <button class="btn blk" data-act="backToHub">← 回球季總部</button>`
@@ -3834,6 +3848,7 @@ function playerAwards(pid){
     if(same(a.cy))out.push(`第 ${a.no} 季 最佳投手`);
     if(same(a.rookie))out.push(`第 ${a.no} 季 新人王`);
     if(same(a.sawamura))out.push(`第 ${a.no} 季 澤村賞`);
+    if(same(a.bestDH))out.push(`第 ${a.no} 季 最佳指定打擊`);
     (a.best9||[]).forEach(b=>{if(b.pid===pid&&(!myName||b.name===myName))out.push(`第 ${a.no} 季 最佳九人（${b.pos}）`);});
     (a.gloves||[]).forEach(g=>{if(g.pid===pid&&(!myName||g.name===myName))out.push(`第 ${a.no} 季 金手套（${g.pos}）`);});
     (a.kings||[]).forEach(k=>{if(same(k))out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
