@@ -1,18 +1,22 @@
 /* ---------- 存檔 ---------- */
-const SAVEKEY="gekikuukan_baseball_save_v1";
+const SAVEKEY="clubstory_save_v1",OLD_SAVEKEY="gekikuukan_baseball_save_v1";   // 改名前舊 key 自動遷移讀取
 function saveGame(){
   if(!S.season)return;
-  try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));}catch(e){}
+  try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
 }
 function loadGame(){
-  try{const raw=localStorage.getItem(SAVEKEY);if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;}catch(e){return false;}
+  try{
+    const raw=localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY);
+    if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;
+  }catch(e){return false;}
 }
-function hasSave(){try{return !!localStorage.getItem(SAVEKEY);}catch(e){return false;}}
+function hasSave(){try{return !!(localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY));}catch(e){return false;}}
 
 /* ---------- 存檔槽與匯出／匯入 ---------- */
 const SAVE_SLOTS=3;
-const SLOTPREFIX="gekikuukan_slot_v1_";
+const SLOTPREFIX="clubstory_slot_v1_",OLD_SLOTPREFIX="gekikuukan_slot_v1_";
 const slotKey=n=>SLOTPREFIX+n;
+const oldSlotKey=n=>OLD_SLOTPREFIX+n;
 function exportPayload(){return {v:1,at:Date.now(),season:S.season||null,career:CAREER};}
 function payloadMeta(p){
   if(!p)return null;
@@ -21,9 +25,9 @@ function payloadMeta(p){
     seasonNo:(c.seasons||0)+(se?1:0),day:se?(se.day||0):0,
     seasons:(c.history||[]).length,awards:(c.awards||[]).length,hasSeason:!!se};
 }
-function readSlot(n){try{const r=localStorage.getItem(slotKey(n));return r?JSON.parse(r):null;}catch(e){return null;}}
+function readSlot(n){try{const r=localStorage.getItem(slotKey(n))||localStorage.getItem(oldSlotKey(n));return r?JSON.parse(r):null;}catch(e){return null;}}
 function writeSlot(n,p){try{localStorage.setItem(slotKey(n),JSON.stringify(p));return true;}catch(e){return false;}}
-function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));}catch(e){}}
+function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));localStorage.removeItem(oldSlotKey(n));}catch(e){}}
 function applyPayload(p){
   CAREER=normalizeCareer(p.career);
   S.season=p.season||null;S.match=null;S.confirm=null;
@@ -40,7 +44,7 @@ function exportSaveFile(){
     const blob=new Blob([JSON.stringify(p)],{type:"application/json"});
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
-    a.download="劇空間棒球_存檔_"+meta.teamName+"_第"+meta.seasonNo+"季.json";
+    a.download="球團物語_存檔_"+meta.teamName+"_第"+meta.seasonNo+"季.json";
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
     return true;

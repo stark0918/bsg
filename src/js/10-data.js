@@ -16,7 +16,7 @@ const TEAM_DEFS=[
 ];
 
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
-const CAREERKEY="gekikuukan_career_v1";
+const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
 let CAREER={seasons:0,pending:false,ov:{},records:{}};
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
@@ -26,8 +26,8 @@ function normalizeCareer(d){
   c.retirements=c.retirements||[];
   return c;
 }
-function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
-function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
+function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
+function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));localStorage.removeItem(OLD_CAREERKEY);}catch(e){}}
 function seasonNo(){return (CAREER.seasons||0)+1;}
 /* 上一季率領的球隊（優先取目前球季，其次生涯記錄），用於「續任原隊」 */
 function lastTeamId(){

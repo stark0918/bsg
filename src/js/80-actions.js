@@ -62,11 +62,11 @@ const ACT={
   confirmNo(){S.confirm=null;render();},
   confirmYes(){const c=S.confirm;S.confirm=null;if(c&&ACT[c.act])ACT[c.act](c.arg);else render();},
   wipeSeason(){
-    try{localStorage.removeItem(SAVEKEY);}catch(e){}
+    try{localStorage.removeItem(SAVEKEY);localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
     S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");render();
   },
   wipeCareer(){
-    try{localStorage.removeItem(CAREERKEY);}catch(e){}
+    try{localStorage.removeItem(CAREERKEY);localStorage.removeItem(OLD_CAREERKEY);}catch(e){}
     CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
     for(const k in teamCache)delete teamCache[k];
     flash("已清除生涯成就");render();

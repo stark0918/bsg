@@ -19,7 +19,7 @@ function viewTitle(){
     :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
       ${hasCareer?`<button class="btn blk" data-act="ask" data-arg="wipeCareer">🗑 清除生涯成就</button>`:""}`;
   return `<div class="panel center">
-    <h2 style="text-align:center">歡迎來到劇空間</h2>
+    <h2 style="text-align:center">歡迎來到球團物語</h2>
     <p class="muted">這是一款向古早 CGI 棒球遊戲致敬的作品。<br>
     你將扮演球團監督，在九局對戰中以戰術決勝負，並帶領球隊打完整季。</p>
     <div class="hr"></div>
@@ -27,7 +27,7 @@ function viewTitle(){
     ${renew}
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
-    <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
+    <button class="btn blk" data-act="league">🏟 球團日報</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
     ${danger}
@@ -162,7 +162,7 @@ function viewHub(){
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
       <button class="btn blk" data-act="records">📕 單場紀錄</button>
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
-      <button class="btn blk" data-act="league">🏟 劇空間日報</button>
+      <button class="btn blk" data-act="league">🏟 球團日報</button>
       <button class="btn blk" data-act="draft">⭐ 新人選秀</button>
     </div>
     <div class="hr"></div>
@@ -769,10 +769,10 @@ function playerAwards(pid){
   return out;
 }
 
-/* ----- 劇空間首頁：聯盟日報 ----- */
+/* ----- 球團日報首頁：聯盟日報 ----- */
 function viewLeague(){
   const se=S.season;
-  if(!se)return `<div class="panel"><h2>🏟 劇空間</h2><p class="muted">尚未開始球季，先到主選單展開新球季吧。</p>
+  if(!se)return `<div class="panel"><h2>🏟 球團日報</h2><p class="muted">尚未開始球季，先到主選單展開新球季吧。</p>
     <button class="btn blk" data-act="toTitle">← 回主選單</button></div>`;
   const st=standingsList();
   const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
@@ -797,7 +797,7 @@ function viewLeague(){
     <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
     <button class="btn blk" data-act="exportCsv">⬇ 匯出逐場 CSV</button>
   </div>`;
-  return `<div class="panel"><h2>🏟 劇空間　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
+  return `<div class="panel"><h2>🏟 球團日報　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
     <p class="muted">第 ${seasonNo()} 季　例行賽第 ${Math.min(se.day+1,se.schedule.length)} / ${se.schedule.length} 日。聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th><th>連續</th></tr>${srows}</table>

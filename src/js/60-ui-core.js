@@ -27,23 +27,12 @@ function render(){
   else if(S.screen==="season")app.innerHTML=viewSeasonInfo();
   else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   else if(S.screen==="admin")app.innerHTML=viewAdmin();
-  renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
   if(S.screen==="game"&&S.match&&S.match.over){const gr=$("#gameresult");if(gr&&gr.scrollIntoView)gr.scrollIntoView({block:"start"});}
   const toast=$("#toast");
   if(toast&&S.flash){toast.textContent=S.flash;toast.classList.add("on");S.flash="";setTimeout(()=>toast.classList.remove("on"),1800);}
 }
-function renderCGI(){
-  const c=$("#cgi");if(!c)return;
-  let q="mode=top";
-  if(S.screen==="game"&&S.match){
-    const m=S.match;
-    q=`game.cgi?mode=bat&inn=${m.inning}&half=${m.half}&o=${m.outs}&b=${m.bases.map(x=>x?1:0).join("")}&sc=${m.score.away}-${m.score.home}`;
-  }else if(S.season){
-    q=`season.cgi?team=${S.season.playerTeam}&day=${S.season.day}&mode=${S.screen}`;
-  }
-  c.textContent="http://gekikuukan.local/cgi-bin/"+q;
-}
+/* ---------- 徽章 ---------- */
 function emblemSVG(t,s){
   return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:3px" aria-hidden="true">
     <path d="M12 1.6 L20.6 4.4 V11 c0 5.5-3.7 9.6-8.6 11.1 C6.9 20.6 3.4 16.5 3.4 11 V4.4 Z" fill="${t.c1}" stroke="${t.c2}" stroke-width="1.1"/>

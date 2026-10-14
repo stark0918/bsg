@@ -176,7 +176,7 @@ function viewAwards(){
   const champ=(S.season.playoff&&S.season.playoff.champion)||null;
   const step=(S.awardsStep==null?0:S.awardsStep);
   const parts=[];
-  parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
+  parts.push(`<div class="panel party center"><h2>🏆 球團年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
     <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、生涯未滿30打席的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
@@ -337,7 +337,7 @@ function viewAllstar(){
   }
   ensureAllstarRoster();
   const a=se.allstar;
-  const head=`<div class="panel"><h2>⭐ 劇空間明星賽</h2>
+  const head=`<div class="panel"><h2>⭐ 球團明星賽</h2>
     <p class="muted">季中表演賽，勝負不列入例行賽戰績。紅隊由目前戰績前四強的球團精銳組成，藍隊為後四強。</p></div>`;
   const redPanel=`<div class="panel"><h3>🔴 紅隊</h3>${asRosterTable(a.red)}</div>`;
   const bluePanel=`<div class="panel"><h3>🔵 藍隊</h3>${asRosterTable(a.blue)}</div>`;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>劇空間棒球 ～ GEKIKUUKAN BASEBALL</title>
+<title>球團物語 ～ CLUB STORY</title>
 <style>
 :root{
   --paper:#0e1a2b; --paper2:#101d2f; --ink:#e2eefb;
@@ -289,9 +289,9 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">劇空間棒球<small>GEKIKUUKAN BASEBALL</small></div>
+  <div class="logo">球團物語<small>CLUB STORY</small></div>
   <div id="app"></div>
-  <div class="footer" id="cgi"></div>
+
 </div>
 <div class="overlay" id="ov"><div>送信中…</div></div>
 <div class="toast" id="toast"></div>
@@ -410,7 +410,7 @@ const TEAM_DEFS=[
 ];
 
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
-const CAREERKEY="gekikuukan_career_v1";
+const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
 let CAREER={seasons:0,pending:false,ov:{},records:{}};
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
@@ -420,8 +420,8 @@ function normalizeCareer(d){
   c.retirements=c.retirements||[];
   return c;
 }
-function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
-function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));}catch(e){}}
+function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
+function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));localStorage.removeItem(OLD_CAREERKEY);}catch(e){}}
 function seasonNo(){return (CAREER.seasons||0)+1;}
 /* 上一季率領的球隊（優先取目前球季，其次生涯記錄），用於「續任原隊」 */
 function lastTeamId(){
@@ -1487,7 +1487,7 @@ function poNav(){
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
       <button class="btn blk" data-act="records">📕 單場紀錄</button>
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
-      <button class="btn blk" data-act="league">🏟 劇空間日報</button>
+      <button class="btn blk" data-act="league">🏟 球團日報</button>
     </div>
     <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
     <button class="btn sm blk" data-act="commissioner">🛠 管理者專用</button>`;
@@ -2010,7 +2010,7 @@ function viewRecords(){
   const tabbar=`<div class="tabbar">${REC_TABS.map(([k,l])=>`<button class="tab ${tab===k?"on":""}" data-act="recTab" data-arg="${k}">${l}</button>`).join("")}</div>`;
   const body=tab==="single"?recTabSingle():tab==="season"?recTabSeason():recTabSeasonBest();
   return `<div class="panel"><div class="hallhead">
-    <h2 style="margin:0 0 2px">🏛 劇空間紀錄殿堂</h2>
+    <h2 style="margin:0 0 2px">🏛 球團紀錄殿堂</h2>
     <p class="muted" style="margin:0">每一項數字，都是這些球季留下來的足跡。</p></div>
     ${tabbar}${body}
     <div class="hr"></div>
@@ -2133,7 +2133,7 @@ function downloadCSV(){
   const a=document.createElement("a");
   if(a.download!==undefined){
     a.href=URL.createObjectURL(blob);
-    a.download="劇空間棒球_逐場明細.csv";
+    a.download="球團物語_逐場明細.csv";
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
@@ -2679,7 +2679,7 @@ function viewAwards(){
   const champ=(S.season.playoff&&S.season.playoff.champion)||null;
   const step=(S.awardsStep==null?0:S.awardsStep);
   const parts=[];
-  parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
+  parts.push(`<div class="panel party center"><h2>🏆 球團年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
     <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、生涯未滿30打席的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
@@ -2840,7 +2840,7 @@ function viewAllstar(){
   }
   ensureAllstarRoster();
   const a=se.allstar;
-  const head=`<div class="panel"><h2>⭐ 劇空間明星賽</h2>
+  const head=`<div class="panel"><h2>⭐ 球團明星賽</h2>
     <p class="muted">季中表演賽，勝負不列入例行賽戰績。紅隊由目前戰績前四強的球團精銳組成，藍隊為後四強。</p></div>`;
   const redPanel=`<div class="panel"><h3>🔴 紅隊</h3>${asRosterTable(a.red)}</div>`;
   const bluePanel=`<div class="panel"><h3>🔵 藍隊</h3>${asRosterTable(a.blue)}</div>`;
@@ -2861,20 +2861,24 @@ function viewAllstar(){
 }
 /* ===================== 50-state.js ===================== */
 /* ---------- 存檔 ---------- */
-const SAVEKEY="gekikuukan_baseball_save_v1";
+const SAVEKEY="clubstory_save_v1",OLD_SAVEKEY="gekikuukan_baseball_save_v1";   // 改名前舊 key 自動遷移讀取
 function saveGame(){
   if(!S.season)return;
-  try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));}catch(e){}
+  try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
 }
 function loadGame(){
-  try{const raw=localStorage.getItem(SAVEKEY);if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;}catch(e){return false;}
+  try{
+    const raw=localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY);
+    if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;
+  }catch(e){return false;}
 }
-function hasSave(){try{return !!localStorage.getItem(SAVEKEY);}catch(e){return false;}}
+function hasSave(){try{return !!(localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY));}catch(e){return false;}}
 
 /* ---------- 存檔槽與匯出／匯入 ---------- */
 const SAVE_SLOTS=3;
-const SLOTPREFIX="gekikuukan_slot_v1_";
+const SLOTPREFIX="clubstory_slot_v1_",OLD_SLOTPREFIX="gekikuukan_slot_v1_";
 const slotKey=n=>SLOTPREFIX+n;
+const oldSlotKey=n=>OLD_SLOTPREFIX+n;
 function exportPayload(){return {v:1,at:Date.now(),season:S.season||null,career:CAREER};}
 function payloadMeta(p){
   if(!p)return null;
@@ -2883,9 +2887,9 @@ function payloadMeta(p){
     seasonNo:(c.seasons||0)+(se?1:0),day:se?(se.day||0):0,
     seasons:(c.history||[]).length,awards:(c.awards||[]).length,hasSeason:!!se};
 }
-function readSlot(n){try{const r=localStorage.getItem(slotKey(n));return r?JSON.parse(r):null;}catch(e){return null;}}
+function readSlot(n){try{const r=localStorage.getItem(slotKey(n))||localStorage.getItem(oldSlotKey(n));return r?JSON.parse(r):null;}catch(e){return null;}}
 function writeSlot(n,p){try{localStorage.setItem(slotKey(n),JSON.stringify(p));return true;}catch(e){return false;}}
-function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));}catch(e){}}
+function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));localStorage.removeItem(oldSlotKey(n));}catch(e){}}
 function applyPayload(p){
   CAREER=normalizeCareer(p.career);
   S.season=p.season||null;S.match=null;S.confirm=null;
@@ -2902,7 +2906,7 @@ function exportSaveFile(){
     const blob=new Blob([JSON.stringify(p)],{type:"application/json"});
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
-    a.download="劇空間棒球_存檔_"+meta.teamName+"_第"+meta.seasonNo+"季.json";
+    a.download="球團物語_存檔_"+meta.teamName+"_第"+meta.seasonNo+"季.json";
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
     return true;
@@ -3080,23 +3084,12 @@ function render(){
   else if(S.screen==="season")app.innerHTML=viewSeasonInfo();
   else if(S.screen==="gameDetail")app.innerHTML=viewGameDetail();
   else if(S.screen==="admin")app.innerHTML=viewAdmin();
-  renderCGI();
   const log=$("#log");if(log)log.scrollTop=log.scrollHeight;
   if(S.screen==="game"&&S.match&&S.match.over){const gr=$("#gameresult");if(gr&&gr.scrollIntoView)gr.scrollIntoView({block:"start"});}
   const toast=$("#toast");
   if(toast&&S.flash){toast.textContent=S.flash;toast.classList.add("on");S.flash="";setTimeout(()=>toast.classList.remove("on"),1800);}
 }
-function renderCGI(){
-  const c=$("#cgi");if(!c)return;
-  let q="mode=top";
-  if(S.screen==="game"&&S.match){
-    const m=S.match;
-    q=`game.cgi?mode=bat&inn=${m.inning}&half=${m.half}&o=${m.outs}&b=${m.bases.map(x=>x?1:0).join("")}&sc=${m.score.away}-${m.score.home}`;
-  }else if(S.season){
-    q=`season.cgi?team=${S.season.playerTeam}&day=${S.season.day}&mode=${S.screen}`;
-  }
-  c.textContent="http://gekikuukan.local/cgi-bin/"+q;
-}
+/* ---------- 徽章 ---------- */
 function emblemSVG(t,s){
   return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:3px" aria-hidden="true">
     <path d="M12 1.6 L20.6 4.4 V11 c0 5.5-3.7 9.6-8.6 11.1 C6.9 20.6 3.4 16.5 3.4 11 V4.4 Z" fill="${t.c1}" stroke="${t.c2}" stroke-width="1.1"/>
@@ -3161,7 +3154,7 @@ function viewTitle(){
     :`${hasSave()?`<button class="btn blk" data-act="ask" data-arg="wipeSeason">✕ 刪除本季進度</button>`:""}
       ${hasCareer?`<button class="btn blk" data-act="ask" data-arg="wipeCareer">🗑 清除生涯成就</button>`:""}`;
   return `<div class="panel center">
-    <h2 style="text-align:center">歡迎來到劇空間</h2>
+    <h2 style="text-align:center">歡迎來到球團物語</h2>
     <p class="muted">這是一款向古早 CGI 棒球遊戲致敬的作品。<br>
     你將扮演球團監督，在九局對戰中以戰術決勝負，並帶領球隊打完整季。</p>
     <div class="hr"></div>
@@ -3169,7 +3162,7 @@ function viewTitle(){
     ${renew}
     ${cont}
     <button class="btn blk" data-act="help">？ 遊戲說明</button>
-    <button class="btn blk" data-act="league">🏟 劇空間（聯盟日報）</button>
+    <button class="btn blk" data-act="league">🏟 球團日報</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
     ${danger}
@@ -3304,7 +3297,7 @@ function viewHub(){
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
       <button class="btn blk" data-act="records">📕 單場紀錄</button>
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
-      <button class="btn blk" data-act="league">🏟 劇空間日報</button>
+      <button class="btn blk" data-act="league">🏟 球團日報</button>
       <button class="btn blk" data-act="draft">⭐ 新人選秀</button>
     </div>
     <div class="hr"></div>
@@ -3911,10 +3904,10 @@ function playerAwards(pid){
   return out;
 }
 
-/* ----- 劇空間首頁：聯盟日報 ----- */
+/* ----- 球團日報首頁：聯盟日報 ----- */
 function viewLeague(){
   const se=S.season;
-  if(!se)return `<div class="panel"><h2>🏟 劇空間</h2><p class="muted">尚未開始球季，先到主選單展開新球季吧。</p>
+  if(!se)return `<div class="panel"><h2>🏟 球團日報</h2><p class="muted">尚未開始球季，先到主選單展開新球季吧。</p>
     <button class="btn blk" data-act="toTitle">← 回主選單</button></div>`;
   const st=standingsList();
   const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
@@ -3939,7 +3932,7 @@ function viewLeague(){
     <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
     <button class="btn blk" data-act="exportCsv">⬇ 匯出逐場 CSV</button>
   </div>`;
-  return `<div class="panel"><h2>🏟 劇空間　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
+  return `<div class="panel"><h2>🏟 球團日報　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
     <p class="muted">第 ${seasonNo()} 季　例行賽第 ${Math.min(se.day+1,se.schedule.length)} / ${se.schedule.length} 日。聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th><th>連續</th></tr>${srows}</table>
@@ -4240,11 +4233,11 @@ const ACT={
   confirmNo(){S.confirm=null;render();},
   confirmYes(){const c=S.confirm;S.confirm=null;if(c&&ACT[c.act])ACT[c.act](c.arg);else render();},
   wipeSeason(){
-    try{localStorage.removeItem(SAVEKEY);}catch(e){}
+    try{localStorage.removeItem(SAVEKEY);localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
     S.season=null;S.match=null;flash("已刪除本季進度（生涯成就保留）");render();
   },
   wipeCareer(){
-    try{localStorage.removeItem(CAREERKEY);}catch(e){}
+    try{localStorage.removeItem(CAREERKEY);localStorage.removeItem(OLD_CAREERKEY);}catch(e){}
     CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
     for(const k in teamCache)delete teamCache[k];
     flash("已清除生涯成就");render();

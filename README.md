@@ -1,15 +1,15 @@
-# 劇空間棒球 ～ GEKIKUUKAN BASEBALL
+# 球團物語 ～ CLUB STORY
 
 復古 CGI 風格的棒球遊戲。**成品是單一 HTML 檔，雙擊即可玩，不需要伺服器、不需要安裝。**
 
 ## 給玩家
 
-直接開啟 `劇空間棒球.html` 就能玩。存檔存在瀏覽器（localStorage），關掉再開可「繼續球季」。
+直接開啟 `球團物語.html` 就能玩。存檔存在瀏覽器（localStorage），關掉再開可「繼續球季」。
 
 ## 給開發者：模組化架構
 
 原始碼拆成多個模組放在 `src/`，用 `build.ps1` 打包成單一 HTML。
-**請編輯 `src/` 裡的檔案，不要直接改 `劇空間棒球.html`**（那是產生出來的成品，重新打包會被覆蓋）。
+**請編輯 `src/` 裡的檔案，不要直接改 `球團物語.html`**（那是產生出來的成品，重新打包會被覆蓋）。
 
 > 為什麼不用 ES 模組（`import` / `export`）？
 > 原生 ES 模組透過 `file://` 直接開啟會被瀏覽器以 CORS（origin 為 `null`）擋下，
@@ -19,7 +19,7 @@
 ### 檔案結構
 
 ```
-劇空間棒球.html        # 打包成品（單一檔，給玩家）
+球團物語.html            # 打包成品（單一檔，給玩家）
 build.ps1              # 打包腳本（PowerShell 5.1）
 build.cmd              # 雙擊即可打包
 src/
@@ -38,7 +38,7 @@ src/
     48-draft.js        # 新人選秀：依戰績決定指名順序、玩家互動指名
     49-awards.js       # 個人獎項：MVP、最佳投手、新人王、各項王
     50-state.js        # 存檔、遊戲狀態 S、新球季、舊存檔遷移、排名計算
-    60-ui-core.js      # render() 與假 CGI 網址列
+    60-ui-core.js      # render() 與共用 UI 元件
     70-ui-views.js     # 各畫面：標題/選隊/總部/比賽/陣容/能力/資料卡/賽程/排名/排行/說明
     80-actions.js      # 事件分派（ACT）與點擊委派
     90-main.js         # 啟動：loadCareer(); render();

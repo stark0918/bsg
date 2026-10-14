@@ -136,7 +136,7 @@ function viewRecords(){
   const tabbar=`<div class="tabbar">${REC_TABS.map(([k,l])=>`<button class="tab ${tab===k?"on":""}" data-act="recTab" data-arg="${k}">${l}</button>`).join("")}</div>`;
   const body=tab==="single"?recTabSingle():tab==="season"?recTabSeason():recTabSeasonBest();
   return `<div class="panel"><div class="hallhead">
-    <h2 style="margin:0 0 2px">🏛 劇空間紀錄殿堂</h2>
+    <h2 style="margin:0 0 2px">🏛 球團紀錄殿堂</h2>
     <p class="muted" style="margin:0">每一項數字，都是這些球季留下來的足跡。</p></div>
     ${tabbar}${body}
     <div class="hr"></div>
@@ -259,7 +259,7 @@ function downloadCSV(){
   const a=document.createElement("a");
   if(a.download!==undefined){
     a.href=URL.createObjectURL(blob);
-    a.download="劇空間棒球_逐場明細.csv";
+    a.download="球團物語_逐場明細.csv";
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
