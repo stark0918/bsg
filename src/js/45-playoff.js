@@ -11,6 +11,8 @@ function ensurePlayoff(){
   const se=S.season;
   if(!se||se.playoff)return;
   if((se.day||0)<(se.schedule||[]).length)return;   // 例行賽尚未結束
+  // 安全網：若明星賽名單已產生卻從未開打（例如整季用快進跳過），在此自動補打，確保歷屆明星賽不缺季
+  if(se.allstar&&!se.allstar.played){ try{ simAllstar(); }catch(e){} }
   const st=standingsList();
   const seeds=st.slice(0,4).map(x=>x.id);
   se.playoff={
