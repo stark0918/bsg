@@ -2068,8 +2068,9 @@ function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   arr.sort((a,b)=>desc?b.v-a.v:a.v-b.v);
   const rows=arr.slice(0,5).map((r,i)=>`<tr><td class="num">${i<3?`<span class="medal g${i+1}">${i+1}</span>`:i+1}</td>
     <td class="name">${esc(r.name)}</td><td class="name">${teamBadge(r.team)}</td><td class="num"><b>${fmt(r.v)}</b></td></tr>`).join("");
+  const gate=isPit?`需 ${min} 出局數`:`需 ${min} 打席`;
   return `<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">${esc(title)}</h3>
-    <table class="grid"><tr><th>#</th><th>球員</th><th>隊</th><th>成績</th></tr>${rows||'<tr><td colspan="4" class="muted">未達上榜門檻</td></tr>'}</table></div>`;
+    <table class="grid"><tr><th>#</th><th>球員</th><th>隊</th><th>成績</th></tr>${rows||`<tr><td colspan="4" class="muted">尚無人達上榜門檻（${gate}）</td></tr>`}</table></div>`;
 }
 function careerAxis(){
   const h=CAREER.history||[];
