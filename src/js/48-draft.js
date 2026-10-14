@@ -61,6 +61,7 @@ function draftBest(cands){let bi=0,bv=-1;cands.forEach((c,i)=>{const v=playerOve
 function applyDraftRookie(pick,rookie){
   const p=playerById(pick.pid);
   const o=CAREER.ov[pick.pid]||(CAREER.ov[pick.pid]={});
+  recordRetirement(pick.pid,(p&&p.name)||rookie.name,pick.teamId,(p&&p.age)||null,pick.pos);
   const keys=rookie.role!==undefined?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
   let trend=0;
   keys.forEach(k=>{trend+=rookie[k]-(p?p[k]:52);o[k]=rookie[k];});

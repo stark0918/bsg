@@ -232,6 +232,17 @@ function histSeasonDetailPanel(){
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
     <div class="cards">${cards}</div></div>`;
 }
+function histRetirePanel(){
+  const list=(CAREER.retirements||[]).slice().reverse();
+  if(!list.length)return `<div class="panel"><h2>引退名單</h2><p class="muted">尚無引退球員。</p></div>`;
+  const rows=list.map(r=>`<tr><td class="num">第 ${r.no} 季</td>
+    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}</td>
+    <td>${esc(r.pos||"")}</td><td class="num">${r.age!=null?r.age+" 歲":""}</td>
+    <td class="muted" style="font-size:11px">${esc(r.line||"")}</td></tr>`).join("");
+  return `<div class="panel"><h2>引退名單</h2>
+    <p class="muted">高掛球鞋的球員們（38 歲以上由選秀新人接班，39 歲自動引退），附生涯成績。</p>
+    <table class="grid"><tr><th>球季</th><th>球員</th><th>守位</th><th>年齡</th><th>生涯成績</th></tr>${rows}</table></div>`;
+}
 function histPlayerCareerPanel(){
   const merged=careerMerged();
   const allstarApp=CAREER.allstarAppearances||{};
@@ -260,9 +271,9 @@ function histPlayerCareerPanel(){
 }
 function viewHistory(){
   const tab=S.histTab||"games";
-  const tabs=[["games","逐場賽果"],["seasons","跨季生涯"],["detail","球季詳細"],["player","球員生涯"],["mile","生涯里程碑"],["allstar","明星賽"]];
+  const tabs=[["games","逐場賽果"],["seasons","跨季生涯"],["detail","球季詳細"],["player","球員生涯"],["mile","生涯里程碑"],["allstar","明星賽"],["retire","引退名單"]];
   const bar=tabs.map(t=>`<button class="btn sm ${t[0]===tab?"gold":""}" data-act="histTab" data-arg="${t[0]}">${t[1]}</button>`).join("");
-  const body=tab==="seasons"?histSeasonsPanel():tab==="detail"?histSeasonDetailPanel():tab==="player"?histPlayerCareerPanel():tab==="mile"?histMilePanel():tab==="allstar"?histAllstarPanel():histGamesPanel();
+  const body=tab==="seasons"?histSeasonsPanel():tab==="detail"?histSeasonDetailPanel():tab==="player"?histPlayerCareerPanel():tab==="mile"?histMilePanel():tab==="allstar"?histAllstarPanel():tab==="retire"?histRetirePanel():histGamesPanel();
   return `<div class="panel"><h2>📜 遊戲紀錄</h2>
     <p class="muted">回顧你的每一場比賽、每個球季詳細數據、球員生涯軌跡、生涯里程碑與明星賽。</p>
     <div class="actions">${bar}</div></div>

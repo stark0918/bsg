@@ -42,6 +42,12 @@ const ACT={
     }
     if(CAREER.pending)advanceCareer();
     newSeason(id);
+    // 本季過渡期引退快訊（選秀覆蓋＋開季老化，取剛結束那季的記錄）
+    const retired=(CAREER.retirements||[]).filter(x=>x.no===(CAREER.seasons||0));
+    if(retired.length){
+      const names=retired.map(x=>`${getTeam(x.team).name}${x.name}(${x.pos||""}${x.age!=null?x.age+"歲":""})`).join("、");
+      flash(`🌅 引退：${names} 高掛球鞋（共 ${retired.length} 人，名單請看歷史→引退名單）`);
+    }
     S.screen="hub";render();
   },
   continue(){

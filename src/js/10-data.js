@@ -23,6 +23,7 @@ function normalizeCareer(d){
   c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};
   c.lastTeam=c.lastTeam||null;
   c.streakBest=c.streakBest||{};
+  c.retirements=c.retirements||[];
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
@@ -53,6 +54,14 @@ function ageDelta(a){
   return ri(-5,-1);
 }
 function randName(){return pick(SU)+pick(GI);}
+/* 引退記錄：名字被新人覆蓋前留下名單＋生涯成績快照 */
+function recordRetirement(pid,name,teamId,age,pos){
+  CAREER.retirements=CAREER.retirements||[];
+  const cb=(CAREER.career&&CAREER.career.bat||{})[pid],cp=(CAREER.career&&CAREER.career.pit||{})[pid];
+  const line=cb?`出賽${cb.g||0}　安打${cb.h||0}　全壘打${cb.hr||0}　打點${cb.rbi||0}`
+    :cp?`出賽${cp.g||0}　勝${cp.w||0}敗${cp.l||0}　救援${cp.sv||0}　三振${cp.k||0}`:"";
+  CAREER.retirements.push({no:seasonNo(),pid,name,team:teamId,age:age||null,pos:pos||"",line});
+}
 function advanceCareer(){
   TEAM_DEFS.forEach(def=>{
     const t=teamCache[def.id]||getTeam(def.id);
@@ -63,6 +72,7 @@ function advanceCareer(){
       const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
       let trend=0;
       if(o.age>=39){                      // 退休 → 新人
+        recordRetirement(p.id,p.name,def.id,p.age,p.posLabel||p.role);
         o.age=ri(19,22);o.name=randName();
         if(CAREER.career){delete CAREER.career.bat[p.id];delete CAREER.career.pit[p.id];}
         keys.forEach(k=>{const v=Math.round(clamp(50+rf(-9,9)+(def.str||0),30,76));trend+=v-(p[k]||50);o[k]=v;});
