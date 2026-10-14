@@ -3066,9 +3066,11 @@ function viewHub(){
   let draftCompleteMsg="";
   if(s.draftJustCompleted && s.draftLog){
     const recentPicks=s.draftLog.filter(x=>x.season===seasonNo()-1);
-    if(recentPicks.length){
-      const names=recentPicks.map(x=>`${x.name}(${x.pos})`).join("、");
-      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${recentPicks.map(x=>`${x.name}(${x.pos})`).join("、")}</p></div>`;
+    const minePicks=recentPicks.filter(x=>x.teamId===s.playerTeam);
+    if(minePicks.length){
+      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${minePicks.map(x=>`${x.name}(${x.pos})`).join("、")}</p><p class="muted" style="font-size:12px">完整指名結果（含其他球團）請看「新人選秀」。</p></div>`;
+    }else if(recentPicks.length){
+      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團本季無需補人（無退休缺口），其他球團共指名 ${recentPicks.length} 位新人。</p><p class="muted" style="font-size:12px">完整指名結果請看「新人選秀」。</p></div>`;
     }
     // 顯示完畢，清除標記，避免整季都顯示
     s.draftJustCompleted=false;
@@ -3095,6 +3097,7 @@ function viewHub(){
       <button class="btn blk" data-act="records">📕 單場紀錄</button>
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
       <button class="btn blk" data-act="league">🏟 劇空間日報</button>
+      <button class="btn blk" data-act="draft">⭐ 新人選秀</button>
     </div>
     <div class="hr"></div>
     <div class="two">
