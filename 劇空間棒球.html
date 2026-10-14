@@ -644,9 +644,9 @@ function getBat(m,pid){if(!m.stats[pid])m.stats[pid]={ab:0,h:0,hr:0,rbi:0,bb:0,k
 function batAdd(m,pid,d){const s=getBat(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
 function getPit(m,pid){if(!m.pstats[pid])m.pstats[pid]={outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0};return m.pstats[pid];}
 function pitAdd(m,pid,d){const s=getPit(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
-/* 球季累計（含其他球團） */
-function mergeBatLine(pid,s){const ps=S.season.playerStats;const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
-function mergePitLine(pid,s){const ps=S.season.playerStats;const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
+/* 球季累計（含其他球團）；target 可指定為季後賽獨立累計（poPlayerStats） */
+function mergeBatLine(pid,s,tgt){const ps=tgt||S.season.playerStats;const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
+function mergePitLine(pid,s,tgt){const ps=tgt||S.season.playerStats;const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
 function playerById(pid){const mm=/^([a-z]+)([bp])(\d+)$/.exec(pid);if(!mm)return null;const t=getTeam(mm[1]);return mm[2]==="b"?t.batters[+mm[3]]:t.pitchers[+mm[3]];}
 function splitInt(total,weights){
   const n=weights.length,sum=weights.reduce((a,b)=>a+b,0)||1;
@@ -1170,17 +1170,24 @@ function boxFromSim(awayId,homeId,r,L,st){
     sp:{away:(L.away.pit[0]&&L.away.pit[0].pid)||"",home:(L.home.pit[0]&&L.home.pit[0].pid)||""}
   };
 }
-function mergePlayerStats(m){
-  for(const pid in m.stats)mergeBatLine(pid,m.stats[pid]);
-  for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid]);
+function mergePlayerStats(m,tgt){
+  const ps=tgt||S.season.playerStats;
+  for(const pid in m.stats)mergeBatLine(pid,m.stats[pid],ps);
+  for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid],ps);
   // 勝敗投手：獲勝方先發勝投、落敗方先發敗投（寫入球季累計）
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
-    const ps=S.season.playerStats.pit;
+    const pp=ps.pit;
     const wId=m.starters[wSide].id,lId=m.starters[lSide].id;
-    if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
-    if(ps[lId])ps[lId].l=(ps[lId].l||0)+1;
+    if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
+    if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
   }
+}
+/* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */
+function mergePoStats(m){
+  const se=S.season;
+  if(!se.poPlayerStats)se.poPlayerStats={bat:{},pit:{}};
+  mergePlayerStats(m,se.poPlayerStats);
 }
 function processGameEnd(m){
   if(m._processed)return;m._processed=true;
@@ -1360,6 +1367,8 @@ function playoffProgress(){
         prepareDraft();                       // 新人選秀（有退休缺口才展開）
         CAREER.pending=true;saveCareer();saveGame();
         if(won){S.flash=S.flash||`🏆 總冠軍 ${getTeam(me).name}！恭喜奪冠！`; setTimeout(()=>SFX.champ(),220);} else {S.flash=S.flash||`季後賽結束：總冠軍 ${getTeam(po.champion).name}`;}
+    // 提示晉級冠軍（對玩家而言）
+    if(won) S.flash = S.flash || `🏆 你率領 ${getTeam(me).name} 奪得總冠軍！`;
       }
       break;
     }
@@ -1382,10 +1391,9 @@ function recordPlayoffResult(m){
     if(winnerId===s.hi)s.winsHi++;else s.winsLo++;
     if(s.winsHi>=seriesNeed(s.best)||s.winsLo>=seriesNeed(s.best))s.winner=winnerId;
   }
-  mergePlayerStats(m);
+  mergePoStats(m);   // 季後賽成績獨立累計，不寫入例行賽排行榜
   m.hero=gameHero(m);
   const stName=m.po.stage==="semi"?"準決賽":"冠軍戰";
-  checkMatchRecords(m,`${stName}·第${m.po.gameNo+1}戰`);
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
   const bx=boxFromMatch(m);
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
@@ -1393,6 +1401,17 @@ function recordPlayoffResult(m){
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;
   if(!S.flash&&miles.length)S.flash="★ "+milestoneText(miles[0],miles[0].pid);
+  // 晉級／淘汰提示（玩家系列賽剛分出勝負時）
+  const me=S.season.playerTeam;
+  if(s&&s.winner){
+    if(s.winner===me){
+      S.flash = m.po.stage==="semi"
+        ? `🎉 晉級冠軍戰！${getTeam(me).name} 以 ${Math.max(s.winsHi,s.winsLo)} 勝拿下準決賽！`
+        : `🏆 總冠軍！${getTeam(me).name} 奪下本季王座！`;
+    }else if(s.hi===me||s.lo===me){
+      S.flash=`😢 ${stName}落敗…${getTeam(me).name} 本季止步（${Math.max(s.winsHi,s.winsLo)}-${Math.min(s.winsHi,s.winsLo)}）。`;
+    }
+  }
   // 季後賽場次日報
   const se=S.season; se.news=se.news||[];
   const winTeam = m.score.home>m.score.away?m.homeId:m.awayId;
@@ -3587,7 +3606,7 @@ function viewPlayer(){
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
     <h3>生涯累計（跨季）</h3>${careerTable}
     <h3>本季亮眼</h3>${bestHTML}
-    <h3>生涯里程碑</h3>${mileSummary}${mileHTML}
+    <h3>生涯里程碑</h3>${milestoneSummary}${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>
@@ -4014,6 +4033,44 @@ const ACT={
   allstar(){S.screen="allstar";render();},
   allstarSim(){const a=simAllstar();render();},
   seasonInfo(){S.screen="season";render();},
+  /* 快速模擬到季中/季末 */
+  simToMid(){
+    const se=S.season;
+    if(!se)return;
+    const mid=Math.floor((se.schedule||[]).length/2);
+    // 如果明星賽已經進行過或已通知過且已經過了季中日，直接回總部並提示
+    if(se.allstar && se.allstar.played){
+      flash("⭐ 明星賽已經結束");
+      render();
+      return;
+    }
+    let guard=0;
+    while(se.day < mid && guard++<30){
+      startMatch();   // 每輪開新比賽（舊 match 已結算，不可重用）
+      if(!S.match) break;
+      if(!S.match.over){ autoGame(S.match); }
+      processGameEnd(S.match);
+      S.match=null;
+      if(S.screen!=="hub" && S.screen!=="game") break;
+    }
+    S.match=null;S.screen="hub";
+    render();
+  },
+  simToEnd(){
+    const se=S.season;
+    if(!se)return;
+    let guard=0;
+    while(se.day < (se.schedule||[]).length && guard++<30){
+      startMatch();   // 每輪開新比賽（舊 match 已結算，不可重用）
+      if(!S.match) break;
+      if(!S.match.over){ autoGame(S.match); }
+      processGameEnd(S.match);
+      S.match=null;
+      if(S.screen!=="hub" && S.screen!=="game") break;
+    }
+    S.match=null;S.screen="hub";
+    render();
+  },
   help(){S.screen="help";render();},
   backHub(){
     const d=S.season?.draft;
@@ -4065,6 +4122,11 @@ const ACT={
           if(S.match)render();
           else S.screen="hub";
         }else{
+          if(!S.flash){
+            const po=se.playoff, me=se.playerTeam;
+            if(po.stage==="done")S.flash=`🏆 季後賽結束：總冠軍 ${getTeam(po.champion).name}`;
+            else S.flash="季後賽進行中：你的球隊本輪無賽事，請回總部模擬剩餘季後賽。";
+          }
           S.screen="hub"; render();
         }
         return;

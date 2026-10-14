@@ -674,7 +674,7 @@ function viewPlayer(){
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
     <h3>生涯累計（跨季）</h3>${careerTable}
     <h3>本季亮眼</h3>${bestHTML}
-    <h3>生涯里程碑</h3>${mileSummary}${mileHTML}
+    <h3>生涯里程碑</h3>${milestoneSummary}${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>

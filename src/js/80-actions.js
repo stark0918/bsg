@@ -112,6 +112,44 @@ const ACT={
   allstar(){S.screen="allstar";render();},
   allstarSim(){const a=simAllstar();render();},
   seasonInfo(){S.screen="season";render();},
+  /* 快速模擬到季中/季末 */
+  simToMid(){
+    const se=S.season;
+    if(!se)return;
+    const mid=Math.floor((se.schedule||[]).length/2);
+    // 如果明星賽已經進行過或已通知過且已經過了季中日，直接回總部並提示
+    if(se.allstar && se.allstar.played){
+      flash("⭐ 明星賽已經結束");
+      render();
+      return;
+    }
+    let guard=0;
+    while(se.day < mid && guard++<30){
+      startMatch();   // 每輪開新比賽（舊 match 已結算，不可重用）
+      if(!S.match) break;
+      if(!S.match.over){ autoGame(S.match); }
+      processGameEnd(S.match);
+      S.match=null;
+      if(S.screen!=="hub" && S.screen!=="game") break;
+    }
+    S.match=null;S.screen="hub";
+    render();
+  },
+  simToEnd(){
+    const se=S.season;
+    if(!se)return;
+    let guard=0;
+    while(se.day < (se.schedule||[]).length && guard++<30){
+      startMatch();   // 每輪開新比賽（舊 match 已結算，不可重用）
+      if(!S.match) break;
+      if(!S.match.over){ autoGame(S.match); }
+      processGameEnd(S.match);
+      S.match=null;
+      if(S.screen!=="hub" && S.screen!=="game") break;
+    }
+    S.match=null;S.screen="hub";
+    render();
+  },
   help(){S.screen="help";render();},
   backHub(){
     const d=S.season?.draft;
@@ -163,6 +201,11 @@ const ACT={
           if(S.match)render();
           else S.screen="hub";
         }else{
+          if(!S.flash){
+            const po=se.playoff, me=se.playerTeam;
+            if(po.stage==="done")S.flash=`🏆 季後賽結束：總冠軍 ${getTeam(po.champion).name}`;
+            else S.flash="季後賽進行中：你的球隊本輪無賽事，請回總部模擬剩餘季後賽。";
+          }
           S.screen="hub"; render();
         }
         return;

@@ -98,6 +98,8 @@ function playoffProgress(){
         prepareDraft();                       // 新人選秀（有退休缺口才展開）
         CAREER.pending=true;saveCareer();saveGame();
         if(won){S.flash=S.flash||`🏆 總冠軍 ${getTeam(me).name}！恭喜奪冠！`; setTimeout(()=>SFX.champ(),220);} else {S.flash=S.flash||`季後賽結束：總冠軍 ${getTeam(po.champion).name}`;}
+    // 提示晉級冠軍（對玩家而言）
+    if(won) S.flash = S.flash || `🏆 你率領 ${getTeam(me).name} 奪得總冠軍！`;
       }
       break;
     }
@@ -120,10 +122,9 @@ function recordPlayoffResult(m){
     if(winnerId===s.hi)s.winsHi++;else s.winsLo++;
     if(s.winsHi>=seriesNeed(s.best)||s.winsLo>=seriesNeed(s.best))s.winner=winnerId;
   }
-  mergePlayerStats(m);
+  mergePoStats(m);   // 季後賽成績獨立累計，不寫入例行賽排行榜
   m.hero=gameHero(m);
   const stName=m.po.stage==="semi"?"準決賽":"冠軍戰";
-  checkMatchRecords(m,`${stName}·第${m.po.gameNo+1}戰`);
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
   const bx=boxFromMatch(m);
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
@@ -131,6 +132,17 @@ function recordPlayoffResult(m){
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;
   if(!S.flash&&miles.length)S.flash="★ "+milestoneText(miles[0],miles[0].pid);
+  // 晉級／淘汰提示（玩家系列賽剛分出勝負時）
+  const me=S.season.playerTeam;
+  if(s&&s.winner){
+    if(s.winner===me){
+      S.flash = m.po.stage==="semi"
+        ? `🎉 晉級冠軍戰！${getTeam(me).name} 以 ${Math.max(s.winsHi,s.winsLo)} 勝拿下準決賽！`
+        : `🏆 總冠軍！${getTeam(me).name} 奪下本季王座！`;
+    }else if(s.hi===me||s.lo===me){
+      S.flash=`😢 ${stName}落敗…${getTeam(me).name} 本季止步（${Math.max(s.winsHi,s.winsLo)}-${Math.min(s.winsHi,s.winsLo)}）。`;
+    }
+  }
   // 季後賽場次日報
   const se=S.season; se.news=se.news||[];
   const winTeam = m.score.home>m.score.away?m.homeId:m.awayId;

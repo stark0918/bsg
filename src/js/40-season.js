@@ -159,17 +159,24 @@ function boxFromSim(awayId,homeId,r,L,st){
     sp:{away:(L.away.pit[0]&&L.away.pit[0].pid)||"",home:(L.home.pit[0]&&L.home.pit[0].pid)||""}
   };
 }
-function mergePlayerStats(m){
-  for(const pid in m.stats)mergeBatLine(pid,m.stats[pid]);
-  for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid]);
+function mergePlayerStats(m,tgt){
+  const ps=tgt||S.season.playerStats;
+  for(const pid in m.stats)mergeBatLine(pid,m.stats[pid],ps);
+  for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid],ps);
   // 勝敗投手：獲勝方先發勝投、落敗方先發敗投（寫入球季累計）
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
-    const ps=S.season.playerStats.pit;
+    const pp=ps.pit;
     const wId=m.starters[wSide].id,lId=m.starters[lSide].id;
-    if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
-    if(ps[lId])ps[lId].l=(ps[lId].l||0)+1;
+    if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
+    if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
   }
+}
+/* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */
+function mergePoStats(m){
+  const se=S.season;
+  if(!se.poPlayerStats)se.poPlayerStats={bat:{},pit:{}};
+  mergePlayerStats(m,se.poPlayerStats);
 }
 function processGameEnd(m){
   if(m._processed)return;m._processed=true;

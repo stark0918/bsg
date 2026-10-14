@@ -108,9 +108,9 @@ function getBat(m,pid){if(!m.stats[pid])m.stats[pid]={ab:0,h:0,hr:0,rbi:0,bb:0,k
 function batAdd(m,pid,d){const s=getBat(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
 function getPit(m,pid){if(!m.pstats[pid])m.pstats[pid]={outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0};return m.pstats[pid];}
 function pitAdd(m,pid,d){const s=getPit(m,pid);for(const k in d)s[k]=(s[k]||0)+d[k];}
-/* 球季累計（含其他球團） */
-function mergeBatLine(pid,s){const ps=S.season.playerStats;const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
-function mergePitLine(pid,s){const ps=S.season.playerStats;const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
+/* 球季累計（含其他球團）；target 可指定為季後賽獨立累計（poPlayerStats） */
+function mergeBatLine(pid,s,tgt){const ps=tgt||S.season.playerStats;const d=ps.bat[pid]||(ps.bat[pid]={g:0,ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
+function mergePitLine(pid,s,tgt){const ps=tgt||S.season.playerStats;const d=ps.pit[pid]||(ps.pit[pid]={g:0,outs:0,h:0,r:0,er:0,bb:0,k:0,pp:0,w:0,l:0,sv:0});d.g++;for(const k in s)d[k]=(d[k]||0)+s[k];}
 function playerById(pid){const mm=/^([a-z]+)([bp])(\d+)$/.exec(pid);if(!mm)return null;const t=getTeam(mm[1]);return mm[2]==="b"?t.batters[+mm[3]]:t.pitchers[+mm[3]];}
 function splitInt(total,weights){
   const n=weights.length,sum=weights.reduce((a,b)=>a+b,0)||1;
