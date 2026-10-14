@@ -44,6 +44,7 @@ function finalizeSeason(){
     rec:{w:rec.w, l:rec.l, t:rec.t, rank},
     rs:rec.rs||0, ra:rec.ra||0,
     champ:(se.playoff&&se.playoff.champion)||null,
+    isChamp:!!(se.playoff&&se.playoff.champion===me),
     playoff:se.playoff?{stage:se.playoff.stage,champion:se.playoff.champion,semi:se.playoff.semi,final:se.playoff.final}:null,
     awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,rookie:se.awards.rookie,kings:se.awards.kings}:null,
     leaders:se.awards?{bat:Object.keys(se.playerStats?.bat||{}).length,pit:Object.keys(se.playerStats?.pit||{}).length}:null,
@@ -197,29 +198,33 @@ function histAllstarPanel(){
 function histSeasonDetailPanel(){
   const list=(CAREER.seasonDetails||[]).slice().reverse();
   if(!list.length)return `<div class="panel"><h2>球季詳細回顧</h2><p class="muted">尚無完成的球季資料。</p></div>`;
-  const rows=list.map(sd=>{
-    const aw=sd.awards;
-    const mvp=aw?.mvp?.[0]?.name||"－", cy=aw?.cy?.[0]?.name||"－", rook=aw?.rookie?.[0]?.name||"－";
-    const kings=(aw?.kings||[]).map(k=>`${k.title}${k.name?"("+k.name+")":""}`).join("、")||"－";
+  const cards=list.map(sd=>{
+    const aw=sd.awards||{};
+    const isChamp=sd.isChamp||(sd.playoff&&sd.playoff.champion===sd.team);
     const po=sd.playoff;
     let poText="未進季後賽";
     if(po){
-      if(po.champion) poText=po.champion===sd.team?`🏆 奪冠（${po.champion==="red"?"紅隊":"藍隊"})`:`季後賽出局（冠軍：${po.champion}）`;
-      else if(po.stage==="final") poText="冠軍賽出局";
+      if(po.champion) poText=po.champion===sd.team?`🏆 奪冠`:`出局（總冠軍：${teamBadge(po.champion)}）`;
+      else if(po.stage==="final") poText="冠軍戰出局";
       else if(po.stage==="semi") poText="準決賽出局";
     }
-    return `<tr class="${sd.isChamp?"me":""}"><td class="num">第 ${sd.no} 季</td>
-      <td class="name">${teamBadge(sd.team)}</td>
-      <td class="num">${sd.rec.w}-${sd.rec.l}${sd.rec.t?"-"+sd.rec.t:""}（勝率 ${(sd.rec.w/(sd.rec.w+sd.rec.l)||0).toFixed(3)})</td>
-      <td class="num">第 ${sd.rec.rank} 名</td>
-      <td class="num">${sd.rec.rs||0}:${sd.rec.ra||0}</td>
-      <td class="name">${poText}</td>
-      <td class="name">${mvp} / ${cy} / ${rook}</td>
-      <td class="name" style="font-size:11px">${kings}</td></tr>`;
+    const prize=(label,e)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${e&&e.name?`${e.team?teamBadge(e.team):""} ${esc(e.name)}`:"<span class=\"muted\">－</span>"}</div></div>`;
+    const mvp=(aw.mvp||[])[0],cy=(aw.cy||[])[0],rook=(aw.rookie||[])[0];
+    const kings=(aw.kings||[]).filter(k=>k.name).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
+    return `<div class="panel card ${isChamp?"me":""}">
+      <div class="card-head"><span class="num">第 ${sd.no} 季</span>
+        <span class="name">${teamBadge(sd.team)}　${sd.rec.w}-${sd.rec.l}${sd.rec.t?"-"+sd.rec.t:""}（第 ${sd.rec.rank} 名）</span>
+        <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
+        <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
+      <div class="card-body"><div class="roster"><h4>個人獎項</h4>
+        ${prize("👑 最有價值球員",mvp)}${prize("🔥 最佳投手",cy)}${prize("🌟 新人王",rook)}</div>
+        <div class="roster"><h4>本季王座</h4>
+        ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div></div>
+    </div>`;
   }).join("");
   return `<div class="panel"><h2>球季詳細回顧</h2>
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
-    <table class="grid"><tr><th>球季</th><th>球隊</th><th>戰績(勝率)</th><th>名次</th><th>得:失</th><th>季後賽</th><th>MVP/最佳投手/新人王</th><th>王座項目</th></tr>${rows}</table></div>`;
+    <div class="cards">${cards}</div></div>`;
 }
 function histPlayerCareerPanel(){
   const merged=careerMerged();
