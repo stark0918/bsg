@@ -170,7 +170,7 @@ function viewHub(){
       <button class="btn blue blk" data-act="simToMid">⏭ 快進到季中（明星賽）</button>
       <button class="btn blue blk" data-act="simToEnd">⏭ 快進到季末</button>
     </div>
-    ${(s.news&&s.news.length)?`<div class="hr"></div><div class="news">${s.news.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div>`:""}
+    ${(s.news&&s.news.length)?`<div class="hr"></div><div class="news">${s.news.map(n=>`<p>${n.team?teamBadge(n.team)+" ":""}${esc(cleanNewsText(n.text))}</p>`).join("")}</div>`:""}
     <div class="hr"></div>
     <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
     <div class="hr"></div>

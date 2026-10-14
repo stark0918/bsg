@@ -145,13 +145,13 @@ function recordPlayoffResult(m){
       S.flash=`😢 ${stName}落敗…${getTeam(me).name} 本季止步（${Math.max(s.winsHi,s.winsLo)}-${Math.min(s.winsHi,s.winsLo)}）。`;
     }
   }
-  // 季後賽場次日報
+  // 季後賽場次日報（純文字＋勝隊 id；徽章由顯示層依 team 欄位繪製，避免 HTML 被跳脫）
   const se=S.season; se.news=se.news||[];
   const winTeam = m.score.home>m.score.away?m.homeId:m.awayId;
   const loseTeam = m.score.home>m.score.away?m.awayId:m.homeId;
   const poDay = (se.poBoxes?se.poBoxes.length:0);
-  const poTxt = `${stName}·第${m.po.gameNo+1}戰：${teamBadge(winTeam)} ${m.score.away>m.score.home?m.score.away:m.score.home}:${m.score.away>m.score.home?m.score.home:m.score.away} ${teamBadge(loseTeam)}`;
-  se.news.push({day:se.schedule.length, text:poTxt, special:true});
+  const poTxt = `${stName}·第${m.po.gameNo+1}戰：${getTeam(winTeam).name} ${m.score.away>m.score.home?m.score.away:m.score.home}:${m.score.away>m.score.home?m.score.home:m.score.away} ${getTeam(loseTeam).name}`;
+  se.news.push({day:se.schedule.length, text:poTxt, special:true, team:winTeam});
   if(se.news.length>15)se.news.shift();
   saveGame();
 }

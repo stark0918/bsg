@@ -531,7 +531,7 @@ function paperBlock(){
   }
   if(specials.length){
     rows+=specials.map(n=>`<div class="paper special"><div class="pday">第 ${n.day} 日 <span class="pill on">特殊</span></div>
-      <ul><li class="top">${n.team?teamBadge(n.team)+" ":""}${esc(n.text)}</li></ul></div>`).join("");
+      <ul><li class="top">${n.team?teamBadge(n.team)+" ":""}${esc(cleanNewsText(n.text))}</li></ul></div>`).join("");
   }
   if(!rows)return "";
   return `<h3>📰 聯盟日報 頭條</h3><p class="muted">每一天的精選頭條（依精采度排序）與特殊事蹟。</p>${rows}`;
