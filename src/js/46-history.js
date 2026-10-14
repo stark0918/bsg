@@ -138,7 +138,8 @@ function histSeasonsPanel(){
     <p class="muted">共完成 <b>${seasons}</b> 個球季，其中 <b>${titles}</b> 次奪冠。</p>
     <table class="grid"><tr><th>球季</th><th>你的球隊</th><th>例行賽戰績</th><th>名次</th><th>總冠軍</th></tr>${rows}</table></div>`;
 }
-const HIST_CATS=[["hr","全壘打"],["h","安打"],["rbi","打點"],["sb","盜壘"],["r","得分"],["k","三振"],["w","勝投"],["sv","救援"]];
+const HIST_CATS=[["hr","全壘打"],["h","安打"],["rbi","打點"],["sb","盜壘"],["r","得分"],["avg","打擊率"],["k","三振"],["w","勝投"],["sv","救援"]];
+const HIST_MIN_AB=200;   // 生涯打擊率榜規定打席（與里程碑同門檻）
 function histMilePanel(){
   const c=CAREER.career;
   if(!c||((!c.bat||!Object.keys(c.bat).length)&&(!c.pit||!Object.keys(c.pit).length)))
@@ -147,18 +148,23 @@ function histMilePanel(){
   const isPit=["k","w","sv"].indexOf(cat)>=0;
   const src=isPit?(c.pit||{}):(c.bat||{});
   const arr=[];
-  for(const pid in src){const v=src[pid][cat]||0;if(v>0)arr.push({pid,v});}
+  if(cat==="avg"){
+    for(const pid in src){const s=src[pid];if((s.ab||0)>=HIST_MIN_AB)arr.push({pid,v:s.h/s.ab});}
+  }else{
+    for(const pid in src){const v=src[pid][cat]||0;if(v>0)arr.push({pid,v});}
+  }
   arr.sort((a,b)=>b.v-a.v);
+  const fmtV=cat==="avg"?fmtAvg:(v=>v);
   const rows=arr.slice(0,10).map((x,i)=>{
     const p=playerById(x.pid);
     const tid=teamOfPlayer({id:x.pid});
     return `<tr><td class="num">${i+1}</td><td class="name">${p?esc(p.name):x.pid}</td>
-      <td class="name">${teamBadge(tid)}</td><td class="num" style="font-weight:700">${x.v}</td></tr>`;
+      <td class="name">${teamBadge(tid)}</td><td class="num" style="font-weight:700">${fmtV(x.v)}</td></tr>`;
   }).join("")||`<tr><td colspan="4" class="muted">尚無資料。</td></tr>`;
   const tabs=HIST_CATS.map(k=>`<button class="btn sm ${k[0]===cat?"gold":""}" data-act="histCat" data-arg="${k[0]}">${k[1]}</button>`).join("");
   const title=(HIST_CATS.find(k=>k[0]===cat)||["",""])[1];
   return `<div class="panel"><h2>生涯里程碑</h2>
-    <p class="muted">跨季累計的生涯數據排行榜（前 10 名）。</p>
+    <p class="muted">跨季累計的生涯數據排行榜（前 10 名）。${cat==="avg"?`打擊率需滿 ${HIST_MIN_AB} 打席。`:""}</p>
     <div class="actions">${tabs}</div>
     <table class="grid"><tr><th>#</th><th>球員</th><th>現屬球隊</th><th>生涯${title}</th></tr>${rows}</table></div>`;
 }

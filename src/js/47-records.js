@@ -425,24 +425,33 @@ const MILESTONES=[
   {cat:"h",steps:[100,200,500,1000,1500,2000,2500,3000],label:"安打",pit:false},
   {cat:"rbi",steps:[100,200,500,1000,1500],label:"打點",pit:false},
   {cat:"sb",steps:[50,100,200,300,400,500],label:"盜壘",pit:false},
+  {cat:"avg",steps:[0.28,0.3,0.32],label:"打擊率",pit:false,minAB:200},
   {cat:"w",steps:[25,50,100,150,200,250,300],label:"勝投",pit:true},
   {cat:"k",steps:[100,250,500,1000,1500,2000,2500,3000],label:"三振",pit:true},
   {cat:"sv",steps:[25,50,100,150,200,300],label:"救援成功",pit:true}
 ];
-function milestoneText(mile,pid){return `${recName(pid)} 達成生涯第 ${mile.val} ${mile.label}！`;}
+function milestoneText(mile,pid){
+  const v=mile.cat==="avg"?fmtAvg(mile.val):mile.val;
+  return `${recName(pid)} 達成生涯${mile.cat==="avg"?"":"第 "}${v} ${mile.label}！`;
+}
 /* 檢查跨季里程碑；記錄全聯盟，回傳「玩家球隊」當日的達成清單（供提示） */
 function checkMilestones(){
   const se=S.season;if(!se)return[];
   const me=se.playerTeam,merged=careerMerged();
   CAREER.milestones=CAREER.milestones||{};
   // 自清：已記錄門檻高於目前累計總數 → 必為選秀回收舊 pid 的殘留（累計只會成長，不可能倒退），清除該項
+  const mileTotal=(pool,pid,def)=>{
+    const s=(pool[pid]||{});
+    if(def.cat==="avg")return (s.ab||0)>0?s.h/s.ab:0;
+    return s[def.cat]||0;
+  };
   for(const pid in CAREER.milestones){
     const ms=CAREER.milestones[pid];
     for(const cat in ms){
       const def=MILESTONES.find(d=>d.cat===cat);
-      const pool=def&&def.pit?merged.pit:merged.bat;
-      const total=(pool[pid]||{})[cat]||0;
-      if(total<ms[cat])delete ms[cat];
+      if(!def){delete ms[cat];continue;}
+      const pool=def.pit?merged.pit:merged.bat;
+      if(mileTotal(pool,pid,def)<ms[cat])delete ms[cat];
     }
     if(!Object.keys(ms).length)delete CAREER.milestones[pid];
   }
@@ -452,6 +461,15 @@ function checkMilestones(){
       const s=pool[pid]||{},ms=CAREER.milestones[pid]||(CAREER.milestones[pid]={});
       MILESTONES.forEach(def=>{
         if(def.pit!==isPit)return;
+        if(def.cat==="avg"){
+          const ab=s.ab||0;
+          if(ab<(def.minAB||0))return;   // 打擊率需達規定打席
+          const avg=s.h/ab;
+          def.steps.forEach(step=>{
+            if(avg>=step&&step>(ms.avg||0)){ms.avg=step;if(teamOfPlayer({id:pid})===me)hit.push({pid,cat:"avg",label:def.label,val:step});}
+          });
+          return;
+        }
         const val=s[def.cat]||0;
         def.steps.forEach(step=>{
           const crossed=Math.floor(val/step)*step;
@@ -468,7 +486,7 @@ function playerMilestones(pid){
   const ms=(CAREER.milestones||{})[pid]||{};
   const out=[];
   MILESTONES.forEach(def=>{
-    if(ms[def.cat]>0)out.push(`生涯 ${ms[def.cat]} ${def.label}`);
+    if(ms[def.cat]>0)out.push(def.cat==="avg"?`生涯打擊率 ${fmtAvg(ms[def.cat])}（${HIST_MIN_AB} 打席以上）`:`生涯 ${ms[def.cat]} ${def.label}`);
   });
   return out;
 }
