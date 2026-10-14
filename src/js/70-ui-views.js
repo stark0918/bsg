@@ -904,7 +904,7 @@ function leadersQualify(){
     gp,
     bat: Math.max(3,Math.ceil(gp*0.8)),          // 野手：須達到約 80% 出賽場次
     pit: Math.max(3,gp>=10?5:3),                 // 投手：明顯提升門檻，避免打沒幾場就領獎
-    eraOuts: Math.min(40,Math.max(12,gp*3))      // 防禦率：較高局數門檻
+    eraOuts: Math.min(30,Math.max(12,gp*2))      // 防禦率：完整球季約 28 出局（先發 100+、終結者 30+ 可進榜，雜役投手排除）
   };
 }
 function leadersList(kind){
@@ -920,7 +920,7 @@ function leadersList(kind){
   }
   const arr=[];
   for(const pid in ps.bat){const s=ps.bat[pid],p=playerById(pid);if(p&&(s.g||0)>=q.bat)arr.push({p,pid,s});}
-  const minAB=5;
+  const minAB=Math.max(5,Math.ceil(q.gp*2));   // 打擊率另設打席門檻（完整球季約 28 打席），避免代打專家刷榜
   switch(kind){
     case "hr": return arr.sort((a,b)=>b.s.hr-a.s.hr).map(x=>({...x,val:x.s.hr}));
     case "rbi":return arr.sort((a,b)=>b.s.rbi-a.s.rbi).map(x=>({...x,val:x.s.rbi}));
@@ -947,7 +947,7 @@ function viewLeaders(){
   const isPitCat=(cat==="era"||cat==="w"||cat==="k"||cat==="sv");
   const qualifyNote=isPitCat
     ? `投手需出賽滿 <b>${q.pit}</b> 場${cat==="era"?`、且投滿 <b>${fmtIP(q.eraOuts)}</b> 局`:""}`
-    : `野手需出賽滿 <b>${q.bat}</b> 場${cat==="avg"?"、且滿 5 打數":""}`;
+    : `野手需出賽滿 <b>${q.bat}</b> 場${cat==="avg"?`、且滿 ${Math.max(5,Math.ceil(q.gp*2))} 打數`:""}`;
   const empty=`<tr><td colspan="6" class="muted">尚無符合資格的資料（本季已賽 ${q.gp} 場）。請先打完更多比賽。</td></tr>`;
   return `<div class="panel"><h2>球員排行</h2>
     <div class="actions">${tabs}</div>

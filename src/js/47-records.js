@@ -439,7 +439,7 @@ const MILESTONES=[
   {cat:"avg",steps:[0.28,0.3,0.32],label:"打擊率",pit:false,minAB:200},
   {cat:"w",steps:[25,50,100,150,200,250,300],label:"勝投",pit:true},
   {cat:"k",steps:[100,250,500,1000,1500,2000,2500,3000],label:"三振",pit:true},
-  {cat:"sv",steps:[25,50,100,150,200,300],label:"救援成功",pit:true}
+  {cat:"sv",steps:[5,10,15,20,30],label:"救援成功",pit:true}
 ];
 function milestoneText(mile,pid){
   const v=mile.cat==="avg"?fmtAvg(mile.val):mile.val;
