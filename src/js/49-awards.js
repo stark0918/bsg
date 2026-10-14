@@ -26,7 +26,21 @@ function computeAwards(){
     pitchers.push({pid,p,s,pts:awardPts(s,true)});
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),gp:q.gp};
+  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),gp:q.gp};
+}
+/* 澤村賞：先發投手限定，勝場＋防禦率＋三振＋局數綜合評選 */
+function pickSawamura(ps,qf){
+  const arr=[];
+  for(const pid in ps.pit){
+    const s=ps.pit[pid],p=playerById(pid);
+    if(!p||!p.starter)continue;
+    if((s.g||0)<qf.pit||(s.outs||0)<60)continue;
+    const era=s.outs?(s.er/s.outs)*27:99;
+    const pts=Math.round((s.w||0)*12+(s.k||0)*0.25+(s.outs||0)*0.08-era*8);
+    arr.push({pid,p,s,pts,era});
+  }
+  arr.sort((a,b)=>b.pts-a.pts);
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
 }
 function awardPodium(list,label,emoji,isPit){
   const row=a=>{
@@ -57,7 +71,7 @@ function champPanel(champ){
     <div class="champbanner">${teamBadge(champ)}</div>
     <p class="muted">恭喜奪下本季最高榮耀！</p></div>`;
 }
-const AWARD_MAX=6;
+const AWARD_MAX=7;
 function viewAwards(){
   const a=S.season.awards;
   if(!a)return `<div class="panel"><h2>🏆 頒獎典禮</h2><p class="muted">球季（含季後賽）結束後才會公布獎項。</p>
@@ -73,8 +87,9 @@ function viewAwards(){
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下）","🌟",false)}</div>`);
   if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手","🔥",true)}</div>`);
-  if(step>=5)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
-  if(step>=6)parts.push(champPanel(champ));
+  if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
+  if(step>=6)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=7)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>
        <button class="btn blk" data-act="backToHub">← 回球季總部</button>`

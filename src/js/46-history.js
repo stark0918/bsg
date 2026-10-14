@@ -64,7 +64,7 @@ function finalizeSeason(){
     CAREER.awards.push({
       no:CAREER.seasons+1,
       champ:(se.playoff&&se.playoff.champion)||null,
-      mvp:top1(aw.mvp), cy:top1(aw.cy), rookie:top1(aw.rookie),
+      mvp:top1(aw.mvp), cy:top1(aw.cy), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
       kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
     });
   }

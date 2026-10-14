@@ -723,6 +723,7 @@ function playerAwards(pid){
     if(same(a.mvp))out.push(`第 ${a.no} 季 最有價值球員（MVP）`);
     if(same(a.cy))out.push(`第 ${a.no} 季 最佳投手`);
     if(same(a.rookie))out.push(`第 ${a.no} 季 新人王`);
+    if(same(a.sawamura))out.push(`第 ${a.no} 季 澤村賞`);
     (a.kings||[]).forEach(k=>{if(same(k))out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
   });
   return out;
