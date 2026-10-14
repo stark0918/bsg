@@ -145,15 +145,16 @@ function viewAwards(){
   const step=(S.awardsStep==null?0:S.awardsStep);
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
-    <p class="muted">本季例行賽 ${a.gp} 場，加上季後賽的精采表現，年度獎項就此揭曉。</p></div>`);
+    <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
+    <p class="muted" style="font-size:11px">評選方式：MVP＝野手綜合分最高；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝野手、22歲以下且生涯未滿30打席；最佳九人＝各守位綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
-  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
+  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（野手：22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
   if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手","🔥",true)}</div>`);
   if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
   if(step>=7&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP（野手）","👑",false)}</div>`);
   if(step>=9)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>

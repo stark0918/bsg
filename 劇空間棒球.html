@@ -1617,7 +1617,7 @@ function finalizeSeason(){
   CAREER.awards=CAREER.awards||[];
   const aw=se.awards;
   if(aw){
-    const top1=list=>list&&list[0]?{pid:list[0].pid,name:list[0].name,team:list[0].team,pts:list[0].pts}:null;
+    const top1=list=>list&&list[0]?{pid:list[0].pid,name:list[0].name,team:list[0].team,pts:list[0].pts,s:list[0].s||null}:null;
     CAREER.awards.push({
       no:CAREER.seasons+1,
       champ:(se.playoff&&se.playoff.champion)||null,
@@ -1773,8 +1773,16 @@ function histSeasonDetailPanel(){
       else if(po.stage==="final") poText="冠軍戰出局";
       else if(po.stage==="semi") poText="準決賽出局";
     }
-    const prize=(label,e)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${e&&e.name?`${e.team?teamBadge(e.team):""} ${esc(e.name)}`:"<span class=\"muted\">－</span>"}</div></div>`;
-    const mvp=(aw.mvp||[])[0],cy=(aw.cy||[])[0],rook=(aw.rookie||[])[0];
+    const prizeStat=(e,isPit)=>{
+      if(!e||!e.name)return "<span class=\"muted\">－</span>";
+      const s=e.s||{};
+      const stats=isPit
+        ? `防禦率 ${s.outs?fmtERA(s.er||0,s.outs):"-.--"}　${s.w||0}勝 ${s.k||0}K ${s.sv||0}SV`
+        : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`;
+      return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
+    };
+    const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
+    const mvp=(aw.mvp||[])[0],cy=(aw.cy||[])[0],rook=(aw.rookie||[])[0],sawa=(aw.sawamura||[])[0];
     const kings=(aw.kings||[]).filter(k=>k.name).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     return `<div class="panel card ${isChamp?"me":""}">
       <div class="card-head"><span class="num">第 ${sd.no} 季</span>
@@ -1782,7 +1790,7 @@ function histSeasonDetailPanel(){
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
       <div class="card-body"><div class="roster"><h4>個人獎項</h4>
-        ${prize("👑 最有價值球員",mvp)}${prize("🔥 最佳投手",cy)}${prize("🌟 新人王",rook)}</div>
+        ${prize("👑 最有價值球員（野手）",mvp,false)}${prize("🔥 最佳投手",cy,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王（野手）",rook,false)}</div>
         <div class="roster"><h4>本季王座</h4>
         ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div></div>
     </div>`;
@@ -2624,15 +2632,16 @@ function viewAwards(){
   const step=(S.awardsStep==null?0:S.awardsStep);
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
-    <p class="muted">本季例行賽 ${a.gp} 場，加上季後賽的精采表現，年度獎項就此揭曉。</p></div>`);
+    <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
+    <p class="muted" style="font-size:11px">評選方式：MVP＝野手綜合分最高；最佳投手＝全體投手（含後援）綜合分最高；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝野手、22歲以下且生涯未滿30打席；最佳九人＝各守位綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
-  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
+  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（野手：22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
   if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手","🔥",true)}</div>`);
   if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
   if(step>=7&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP（野手）","👑",false)}</div>`);
   if(step>=9)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>

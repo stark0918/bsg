@@ -60,7 +60,7 @@ function finalizeSeason(){
   CAREER.awards=CAREER.awards||[];
   const aw=se.awards;
   if(aw){
-    const top1=list=>list&&list[0]?{pid:list[0].pid,name:list[0].name,team:list[0].team,pts:list[0].pts}:null;
+    const top1=list=>list&&list[0]?{pid:list[0].pid,name:list[0].name,team:list[0].team,pts:list[0].pts,s:list[0].s||null}:null;
     CAREER.awards.push({
       no:CAREER.seasons+1,
       champ:(se.playoff&&se.playoff.champion)||null,
@@ -216,8 +216,16 @@ function histSeasonDetailPanel(){
       else if(po.stage==="final") poText="冠軍戰出局";
       else if(po.stage==="semi") poText="準決賽出局";
     }
-    const prize=(label,e)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${e&&e.name?`${e.team?teamBadge(e.team):""} ${esc(e.name)}`:"<span class=\"muted\">－</span>"}</div></div>`;
-    const mvp=(aw.mvp||[])[0],cy=(aw.cy||[])[0],rook=(aw.rookie||[])[0];
+    const prizeStat=(e,isPit)=>{
+      if(!e||!e.name)return "<span class=\"muted\">－</span>";
+      const s=e.s||{};
+      const stats=isPit
+        ? `防禦率 ${s.outs?fmtERA(s.er||0,s.outs):"-.--"}　${s.w||0}勝 ${s.k||0}K ${s.sv||0}SV`
+        : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`;
+      return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
+    };
+    const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
+    const mvp=(aw.mvp||[])[0],cy=(aw.cy||[])[0],rook=(aw.rookie||[])[0],sawa=(aw.sawamura||[])[0];
     const kings=(aw.kings||[]).filter(k=>k.name).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     return `<div class="panel card ${isChamp?"me":""}">
       <div class="card-head"><span class="num">第 ${sd.no} 季</span>
@@ -225,7 +233,7 @@ function histSeasonDetailPanel(){
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
       <div class="card-body"><div class="roster"><h4>個人獎項</h4>
-        ${prize("👑 最有價值球員",mvp)}${prize("🔥 最佳投手",cy)}${prize("🌟 新人王",rook)}</div>
+        ${prize("👑 最有價值球員（野手）",mvp,false)}${prize("🔥 最佳投手",cy,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王（野手）",rook,false)}</div>
         <div class="roster"><h4>本季王座</h4>
         ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div></div>
     </div>`;
