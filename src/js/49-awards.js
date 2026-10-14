@@ -14,11 +14,13 @@ function computeAwards(){
     return {kind,title,val:top?top.val:null,name:top?top.p.name:"",pid:top?top.pid:"",team:top?top.pid.replace(/[bp]\d+$/,""):""};
   });
   const batters=[],pitchers=[],rookies=[];
+  // 新人王資格：22 歲以下野手，且未打滿一個球季（40 打席未滿；參照 NPB 新人王出賽上限概念按 14 場制縮放）
+  const ROOKIE_MAX_AB=40;
   for(const pid in ps.bat){
     const s=ps.bat[pid],p=playerById(pid);
     if(!p||(s.g||0)<qf.bat)continue;
     batters.push({pid,p,s,pts:awardPts(s,false)});
-    if(p.age<=22)rookies.push({pid,p,s,pts:awardPts(s,false)});
+    if(p.age<=22&&(s.ab||0)<ROOKIE_MAX_AB)rookies.push({pid,p,s,pts:awardPts(s,false)});
   }
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
@@ -122,7 +124,7 @@ function viewAwards(){
     <p class="muted">本季例行賽 ${a.gp} 場，加上季後賽的精采表現，年度獎項就此揭曉。</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
-  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下）","🌟",false)}</div>`);
+  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、40 打席未滿）","🌟",false)}</div>`);
   if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手","🔥",true)}</div>`);
   if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
