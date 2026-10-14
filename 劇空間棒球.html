@@ -414,6 +414,7 @@ function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
   c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};
   c.lastTeam=c.lastTeam||null;
+  c.streakBest=c.streakBest||{};
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
@@ -1232,6 +1233,7 @@ function processGameEnd(m){
   }
   buildDayPaper(m.dayIndex);
   S.season.day++;
+  updateStreakBest();   // 每日更新隊史最長連勝／連敗
   leagueNews(m.dayIndex);
   if(S.season.day>=Math.floor(S.season.schedule.length/2)&&!S.season.asNotified){
     S.season.asNotified=true;
@@ -1801,6 +1803,39 @@ function viewHistory(){
     <div class="panel"><button class="btn blk" data-act="backHub">← 回到球季總部</button></div>`;
 }
 /* ===================== 47-records.js ===================== */
+/* ---------- 連勝／連敗（本季即時＋隊史最長） ---------- */
+/* 依賽程日序重建各隊當前連續狀態；和局中斷連續 */
+function teamStreaks(){
+  const se=S.season;const cur={};
+  TEAM_DEFS.forEach(t=>cur[t.id]={type:null,n:0});
+  (se.schedule||[]).forEach(day=>{
+    (day||[]).forEach(g=>{
+      if(!g.played||!g.score)return;
+      const sc=gameScore(g);
+      const res=sc.a===sc.h?null:(sc.a>sc.h?"away":"home");
+      [[g.away,res==="away"?"W":(res?"L":null)],[g.home,res==="home"?"W":(res?"L":null)]].forEach(([id,r])=>{
+        if(!r){cur[id]={type:null,n:0};return;}
+        cur[id]=(cur[id].type===r)?{type:r,n:cur[id].n+1}:{type:r,n:1};
+      });
+    });
+  });
+  return cur;
+}
+function streakLabel(s){
+  if(!s||!s.type||!s.n)return "<span class=\"muted\">－</span>";
+  return s.type==="W"?`<b style="color:#4fd39a">${s.n}連勝</b>`:`<b style="color:#e06782">${s.n}連敗</b>`;
+}
+/* 每日賽後更新隊史最長連勝／連敗 */
+function updateStreakBest(){
+  const cur=teamStreaks();
+  CAREER.streakBest=CAREER.streakBest||{};
+  for(const id in cur){
+    const b=CAREER.streakBest[id]||(CAREER.streakBest[id]={w:0,l:0});
+    if(cur[id].type==="W"&&cur[id].n>b.w)b.w=cur[id].n;
+    if(cur[id].type==="L"&&cur[id].n>b.l)b.l=cur[id].n;
+  }
+  saveCareer();
+}
 /* ---------- 單場紀錄簿（本季＋生涯） ---------- */
 function newRecBook(){
   return {bat:{h:null,hr:null,rbi:null,r:null,sb:null,bb:null,k:null},
@@ -1931,8 +1966,22 @@ function recTabSeason(){
   }).join("");
   return `<div class="panel"><h2>團隊攻守（含所有模擬場次）</h2>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>出賽</th><th>戰績</th><th>得:失</th><th>得失差</th></tr>${rows}</table></div>
+    ${streakBestPanel()}
     <div class="panel"><h2>本季王座（暫列）</h2>
     <table class="grid"><tr><th>獎項</th><th>球員</th><th>球隊</th><th>成績</th></tr>${ks||'<tr><td colspan="4" class="muted">尚無資料</td></tr>'}</table></div>`;
+}
+function streakBestPanel(){
+  const B=(CAREER.streakBest||{});
+  const rows=TEAM_DEFS.map(t=>{
+    const b=B[t.id]||{w:0,l:0};
+    const cur=(function(){try{return teamStreaks()[t.id];}catch(e){return{type:null,n:0};}})();
+    return `<tr><td class="name">${teamBadge(t.id)}</td>
+      <td class="num">${b.w?`<b>${b.w} 連勝</b>`:'<span class="muted">－</span>'}</td>
+      <td class="num">${b.l?`<b>${b.l} 連敗</b>`:'<span class="muted">－</span>'}</td>
+      <td class="num">${streakLabel(cur)}</td></tr>`;
+  }).join("");
+  return `<div class="panel"><h2>隊史最長連勝／連敗</h2>
+    <table class="grid"><tr><th>球隊</th><th>最長連勝</th><th>最長連敗</th><th>本季目前</th></tr>${rows}</table></div>`;
 }
 /* 生涯（跨季）累計：已完成球季＋本季進行中（若未結算） */
 function careerMerged(){
@@ -2846,10 +2895,11 @@ function playerTeamSide(m){
 /* ---------- 排名 ---------- */
 function standingsList(){
   const r=S.season.records;
+  const streaks=teamStreaks();
   const rows=TEAM_DEFS.map(t=>{
     const d=r[t.id]||{w:0,l:0,t:0,rs:0,ra:0};
     const pct=(d.w+d.l)?d.w/(d.w+d.l):0;
-    return {id:t.id,name:t.name,w:d.w,l:d.l,t:d.t,pct,gb:0,rs:d.rs,ra:d.ra};
+    return {id:t.id,name:t.name,w:d.w,l:d.l,t:d.t,pct,gb:0,rs:d.rs,ra:d.ra,streak:streaks[t.id]||{type:null,n:0}};
   });
   rows.sort((a,b)=>b.pct-a.pct||b.w-a.w);
   let top=rows[0];
@@ -3136,14 +3186,14 @@ function hubFrame(team,st,myRank,myRec,main){
     return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
       <td class="name">${teamBadge(x.id)}${x.id===S.season.playerTeam?"　<span class=\"pill on\">你</span>":""}</td>
       <td class="num">${x.w}</td><td class="num">${x.l}</td><td class="num">${x.t}</td>
-      <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`;
+      <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td><td class="num">${streakLabel(x.streak)}</td></tr>`;
   }).join("");
   return `<div class="topbar"><div>監督：<b>${esc(team.name)}</b>　·　第 <b>${seasonNo()}</b> 季</div>
     <div>戰績 <b>${myRec.w}-${myRec.l}${myRec.t?"-"+myRec.t:""}</b>　排名 <b>${myRank}</b></div></div>
     ${main}
     <div class="panel">
       <h2>聯盟排名</h2>
-      <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>勝差</th></tr>${rows}</table>
+      <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>勝差</th><th>連續</th></tr>${rows}</table>
     </div>`;
 }
 
@@ -3686,7 +3736,7 @@ function viewLeague(){
   const st=standingsList();
   const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
     <td class="name">${teamBadge(x.id)}${x.id===se.playerTeam?"　<span class=\"pill on\">你</span>":""}</td>
-    <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`).join("");
+    <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td><td class="num">${streakLabel(x.streak)}</td></tr>`).join("");
   const days=[];
   for(let i=0;i<Math.min(se.day,se.schedule.length);i++)days.push(i);
   const recent=days.slice(-4);
@@ -3709,7 +3759,7 @@ function viewLeague(){
   return `<div class="panel"><h2>🏟 劇空間　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
     <p class="muted">第 ${seasonNo()} 季　例行賽第 ${Math.min(se.day+1,se.schedule.length)} / ${se.schedule.length} 日。聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
-    <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th></tr>${srows}</table>
+    <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th><th>連續</th></tr>${srows}</table>
     ${paperBlock()}
     <div class="hr"></div><h3>最近賽事</h3>${games}
     <div class="hr"></div>${nav}
@@ -3836,10 +3886,10 @@ function viewStandings(){
     const cls=x.id===S.season.playerTeam?"me":"";
     return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
       <td class="name">${teamBadge(x.id)}</td><td class="num">${x.w}</td><td class="num">${x.l}</td>
-      <td class="num">${x.t}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.rs}</td><td class="num">${x.ra}</td></tr>`;
+      <td class="num">${x.t}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.rs}</td><td class="num">${x.ra}</td><td class="num">${streakLabel(x.streak)}</td></tr>`;
   }).join("");
   return `<div class="panel"><h2>聯盟排名</h2>
-    <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>得分</th><th>失分</th></tr>${rows}</table>
+    <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>得分</th><th>失分</th><th>連續</th></tr>${rows}</table>
     <div class="hr"></div><button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
 

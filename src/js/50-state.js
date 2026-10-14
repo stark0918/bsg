@@ -174,10 +174,11 @@ function playerTeamSide(m){
 /* ---------- 排名 ---------- */
 function standingsList(){
   const r=S.season.records;
+  const streaks=teamStreaks();
   const rows=TEAM_DEFS.map(t=>{
     const d=r[t.id]||{w:0,l:0,t:0,rs:0,ra:0};
     const pct=(d.w+d.l)?d.w/(d.w+d.l):0;
-    return {id:t.id,name:t.name,w:d.w,l:d.l,t:d.t,pct,gb:0,rs:d.rs,ra:d.ra};
+    return {id:t.id,name:t.name,w:d.w,l:d.l,t:d.t,pct,gb:0,rs:d.rs,ra:d.ra,streak:streaks[t.id]||{type:null,n:0}};
   });
   rows.sort((a,b)=>b.pct-a.pct||b.w-a.w);
   let top=rows[0];

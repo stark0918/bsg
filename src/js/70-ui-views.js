@@ -186,14 +186,14 @@ function hubFrame(team,st,myRank,myRec,main){
     return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
       <td class="name">${teamBadge(x.id)}${x.id===S.season.playerTeam?"　<span class=\"pill on\">你</span>":""}</td>
       <td class="num">${x.w}</td><td class="num">${x.l}</td><td class="num">${x.t}</td>
-      <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`;
+      <td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td><td class="num">${streakLabel(x.streak)}</td></tr>`;
   }).join("");
   return `<div class="topbar"><div>監督：<b>${esc(team.name)}</b>　·　第 <b>${seasonNo()}</b> 季</div>
     <div>戰績 <b>${myRec.w}-${myRec.l}${myRec.t?"-"+myRec.t:""}</b>　排名 <b>${myRank}</b></div></div>
     ${main}
     <div class="panel">
       <h2>聯盟排名</h2>
-      <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>勝差</th></tr>${rows}</table>
+      <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>勝差</th><th>連續</th></tr>${rows}</table>
     </div>`;
 }
 
@@ -736,7 +736,7 @@ function viewLeague(){
   const st=standingsList();
   const srows=st.map((x,i)=>`<tr class="${x.id===se.playerTeam?"me":""}"><td class="num">${i+1}${i===0?' <span class="rank1">★</span>':i<4?' <span class="muted">(晉級)</span>':''}</td>
     <td class="name">${teamBadge(x.id)}${x.id===se.playerTeam?"　<span class=\"pill on\">你</span>":""}</td>
-    <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td></tr>`).join("");
+    <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.gb}</td><td class="num">${streakLabel(x.streak)}</td></tr>`).join("");
   const days=[];
   for(let i=0;i<Math.min(se.day,se.schedule.length);i++)days.push(i);
   const recent=days.slice(-4);
@@ -759,7 +759,7 @@ function viewLeague(){
   return `<div class="panel"><h2>🏟 劇空間　<span class="muted" style="font-size:13px">第 ${seasonNo()} 季</span></h2>
     <p class="muted">第 ${seasonNo()} 季　例行賽第 ${Math.min(se.day+1,se.schedule.length)} / ${se.schedule.length} 日。聯盟即時動態：每一天的每一場比賽都留存了內容，點開就能看。</p>
     <div class="hr"></div><h3>聯盟排名</h3>
-    <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th></tr>${srows}</table>
+    <table class="grid"><tr><th>#</th><th>球隊</th><th>戰績</th><th>勝率</th><th>勝差</th><th>連續</th></tr>${srows}</table>
     ${paperBlock()}
     <div class="hr"></div><h3>最近賽事</h3>${games}
     <div class="hr"></div>${nav}
@@ -886,10 +886,10 @@ function viewStandings(){
     const cls=x.id===S.season.playerTeam?"me":"";
     return `<tr class="${cls}"><td>${i+1}${i===0?' <span class="rank1">★</span>':""}</td>
       <td class="name">${teamBadge(x.id)}</td><td class="num">${x.w}</td><td class="num">${x.l}</td>
-      <td class="num">${x.t}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.rs}</td><td class="num">${x.ra}</td></tr>`;
+      <td class="num">${x.t}</td><td class="num">${fmtAvg(x.pct)}</td><td class="num">${x.rs}</td><td class="num">${x.ra}</td><td class="num">${streakLabel(x.streak)}</td></tr>`;
   }).join("");
   return `<div class="panel"><h2>聯盟排名</h2>
-    <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>得分</th><th>失分</th></tr>${rows}</table>
+    <table class="grid"><tr><th>#</th><th>球隊</th><th>勝</th><th>敗</th><th>和</th><th>勝率</th><th>得分</th><th>失分</th><th>連續</th></tr>${rows}</table>
     <div class="hr"></div><button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
 

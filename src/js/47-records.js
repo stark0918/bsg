@@ -1,3 +1,36 @@
+/* ---------- 連勝／連敗（本季即時＋隊史最長） ---------- */
+/* 依賽程日序重建各隊當前連續狀態；和局中斷連續 */
+function teamStreaks(){
+  const se=S.season;const cur={};
+  TEAM_DEFS.forEach(t=>cur[t.id]={type:null,n:0});
+  (se.schedule||[]).forEach(day=>{
+    (day||[]).forEach(g=>{
+      if(!g.played||!g.score)return;
+      const sc=gameScore(g);
+      const res=sc.a===sc.h?null:(sc.a>sc.h?"away":"home");
+      [[g.away,res==="away"?"W":(res?"L":null)],[g.home,res==="home"?"W":(res?"L":null)]].forEach(([id,r])=>{
+        if(!r){cur[id]={type:null,n:0};return;}
+        cur[id]=(cur[id].type===r)?{type:r,n:cur[id].n+1}:{type:r,n:1};
+      });
+    });
+  });
+  return cur;
+}
+function streakLabel(s){
+  if(!s||!s.type||!s.n)return "<span class=\"muted\">－</span>";
+  return s.type==="W"?`<b style="color:#4fd39a">${s.n}連勝</b>`:`<b style="color:#e06782">${s.n}連敗</b>`;
+}
+/* 每日賽後更新隊史最長連勝／連敗 */
+function updateStreakBest(){
+  const cur=teamStreaks();
+  CAREER.streakBest=CAREER.streakBest||{};
+  for(const id in cur){
+    const b=CAREER.streakBest[id]||(CAREER.streakBest[id]={w:0,l:0});
+    if(cur[id].type==="W"&&cur[id].n>b.w)b.w=cur[id].n;
+    if(cur[id].type==="L"&&cur[id].n>b.l)b.l=cur[id].n;
+  }
+  saveCareer();
+}
 /* ---------- 單場紀錄簿（本季＋生涯） ---------- */
 function newRecBook(){
   return {bat:{h:null,hr:null,rbi:null,r:null,sb:null,bb:null,k:null},
@@ -128,8 +161,22 @@ function recTabSeason(){
   }).join("");
   return `<div class="panel"><h2>團隊攻守（含所有模擬場次）</h2>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>出賽</th><th>戰績</th><th>得:失</th><th>得失差</th></tr>${rows}</table></div>
+    ${streakBestPanel()}
     <div class="panel"><h2>本季王座（暫列）</h2>
     <table class="grid"><tr><th>獎項</th><th>球員</th><th>球隊</th><th>成績</th></tr>${ks||'<tr><td colspan="4" class="muted">尚無資料</td></tr>'}</table></div>`;
+}
+function streakBestPanel(){
+  const B=(CAREER.streakBest||{});
+  const rows=TEAM_DEFS.map(t=>{
+    const b=B[t.id]||{w:0,l:0};
+    const cur=(function(){try{return teamStreaks()[t.id];}catch(e){return{type:null,n:0};}})();
+    return `<tr><td class="name">${teamBadge(t.id)}</td>
+      <td class="num">${b.w?`<b>${b.w} 連勝</b>`:'<span class="muted">－</span>'}</td>
+      <td class="num">${b.l?`<b>${b.l} 連敗</b>`:'<span class="muted">－</span>'}</td>
+      <td class="num">${streakLabel(cur)}</td></tr>`;
+  }).join("");
+  return `<div class="panel"><h2>隊史最長連勝／連敗</h2>
+    <table class="grid"><tr><th>球隊</th><th>最長連勝</th><th>最長連敗</th><th>本季目前</th></tr>${rows}</table></div>`;
 }
 /* 生涯（跨季）累計：已完成球季＋本季進行中（若未結算） */
 function careerMerged(){

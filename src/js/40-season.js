@@ -221,6 +221,7 @@ function processGameEnd(m){
   }
   buildDayPaper(m.dayIndex);
   S.season.day++;
+  updateStreakBest();   // 每日更新隊史最長連勝／連敗
   leagueNews(m.dayIndex);
   if(S.season.day>=Math.floor(S.season.schedule.length/2)&&!S.season.asNotified){
     S.season.asNotified=true;
