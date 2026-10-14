@@ -4,12 +4,12 @@
 
 ## 給玩家
 
-直接開啟 `球團物語.html` 就能玩。存檔存在瀏覽器（localStorage），關掉再開可「繼續球季」。
+直接開啟 `index.html` 就能玩。存檔存在瀏覽器（localStorage），關掉再開可「繼續球季」。
 
 ## 給開發者：模組化架構
 
 原始碼拆成多個模組放在 `src/`，用 `build.ps1` 打包成單一 HTML。
-**請編輯 `src/` 裡的檔案，不要直接改 `球團物語.html`**（那是產生出來的成品，重新打包會被覆蓋）。
+**請編輯 `src/` 裡的檔案，不要直接改 `index.html`**（那是產生出來的成品，重新打包會被覆蓋）。
 
 > 為什麼不用 ES 模組（`import` / `export`）？
 > 原生 ES 模組透過 `file://` 直接開啟會被瀏覽器以 CORS（origin 為 `null`）擋下，
@@ -19,7 +19,7 @@
 ### 檔案結構
 
 ```
-球團物語.html            # 打包成品（單一檔，給玩家）
+index.html               # 打包成品（單一檔，給玩家，兼 GitHub Pages 首頁）
 build.ps1              # 打包腳本（PowerShell 5.1）
 build.cmd              # 雙擊即可打包
 src/
