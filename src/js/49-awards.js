@@ -178,7 +178,7 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 劇空間年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評選方式：MVP＝綜合分最高的野手；最佳投手＝先發綜合分最高；最佳後援＝後援綜合分最高（救援比重高）；澤村賞＝先發限定，以勝場・防禦率・三振・局數綜合評選；新人王＝22歲以下、生涯未滿30打席的野手；最佳九人＝各守位綜合分最高（顯示成績，投手席取先發最佳）；最佳指定打擊＝DH綜合分最高；金手套＝各守位守備最佳；九王座＝單項成績第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、生涯未滿30打席的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
