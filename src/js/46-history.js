@@ -245,6 +245,14 @@ function histRetirePanel(){
     <p class="muted">高掛球鞋的球員們（38 歲以上由選秀新人接班，39 歲自動引退），附生涯成績。</p>
     <table class="grid"><tr><th>球季</th><th>球員</th><th>守位</th><th>年齡</th><th>生涯成績</th></tr>${rows}</table></div>`;
 }
+function histBoardsPanel(){
+  const m=careerMerged();
+  const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],r[3],false,r[4])).join("");
+  const pitP=CAREER_PIT_REC.map(r=>careLeaderTable(m.pit,r[0],r[1],r[2],r[3],true,r[4])).join("");
+  return `<div class="panel"><h2>生涯榜（跨季累計）</h2>
+    <p class="muted" style="font-size:12px">打擊榜需 120 打席以上，投手榜需 50 出局數以上。</p>
+    <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
+}
 function histPlayerCareerPanel(){
   const merged=careerMerged();
   const allstarApp=CAREER.allstarAppearances||{};
@@ -273,9 +281,9 @@ function histPlayerCareerPanel(){
 }
 function viewHistory(){
   const tab=S.histTab||"games";
-  const tabs=[["games","逐場賽果"],["seasons","跨季生涯"],["detail","球季詳細"],["player","球員生涯"],["mile","生涯里程碑"],["allstar","明星賽"],["retire","引退名單"]];
+  const tabs=[["games","逐場賽果"],["seasons","跨季生涯"],["detail","球季詳細"],["player","球員生涯"],["mile","生涯里程碑"],["allstar","明星賽"],["retire","引退名單"],["boards","生涯榜"]];
   const bar=tabs.map(t=>`<button class="btn sm ${t[0]===tab?"gold":""}" data-act="histTab" data-arg="${t[0]}">${t[1]}</button>`).join("");
-  const body=tab==="seasons"?histSeasonsPanel():tab==="detail"?histSeasonDetailPanel():tab==="player"?histPlayerCareerPanel():tab==="mile"?histMilePanel():tab==="allstar"?histAllstarPanel():tab==="retire"?histRetirePanel():histGamesPanel();
+  const body=tab==="seasons"?histSeasonsPanel():tab==="detail"?histSeasonDetailPanel():tab==="player"?histPlayerCareerPanel():tab==="mile"?histMilePanel():tab==="allstar"?histAllstarPanel():tab==="retire"?histRetirePanel():tab==="boards"?histBoardsPanel():histGamesPanel();
   return `<div class="panel"><h2>📜 遊戲紀錄</h2>
     <p class="muted">回顧你的每一場比賽、每個球季詳細數據、球員生涯軌跡、生涯里程碑與明星賽。</p>
     <div class="actions">${bar}</div></div>

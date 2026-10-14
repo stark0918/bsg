@@ -130,11 +130,11 @@ function recPanel(book,title){
   return `<div class="panel"><h2>${title}</h2>
     <table class="grid"><tr><th>項目</th><th>紀錄值</th><th>締造者</th></tr>${rows}</table></div>`;
 }
-const REC_TABS=[["single","🏅 單場"],["season","📊 本季團隊"],["seasonbest","📈 單季紀錄"],["career","🏛 生涯榜"]];
+const REC_TABS=[["single","🏅 單場"],["season","📊 本季團隊"],["seasonbest","📈 單季紀錄"]];
 function viewRecords(){
   const tab=S.recTab||"single";
   const tabbar=`<div class="tabbar">${REC_TABS.map(([k,l])=>`<button class="tab ${tab===k?"on":""}" data-act="recTab" data-arg="${k}">${l}</button>`).join("")}</div>`;
-  const body=tab==="single"?recTabSingle():tab==="season"?recTabSeason():tab==="seasonbest"?recTabSeasonBest():recTabCareer();
+  const body=tab==="single"?recTabSingle():tab==="season"?recTabSeason():recTabSeasonBest();
   return `<div class="panel"><div class="hallhead">
     <h2 style="margin:0 0 2px">🏛 劇空間紀錄殿堂</h2>
     <p class="muted" style="margin:0">每一項數字，都是這些球季留下來的足跡。</p></div>
@@ -229,79 +229,6 @@ function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   const gate=isPit?`需 ${min} 出局數`:`需 ${min} 打席`;
   return `<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">${esc(title)}</h3>
     <table class="grid"><tr><th>#</th><th>球員</th><th>隊</th><th>成績</th></tr>${rows||`<tr><td colspan="4" class="muted">尚無人達上榜門檻（${gate}）</td></tr>`}</table></div>`;
-}
-function careerAxis(){
-  const h=CAREER.history||[];
-  if(!h.length)return `<div class="panel"><h2>生涯戰績</h2><p class="muted">完成一整個球季後，會在這裡留下生涯足跡。</p></div>`;
-  const items=h.slice().reverse().map(x=>{
-    const champ=x.isChamp?' <span class="pill on">👑 總冠軍</span>':"";
-    return `<tr class="${x.isChamp?"me":""}"><td class="num">第 ${x.no} 季</td>
-      <td class="name">${teamBadge(x.team)}${champ}</td>
-      <td class="num">${x.w}-${x.l}${x.t?"-"+x.t:""}</td><td class="num">第 ${x.rank} 名</td></tr>`;
-  }).join("");
-  const champs=h.filter(x=>x.isChamp).length;
-  const totW=h.reduce((a,x)=>a+x.w,0),totL=h.reduce((a,x)=>a+x.l,0);
-  return `<div class="panel"><h2>生涯戰績（${h.length} 季 · ${champs?"總冠軍 ×"+champs:"尚未奪冠"} · 累計 ${totW}勝${totL}敗）</h2>
-    <table class="grid"><tr><th>球季</th><th>球隊</th><th>戰績</th><th>名次</th></tr>${items}</table></div>`;
-}
-function recTabCareer(){
-  const m=careerMerged();
-  const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],r[3],false,r[4])).join("");
-  const pitP=CAREER_PIT_REC.map(r=>careLeaderTable(m.pit,r[0],r[1],r[2],r[3],true,r[4])).join("");
-  
-  /* 里程碑摘要 */
-  const totalMiles=Object.values(CAREER.milestones||{}).reduce((sum,ms)=>sum+Object.keys(ms).length,0);
-  const topMilers=Object.entries(CAREER.milestones||{}).map(([pid,ms])=>({pid,count:Object.keys(ms).length})).sort((a,b)=>b.count-a.count).slice(0,5);
-  const milerRows=topMilers.map((x,i)=>{const p=playerById(x.pid);return p?`<tr><td class="num">${i+1}</td><td class="name">${esc(p.name)} ${teamBadge(x.pid.replace(/[bp]\d+$/,""))}</td><td class="num">${x.count} 項</td></tr>`:"";}).join("");
-  const milerTable=topMilers.length?`<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">里程碑達成王</h3>
-    <table class="grid"><tr><th>#</th><th>球員</th><th>項數</th></tr>${milerRows}</table></div>`:"";
-  
-  return careerAxis()+awardsAxis()+milerTable+
-    `<div class="panel"><h2>生涯紀錄榜（跨季累計）</h2>
-    <p class="muted" style="font-size:12px">共 ${totalMiles} 項里程碑達成</p>
-    <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
-}
-/* 歷屆榮譽（總冠軍＋三大獎＋各項王座） */
-function awardsAxis(){
-  const A=CAREER.awards||[];
-  if(!A.length)return "";
-  // 主要獎項表
-  const majorRows=A.slice().reverse().map(a=>`
-    <tr class="${a.isChamp?"me":""}">
-      <td class="num">第 ${a.no} 季</td>
-      <td class="name">${a.champ?teamBadge(a.champ):"－"}</td>
-      <td class="name">${a.mvp?esc(a.mvp.name)+" "+teamBadge(a.mvp.team):"－"}</td>
-      <td class="name">${a.cy?esc(a.cy.name)+" "+teamBadge(a.cy.team):"－"}</td>
-      <td class="name">${a.rookie?esc(a.rookie.name)+" "+teamBadge(a.rookie.team):"－"}</td>
-    </tr>`).join("");
-  // 王座項目：分兩組顯示（打擊/投手）
-  const batKings=["avg","hr","rbi","h","sb","r"];
-  const pitKings=["era","k","w","sv"];
-  const kingLabel={avg:"打擊王",hr:"全壘打王",rbi:"打點王",h:"安打王",sb:"盜壘王",r:"得分王",era:"防禦率王",k:"三振王",w:"勝投王",sv:"救援王"};
-  const kingRowsBat=A.slice().reverse().map(a=>{
-    const cells=batKings.map(k=>{
-      const e=(a.kings||[]).find(x=>x.kind===k);
-      return e?`<td class="name">${esc(e.name)} ${teamBadge(e.team)}<br><span class="muted" style="font-size:11px">${esc(e.val)}</span></td>`:"<td class=\"muted\">－</td>";
-    }).join("");
-    return `<tr><td class="num">第 ${a.no} 季</td>${cells}</tr>`;
-  }).join("");
-  const kingRowsPit=A.slice().reverse().map(a=>{
-    const cells=pitKings.map(k=>{
-      const e=(a.kings||[]).find(x=>x.kind===k);
-      return e?`<td class="name">${esc(e.name)} ${teamBadge(e.team)}<br><span class="muted" style="font-size:11px">${esc(e.val)}</span></td>`:"<td class=\"muted\">－</td>";
-    }).join("");
-    return `<tr><td class="num">第 ${a.no} 季</td>${cells}</tr>`;
-  }).join("");
-  const batHeaders=batKings.map(k=>`<th>${kingLabel[k]}</th>`).join("");
-  const pitHeaders=pitKings.map(k=>`<th>${kingLabel[k]}</th>`).join("");
-  return `
-    <div class="panel"><h2>歷屆榮譽</h2>
-      <table class="grid"><tr><th>球季</th><th>總冠軍</th><th>MVP</th><th>最佳投手</th><th>新人王</th></tr>${majorRows}</table></div>
-    <div class="panel"><h3>打擊部門王座</h3>
-      <table class="grid"><tr><th>球季</th>${batHeaders}</tr>${kingRowsBat}</table></div>
-    <div class="panel"><h3>投手部門王座</h3>
-      <table class="grid"><tr><th>球季</th>${pitHeaders}</tr>${kingRowsPit}</table></div>
-  `;
 }
 /* ---------- 逐場 CSV 匯出 ---------- */
 function csvCell(v){v=(v==null?"":String(v));return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
