@@ -205,7 +205,8 @@ function poNav(){
       <button class="btn blk" data-act="history">📜 遊戲紀錄</button>
       <button class="btn blk" data-act="league">🏟 劇空間日報</button>
     </div>
-    <button class="btn sm blk" data-act="help">？ 遊戲說明</button>`;
+    <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
+    <button class="btn sm blk" data-act="commissioner">🛠 管理者專用</button>`;
 }
 function confetti(){
   let s="";

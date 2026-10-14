@@ -175,6 +175,7 @@ function viewHub(){
     <button class="btn sm blk" data-act="help">？ 遊戲說明</button>
     <div class="hr"></div>
     <button class="btn sm blk" data-act="saveNow">💾 手動存檔</button>
+    <button class="btn sm blk" data-act="commissioner">🛠 管理者專用</button>
     <button class="btn sm blk" data-act="toTitle">回主選單（自動存檔）</button>
   </div>
   ${startersPanel()}`;
@@ -219,6 +220,41 @@ function startersPanel(){
   </div>`;
 }
 
+/* ----- 管理者專用 ----- */
+function viewAdmin(){
+  const se=S.season;
+  if(!se)return viewTitle();
+  const tid=S.adminTeam||se.playerTeam;
+  const team=getTeam(tid);
+  const teamBtns=TEAM_DEFS.map(t=>`<button class="btn sm ${t.id===tid?"gold":""}" data-act="adminTeam" data-arg="${t.id}">${esc(t.short)}</button>`).join("");
+  const all=team.batters.concat(team.pitchers);
+  const listBtns=all.map(p=>`<button class="btn sm ${p.id===S.adminPid?"gold":""}" data-act="adminPlayer" data-arg="${p.id}">${esc(p.name)}<span class="muted"> ${p.role!==undefined?p.role:(p.posLabel||"")}</span></button>`).join("");
+  let editor=`<p class="muted">先選一位球員再調整。</p>`;
+  const p=S.adminPid?playerById(S.adminPid):null;
+  if(p&&teamOfPlayer({id:p.id})===tid){
+    const isPit=p.role!==undefined;
+    const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
+    const kn={meet:"打擊",power:"力量",eye:"選球",speed:"速度",defense:"守備",velocity:"球速",control:"控球",breaking:"變化",stamina:"體力"};
+    const rows=keys.map(k=>`<div class="lurow"><span class="luord">${kn[k]}</span>
+      <div class="lumain"><div class="luname"><b>${p[k]}</b></div></div>
+      <span class="lubtns"><button class="btn sm" data-act="adminStat" data-arg="${k},-5">-5</button><button class="btn sm" data-act="adminStat" data-arg="${k},-1">-1</button><button class="btn sm" data-act="adminStat" data-arg="${k},1">+1</button><button class="btn sm" data-act="adminStat" data-arg="${k},5">+5</button></span></div>`).join("");
+    editor=`<h3>${esc(p.name)}　綜合 ${playerOverall(p)}（${gradeOf(playerOverall(p))}）</h3>
+      <div class="lurow"><span class="luord">年齡</span>
+      <div class="lumain"><div class="luname"><b>${p.age} 歲</b>${ageNote(p.age)}</div></div>
+      <span class="lubtns"><button class="btn sm" data-act="adminAge" data-arg="-1">-1</button><button class="btn sm" data-act="adminAge" data-arg="1">+1</button></span></div>
+      ${rows}
+      <p class="muted" style="font-size:11px">能力範圍 20~99；年齡 19~45（39 歲開季自動引退）。修改立即生效並存檔。</p>`;
+  }
+  return `<div class="panel"><h2>🛠 管理者專用</h2>
+    <p class="muted">調整球員能力與年齡（跨季保存），或清除本季單場紀錄。請謹慎使用。</p>
+    <div class="hr"></div><h3>球隊</h3><div class="actions">${teamBtns}</div>
+    <div class="hr"></div><h3>${teamBadge(tid)} 名單</h3><div class="actions">${listBtns}</div>
+    <div class="hr"></div>${editor}
+    <div class="hr"></div><h3>危險區</h3>
+    <button class="btn red blk" data-act="ask" data-arg="adminWipeRecs">清除本季單場紀錄</button>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
+}
 /* ----- 球季資訊 ----- */
 function viewSeasonInfo(){
   const se=S.season;

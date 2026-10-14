@@ -5,6 +5,7 @@ function confirmMsg(t,arg){
   if(t==="slotSave")return `槽 ${arg} 已有存檔，確定要用目前的進度覆蓋嗎？`;
   if(t==="slotLoad")return `讀取槽 ${arg} 會覆蓋你目前的進度（尚未存檔的變更會遺失）。確定嗎？`;
   if(t==="slotDel")return `確定要刪除槽 ${arg} 的存檔嗎？`;
+  if(t==="adminWipeRecs")return "確定要清除「本季單場紀錄」嗎？（生涯歷史紀錄不受影響）";
   return "確定嗎？";
 }
 const ACT={
@@ -118,6 +119,30 @@ const ACT={
   allstar(){S.screen="allstar";render();},
   allstarSim(){const a=simAllstar();render();},
   seasonInfo(){S.screen="season";render();},
+  commissioner(){S.screen="admin";if(!S.adminTeam&&S.season)S.adminTeam=S.season.playerTeam;render();},
+  adminTeam(id){S.adminTeam=id;S.adminPid=null;render();},
+  adminPlayer(pid){S.adminPid=pid;render();},
+  adminStat(arg){
+    const [k,d]=String(arg||"").split(",");
+    const p=S.adminPid?playerById(S.adminPid):null;
+    if(!p||!k)return;
+    const o=CAREER.ov[p.id]||(CAREER.ov[p.id]={});
+    o[k]=clamp(Math.round((p[k]||50)+Number(d)),20,99);
+    for(const ck in teamCache)delete teamCache[ck];
+    saveCareer();saveGame();flash(`${p.name} ${k} → ${o[k]}`);render();
+  },
+  adminAge(arg){
+    const p=S.adminPid?playerById(S.adminPid):null;
+    if(!p)return;
+    const o=CAREER.ov[p.id]||(CAREER.ov[p.id]={});
+    o.age=clamp((p.age||26)+Number(arg),19,45);
+    for(const ck in teamCache)delete teamCache[ck];
+    saveCareer();saveGame();flash(`${p.name} 年齡 → ${o.age}`);render();
+  },
+  adminWipeRecs(){
+    if(S.season){S.season.recs=newRecBook();saveGame();}
+    S.confirm=null;flash("已清除本季單場紀錄");render();
+  },
   /* 快速模擬到季中/季末 */
   simToMid(){
     const se=S.season;
