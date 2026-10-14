@@ -4075,10 +4075,9 @@ const ACT={
   },
   help(){S.screen="help";render();},
   backHub(){
-    const d=S.season?.draft;
-    if(d&&!d.done&&d.idx<d.picks.length){
-      S.confirm={act:"forceLeaveDraft",arg:null,msg:"選秀尚未完成，確定要離開？未完成的選秀將自動由系統代選最強新人。"};render();return;
-    }
+    // 選秀未完成也不擋路：總部（例行賽／季後賽面板）本來就有「選秀進行中」提醒＋前往選秀鈕，
+    // 且選秀進度會保留（開新季也會帶過去），直接回去即可，避免季後賽結束後哪裡都回不去。
+    S.confirm=null;
     S.screen="hub";S.match=null;render();
   },
   roster(){S.screen="roster";render();},
