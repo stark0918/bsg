@@ -35,7 +35,7 @@ function updateStreakBest(){
 function newRecBook(){
   return {bat:{h:null,hr:null,rbi:null,r:null,sb:null,bb:null,k:null},
           pit:{k:null,ip:null},
-          team:{r:null,margin:null,innings:null}};
+          team:{r:null,margin:null,innings:null,inn:null}};
 }
 function recUp(book,cat,key,val,name,team,when,extra){
   if(!book||!book[cat])return null;
@@ -102,11 +102,20 @@ function checkSimTeamRecords(awayId,homeId,ra,rh,when){
   const wId=ra>rh?awayId:homeId;
   recUpBoth("team","margin",Math.abs(ra-rh),getTeam(wId).name,wId,when);
 }
+/* 單局團隊得分：掃當日所有 box 的逐局線（含玩家實戰場，僅例行賽） */
+function checkInningRecords(dayIdx,when){
+  const arr=(S.season.boxes||[])[dayIdx]||[];
+  arr.forEach(b=>{
+    if(!b||!b.line)return;
+    (b.line.aw||[]).forEach(v=>{if((v||0)>0)recUpBoth("team","inn",v,getTeam(b.aw).name,b.aw,when);});
+    (b.line.hm||[]).forEach(v=>{if((v||0)>0)recUpBoth("team","inn",v,getTeam(b.hm).name,b.hm,when);});
+  });
+}
 /* ---------- 紀錄殿堂畫面 ---------- */
 const REC_LABELS={
   bat:{h:"單場安打",hr:"單場全壘打",rbi:"單場打點",r:"單場得分",sb:"單場盜壘",bb:"單場四壞",k:"單場三振"},
   pit:{k:"單場奪三振",ip:"單場投球局數"},
-  team:{r:"單場團隊得分",margin:"最大勝差分",innings:"最長比賽局數"}
+  team:{r:"單場團隊得分",margin:"最大勝差分",innings:"最長比賽局數",inn:"單局團隊得分"}
 };
 function recRow(book,cat,key){
   const r=book&&book[cat]&&book[cat][key];
