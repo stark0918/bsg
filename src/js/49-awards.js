@@ -28,7 +28,7 @@ function computeAwards(){
     pitchers.push({pid,p,s,pts:awardPts(s,true)});
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gp:q.gp};
+  S.season.awards={kings,mvp:pick3(batters),cy:pick3(pitchers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),gp:q.gp};
 }
 /* 最佳九人：按守位選最佳打者＋最佳投手 */
 function pickBest9(ps,qf){
@@ -104,13 +104,37 @@ function awardBest9(list){
   }).join("");
   return `<h3>🌟 最佳九人</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>評分</th></tr>${rows}</table>`;
 }
+/* 金手套：按守位選守備能力最佳（失策未記到個人前以守備能力＋出賽為準） */
+function pickGloves(ps,qf){
+  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const out=[];
+  posOrder.forEach(pos=>{
+    let best=null;
+    for(const pid in ps.bat){
+      const s=ps.bat[pid],p=playerById(pid);
+      if(!p||p.pos!==pos)continue;
+      if((s.g||0)<qf.bat)continue;
+      const score=(p.defense||0)*10+(s.g||0);
+      if(!best||score>best.score)best={pos,name:p.name,pid,team:pid.replace(/[bp]\d+$/,""),score,def:p.defense||0,g:s.g||0};
+    }
+    if(best)out.push(best);
+  });
+  return out;
+}
+function awardGloves(list){
+  const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊"};
+  const rows=list.map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td>
+      <td class="name">${esc(x.name)}</td><td class="name">${teamBadge(x.team)}</td>
+      <td class="num">守備 ${x.def}　出賽 ${x.g}</td></tr>`).join("");
+  return `<h3>🧤 金手套</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>依據</th></tr>${rows}</table>`;
+}
 function champPanel(champ){
   if(!champ)return `<div class="panel ceremony center"><h3>👑 總冠軍</h3><p class="muted">本季季後賽未產生總冠軍。</p></div>`;
   return `<div class="panel ceremony center"><h3>👑 總冠軍</h3>
     <div class="champbanner">${teamBadge(champ)}</div>
     <p class="muted">恭喜奪下本季最高榮耀！</p></div>`;
 }
-const AWARD_MAX=8;
+const AWARD_MAX=9;
 function viewAwards(){
   const a=S.season.awards;
   if(!a)return `<div class="panel"><h2>🏆 頒獎典禮</h2><p class="muted">球季（含季後賽）結束後才會公布獎項。</p>
@@ -128,8 +152,9 @@ function viewAwards(){
   if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手","🔥",true)}</div>`);
   if(step>=5&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=6&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
-  if(step>=7)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
-  if(step>=8)parts.push(champPanel(champ));
+  if(step>=7&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
+  if(step>=8)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
+  if(step>=9)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
     ? `<button class="btn gold blk" data-act="awardsReplay">↺ 重新播放</button>
        <button class="btn blk" data-act="backToHub">← 回球季總部</button>`

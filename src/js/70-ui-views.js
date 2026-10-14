@@ -725,6 +725,7 @@ function playerAwards(pid){
     if(same(a.rookie))out.push(`第 ${a.no} 季 新人王`);
     if(same(a.sawamura))out.push(`第 ${a.no} 季 澤村賞`);
     (a.best9||[]).forEach(b=>{if(b.pid===pid&&(!myName||b.name===myName))out.push(`第 ${a.no} 季 最佳九人（${b.pos}）`);});
+    (a.gloves||[]).forEach(g=>{if(g.pid===pid&&(!myName||g.name===myName))out.push(`第 ${a.no} 季 金手套（${g.pos}）`);});
     (a.kings||[]).forEach(k=>{if(same(k))out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
   });
   return out;
