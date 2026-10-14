@@ -1603,7 +1603,7 @@ function finalizeSeason(){
     champ:(se.playoff&&se.playoff.champion)||null,
     isChamp:!!(se.playoff&&se.playoff.champion===me),
     playoff:se.playoff?{stage:se.playoff.stage,champion:se.playoff.champion,semi:se.playoff.semi,final:se.playoff.final}:null,
-    awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,rookie:se.awards.rookie,kings:se.awards.kings}:null,
+    awards:se.awards?{mvp:se.awards.mvp,cy:se.awards.cy,rookie:se.awards.rookie,sawamura:se.awards.sawamura,best9:se.awards.best9,gloves:se.awards.gloves,kings:se.awards.kings}:null,
     leaders:se.awards?{bat:Object.keys(se.playerStats?.bat||{}).length,pit:Object.keys(se.playerStats?.pit||{}).length}:null,
     standings:st.map(x=>({id:x.id,w:x.w,l:x.l,t:x.t,pct:x.pct,rs:x.rs,ra:x.ra})),
     teamStats:{bat:{},pit:{}}
@@ -1622,7 +1622,7 @@ function finalizeSeason(){
       no:CAREER.seasons+1,
       champ:(se.playoff&&se.playoff.champion)||null,
       mvp:top1(aw.mvp), cy:top1(aw.cy), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
-      best9:(aw.best9||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team})),
+      best9:(aw.best9||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team,pts:x.pts})),
       gloves:(aw.gloves||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team})),
       kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
     });
@@ -1765,6 +1765,9 @@ function histSeasonDetailPanel(){
   if(!list.length)return `<div class="panel"><h2>球季詳細回顧</h2><p class="muted">尚無完成的球季資料。</p></div>`;
   const cards=list.map(sd=>{
     const aw=sd.awards||{};
+    // 舊存檔快照缺新獎項時，用 CAREER.awards 同季記錄回填
+    const care=((CAREER.awards||[]).filter(a=>a.no===sd.no))[0]||{};
+    const pick=(k)=>aw[k]||care[k];
     const isChamp=sd.isChamp||(sd.playoff&&sd.playoff.champion===sd.team);
     const po=sd.playoff;
     let poText="未進季後賽";
@@ -1782,8 +1785,10 @@ function histSeasonDetailPanel(){
       return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
     const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
-    const mvp=(aw.mvp||[])[0],cy=(aw.cy||[])[0],rook=(aw.rookie||[])[0],sawa=(aw.sawamura||[])[0];
-    const kings=(aw.kings||[]).filter(k=>k.name).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
+    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0];
+    const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
+    const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
+    const best9rows=(pick("best9")||[]).map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td><td class="name">${x.team?teamBadge(x.team):""} ${esc(x.name)}</td><td class="num">${x.pts!=null?x.pts+" 分":""}</td></tr>`).join("");
     return `<div class="panel card ${isChamp?"me":""}">
       <div class="card-head"><span class="num">第 ${sd.no} 季</span>
         <span class="name">${teamBadge(sd.team)}　${sd.rec.w}-${sd.rec.l}${sd.rec.t?"-"+sd.rec.t:""}（第 ${sd.rec.rank} 名）</span>
@@ -1792,11 +1797,14 @@ function histSeasonDetailPanel(){
       <div class="card-body"><div class="roster"><h4>個人獎項</h4>
         ${prize("👑 最有價值球員（野手）",mvp,false)}${prize("🔥 最佳投手",cy,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王（野手）",rook,false)}</div>
         <div class="roster"><h4>本季王座</h4>
-        ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div></div>
+        ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}
+        <h4>最佳九人</h4>
+        ${best9rows?`<table class="grid"><tr><th>守位</th><th>得主</th><th>評分</th></tr>${best9rows}</table>`:'<p class="muted">－</p>'}</div></div>
     </div>`;
   }).join("");
   return `<div class="panel"><h2>球季詳細回顧</h2>
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
+    <p class="muted" style="font-size:11px">評分規則：MVP取野手綜合分最高；最佳投手取全體投手綜合分最高；澤村賞限先發，綜合勝場・防禦率・三振・局數；新人王限野手、22歲以下且生涯未滿30打席；最佳九人取各守位綜合分最高；王座取單項成績第一。</p>
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){
