@@ -289,7 +289,7 @@ button.tab.on{border-color:var(--gold);color:var(--gold);background:#1a1a12;font
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">球團物語<small>CLUB STORY</small></div>
+  <div class="logo">球團物語<small>CLUB STORY · <span class="pill on">BETA 測試版</span></small></div>
   <div id="app"></div>
 
 </div>
@@ -3191,6 +3191,7 @@ function viewTitle(){
     <button class="btn blk" data-act="league">🏟 球團日報</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
+    ${location.protocol==="file:"?`<a class="btn blk" style="text-decoration:none" href="../預設專案/index.html" target="_blank">← 回正式版</a>`:""}
     ${danger}
   </div>
   <div class="panel">
