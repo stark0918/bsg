@@ -14,12 +14,18 @@ const DEF_MODS={
 const OFF_NAME={normal:"正常揮擊",power:"強力揮擊",take:"耐心等球",bunt:"犧牲短打",hitrun:"打帶跑"};
 const DEF_NAME={power:"全力投球",control:"控球至上",corner:"邊邊角角",chase:"引誘球",ibb:"故意四壞"};
 
-function pitcherEffective(p,pitches){
+function pitcherEffective(p,pitches,cond){
   const thr=42+p.stamina*0.62;
   let f=1;
   if(pitches>thr) f=clamp(1-(pitches-thr)*0.0032,0.70,1);
-  return {velocity:p.velocity*f,control:p.control*(0.86+0.14*f),breaking:p.breaking*f,fatigue:f};
+  const cm=cond==="good"?1.06:cond==="bad"?0.94:1;   // 調子：beta 新增
+  return {velocity:p.velocity*f*cm,control:p.control*(0.86+0.14*f)*cm,breaking:p.breaking*f*cm,fatigue:f,cond:cond||"normal"};
 }
+/* 當日調子：好調 20%／普通 60%／不調 20% */
+function rollCond(){const r=Math.random();return r<0.2?"good":r<0.8?"normal":"bad";}
+const COND_LABEL={good:'<b style="color:#4fd39a">▲好調</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不調</b>'};
+/* 取守備方有效投球狀態（含調子） */
+function effOf(m,side){const P=m.pitchers[side];return pitcherEffective(P.obj,P.pitches,P.cond||"normal");}
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
 function paOutcome(batter,eff,offT,defT){
@@ -162,7 +168,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
-    pitchers:{away:{obj:awayStarter,pitches:0},home:{obj:homeStarter,pitches:0}},
+    pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond()},home:{obj:homeStarter,pitches:0,cond:rollCond()}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()
@@ -179,7 +185,7 @@ function playPA(m,offT,defT){
   const offSide=offenseSide(m),defSide=defenseSide(m);
   const batter=currentBatter(m);
   const P=m.pitchers[defSide];
-  const eff=pitcherEffective(P.obj,P.pitches);
+  const eff=effOf(m,defSide);
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
 
@@ -359,7 +365,7 @@ function endHalf(m){
 function aiOffense(m){
   const batter=currentBatter(m);
   const defSide=defenseSide(m);
-  const eff=pitcherEffective(m.pitchers[defSide].obj,m.pitchers[defSide].pitches);
+  const eff=effOf(m,defSide);
   const r1=!!m.bases[0],r2=!!m.bases[1],r3=!!m.bases[2];
   if(m.outs<2&&!r3&&(r1||r2)&&batter.power<58&&chance(0.32))return "bunt";
   if(r1&&batter.speed>72&&m.outs<2&&chance(0.14))return "hitrun";
@@ -394,7 +400,7 @@ function doSteal(m){
   if(m.bases[0]){from=0;to=1;runner=m.bases[0];}
   else if(m.bases[1]){from=1;to=2;runner=m.bases[1];}
   if(!runner){m.log.push({t:"　沒有可盜壘的跑者。",c:"sys"});return;}
-  const defSide=defenseSide(m),eff=pitcherEffective(m.pitchers[defSide].obj,m.pitchers[defSide].pitches);
+  const defSide=defenseSide(m),eff=effOf(m,defSide);
   const p=clamp(0.60+(runner.speed-60)/160-(eff.velocity-60)/400,0.35,0.88);
   if(chance(p)){
     m.bases[from]=null;m.bases[to]=runner;
@@ -425,8 +431,10 @@ function doChangePitcher(m,pid){
   const np=bp.splice(i,1)[0];
   const old=m.pitchers[defSide].obj;
   m.usedPitchers[defSide].push(old.id);
-  m.pitchers[defSide]={obj:np,pitches:0};
-  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球。`,c:"run"});
+  const npCond=rollCond();
+  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond};
+  const condTxt=npCond==="good"?"（好調）":npCond==="bad"?"（不調）":"";
+  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球${condTxt}。`,c:"run"});
 }
 
 /* ---------- 遊戲回合控制 ---------- */
