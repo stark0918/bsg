@@ -295,9 +295,10 @@ function playPA(m,offT,defT){
   m.batterIdx[offSide]++;
   m.balls=0;m.strikes=0;
 
-  // 熱血演出：記錄上一打席結果與大字形
+  // 熱血演出：記錄上一打席結果與大字形（每打席先清除，避免舊大字殘留）
   m.lastKind=ev;
   m.lastRuns=runs;
+  m.splash=null;
   if(ev==="HR")m.splash={t:"全壘打！！",c:"hr"};
   else if(ev==="K")m.splash={t:"三振！",c:"k"};
   else if(ev==="3B")m.splash={t:"三壘安打！",c:"hit"};
