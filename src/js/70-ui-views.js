@@ -387,7 +387,7 @@ function viewGame(){
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
-      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}　調子 ${COND_LABEL[P.cond]||COND_LABEL.normal}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
+      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}　調子 ${COND_LABEL[P.cond]||COND_LABEL.normal}${(P.carryPP||0)>=30?' <span class="pill off">昨日'+P.carryPP+'球連投注意</span>':(P.carryPP?' <span class="muted">昨日'+P.carryPP+'球</span>':'')}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
     ${rbar("球速",P.obj.velocity)}${rbar("控球",P.obj.control)}${rbar("變化",P.obj.breaking)}${rbar("體力",P.obj.stamina)}
   </div>`;
 
