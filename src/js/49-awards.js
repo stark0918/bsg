@@ -15,6 +15,7 @@ function relieverPts(s){
   return Math.round((s.sv||0)*6+(s.w||0)*4+(s.k||0)*0.2-era*5);
 }
 function computeAwards(){
+  if(!S.season.playerStats)S.season.playerStats={bat:{},pit:{}};
   const ps=S.season.playerStats,q={gp: (S.season&&S.season.day)||0, bat:3, pit:3, eraOuts:12}; // 先用保守值，實際用 leadersQualify 也行
   const q2 = leadersQualify();
   const qf = q2 || q;

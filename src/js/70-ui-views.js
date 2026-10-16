@@ -947,6 +947,7 @@ function leadersQualify(){
   };
 }
 function leadersList(kind){
+  if(!S.season.playerStats)S.season.playerStats={bat:{},pit:{}};
   const ps=S.season.playerStats;
   const q=leadersQualify();
   if(kind==="era"||kind==="w"||kind==="k"||kind==="sv"){

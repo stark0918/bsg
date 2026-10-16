@@ -160,6 +160,7 @@ function boxFromSim(awayId,homeId,r,L,st){
   };
 }
 function mergePlayerStats(m,tgt){
+  if(!S.season.playerStats)S.season.playerStats={bat:{},pit:{}};
   const ps=tgt||S.season.playerStats;
   for(const pid in m.stats)mergeBatLine(pid,m.stats[pid],ps);
   for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid],ps);
