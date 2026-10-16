@@ -369,8 +369,8 @@ const MILESTONES=[
   {cat:"sv",steps:[5,10,15,20,30],label:"救援成功",pit:true}
 ];
 function milestoneText(mile,pid){
-  const v=mile.cat==="avg"?fmtAvg(mile.val):mile.val;
-  return `${recName(pid)} 達成生涯${mile.cat==="avg"?"":"第 "}${v} ${mile.label}！`;
+  if(mile.cat==="avg")return `${recName(pid)} 達成生涯打擊率 ${fmtAvg(mile.actual!=null?mile.actual:mile.val)}！（突破 ${fmtAvg(mile.val)} 門檻）`;
+  return `${recName(pid)} 達成生涯第 ${mile.val} ${mile.label}！`;
 }
 /* 檢查跨季里程碑；記錄全聯盟，回傳「玩家球隊」當日的達成清單（供提示） */
 function checkMilestones(){
@@ -389,7 +389,10 @@ function checkMilestones(){
       const def=MILESTONES.find(d=>d.cat===cat);
       if(!def){delete ms[cat];continue;}
       const pool=def.pit?merged.pit:merged.bat;
-      if(mileTotal(pool,pid,def)<ms[cat])delete ms[cat];
+      if(def.cat==="avg"){
+        // 打擊率是「率」會上下波動：已達成的門檻保留，只有打席崩盤（選秀回收舊 pid）才清除
+        if(((pool[pid]||{}).ab||0)<(def.minAB||0))delete ms[cat];
+      }else if(mileTotal(pool,pid,def)<ms[cat])delete ms[cat];
     }
     if(!Object.keys(ms).length)delete CAREER.milestones[pid];
   }
@@ -404,7 +407,7 @@ function checkMilestones(){
           if(ab<(def.minAB||0))return;   // 打擊率需達規定打席
           const avg=s.h/ab;
           def.steps.forEach(step=>{
-            if(avg>=step&&step>(ms.avg||0)){ms.avg=step;if(teamOfPlayer({id:pid})===me)hit.push({pid,cat:"avg",label:def.label,val:step});}
+            if(avg>=step&&step>(ms.avg||0)){ms.avg=step;if(teamOfPlayer({id:pid})===me)hit.push({pid,cat:"avg",label:def.label,val:step,actual:Math.round(avg*1000)/1000});}
           });
           return;
         }
