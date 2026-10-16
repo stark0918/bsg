@@ -229,7 +229,7 @@ function histSeasonDetailPanel(){
       return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
     const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
-    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=pick("bestDH");
+    const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=(pick("bestDH")||[])[0];
     const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
     const statOf=x=>{
@@ -244,11 +244,11 @@ function histSeasonDetailPanel(){
         <span class="name">${teamBadge(sd.team)}　${sd.rec.w}-${sd.rec.l}${sd.rec.t?"-"+sd.rec.t:""}（第 ${sd.rec.rank} 名）</span>
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
-      <div class="card-body"><div class="roster"><h4>個人獎項</h4>
-        ${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div>
-        <div class="roster"><h4>本季王座</h4>
-        ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}
-        <h4>最佳九人</h4>
+      <div class="roster"><h4>個人獎項</h4>
+        <div class="prizegrid">${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div></div>
+      <div class="two"><div class="roster"><h4>本季王座</h4>
+        ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div>
+        <div class="roster"><h4>最佳九人</h4>
         ${best9rows?`<table class="grid"><tr><th>守位</th><th>得主</th><th>成績</th></tr>${best9rows}</table>`:'<p class="muted">－</p>'}</div></div>
     </div>`;
   }).join("");
