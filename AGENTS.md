@@ -6,6 +6,8 @@
 - 打包：`powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1`
   （或直接雙擊 `build.cmd`）。
 - 打包是可重現的：打包後 `git status` 應保持乾淨（成品與 `src/` 同步）。
+- `beta/index.html`：測試版成品副本，主頁「🧪 測試版」在**線上**就連到它；
+  由 beta 分支跑 `publish-beta.ps1` 同步過來（`build.ps1` 不會動它，改了要 commit）。
 
 ## Commit 節奏（重要）
 採「**一個功能一段**」：
