@@ -3694,10 +3694,10 @@ function boxScore(m){
         <td class="num">${ps.bb}</td><td class="num">${ps.k}</td><td class="num">${ps.pp}</td></tr>`;
     }).join("");
     return `<h3>${esc(getTeam(id).name)}</h3>
-      <table class="grid"><tr><th>打者</th><th>守位</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th></tr>${rows}</table>
-      <table class="grid" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${pitRows}</table>`;
+      <table class="grid boxscore"><tr><th>打者</th><th>守位</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th></tr>${rows}</table>
+      <table class="grid boxscore" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${pitRows}</table>`;
   };
-  return `<div class="two">${mk(m.awayId,"away")}${mk(m.homeId,"home")}</div>`;
+  return `${mk(m.awayId,"away")}${mk(m.homeId,"home")}`;
 }
 function fieldSVG(bases){
   const occ=[!!bases[0],!!bases[1],!!bases[2]];
