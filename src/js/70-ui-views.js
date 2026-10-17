@@ -353,6 +353,7 @@ function viewGame(){
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
   const form=formOf(m,batter);
+  const momBandNow=momBand(momStat(m,batter));
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -385,7 +386,7 @@ function viewGame(){
 
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
-      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}</span></div>
+      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}　熱度 ${MOM_LABEL[momBandNow]||MOM_LABEL.flat}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>

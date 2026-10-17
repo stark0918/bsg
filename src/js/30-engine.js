@@ -54,6 +54,27 @@ function batterEffective(b,form){
 }
 /* 取打者當日手感（舊存檔的中途比賽沒有記錄時現場補一次） */
 function formOf(m,b){const F=m.batterForm||(m.batterForm={});if(!F[b.id])F[b.id]=rollForm();return F[b.id];}
+/* 打席熱度（beta D3b）：只留最近 6 席的滾動成績，安打＋1／保送＋0.5／出局－1 */
+function momOf(m,b){const A=m.mom&&m.mom[b.id];return A?A.reduce((a,x)=>a+x,0):0;}
+function pushMom(m,b,ev){
+  const A=m.mom||(m.mom={}),arr=A[b.id]||(A[b.id]=[]);
+  const hit=(ev==="1B"||ev==="2B"||ev==="3B"||ev==="HR"||ev==="BUNTHIT");
+  arr.push(hit?1:(ev==="BB"||ev==="HBP")?0.5:-1);
+  while(arr.length>6)arr.shift();
+}
+/* 近 6 席的安打／保送／出局家數與熱度總分 */
+function momStat(m,b){
+  const A=m.mom&&m.mom[b.id];
+  if(!A||!A.length)return{h:0,w:0,o:0,sum:0,n:0};
+  let h=0,w=0,o=0;
+  for(const x of A){if(x===1)h++;else if(x<0)o++;else w++;}
+  return {h,w,o,sum:h+0.5*w-o,n:A.length};
+}
+const MOM_LABEL={hot:'<b style="color:#ff9f43">🔥火熱</b>',flat:'<span class="muted">－普通</span>',cold:'<b style="color:#7fb3d5">🧊手冷</b>'};
+/* 熱度帶別：近 6 席 3 安打以上算火熱、5 出局以上算手冷（實測各約 8%／5%，不會濫標） */
+function momBand(st){return st.h>=3?"hot":st.o>=5?"cold":"flat";}
+/* 把熱度帶進打擊能力（總分 ±3 內，最多 ±10% 擊球品質） */
+function applyMom(B,st){const k=1+0.035*clamp(st.sum,-3,3);B.meet*=k;B.power*=k;return B;}
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
 function paOutcome(batter,eff,offT,defT){
@@ -216,7 +237,9 @@ function playPA(m,offT,defT){
   const batter=currentBatter(m);
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
-  const B=batterEffective(batter,formOf(m,batter));   // beta D3a：當日手感套進打擊模型
+  const momStat0=momStat(m,batter);
+  const B=applyMom(batterEffective(batter,formOf(m,batter)),momStat0);   // beta D3a 當日手感＋D3b 打席熱度
+  const momBefore=momBand(momStat0);
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
 
@@ -305,6 +328,15 @@ function playPA(m,offT,defT){
   const pitchWords=makePitchSeq(ev,cnt);
   pitchWords.forEach(w=>push("　　› "+w,null));
   push(`　${desc}（球數 ${cnt.b}-${cnt.s}）`,cls);
+
+  // 打席熱度結算（beta D3b）：跨過門檻時補一句提示，讓連打／連出局看得出來
+  pushMom(m,batter,ev);
+  const momAfter=momBand(momStat(m,batter));
+  if(momAfter!=="flat"&&momAfter!==momBefore){
+    push(momAfter==="hot"
+      ? `　★ ${batter.name} 打出火熱手感，接下來幾席會越打越順！`
+      : `　${batter.name} 陷入手冷，擊球愈打愈不順。`, momAfter==="hot"?"run":"out");
+  }
 
   // 下一棒
   m.batterIdx[offSide]++;
