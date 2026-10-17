@@ -58,6 +58,7 @@ function getTeam(id){
   if(!teamCache[id]){
     const def=TEAM_DEFS.find(t=>t.id===id);
     const team=Object.assign({},def,genRoster(def));
+    bindRosterNames(team);   // 首次見到球員就把名字寫進 CAREER.ov，名單之後再改也不換名
     team.batters.concat(team.pitchers).forEach(applyOv);
     teamCache[id]=team;
   }

@@ -407,6 +407,44 @@ const SU=["王","李","林","陳","張","黃","劉","蔡","楊","吳","許","鄭
 const GI=["柏融","威晨","智勝","育成","子偉","岱鋼","國輝","泓志","家豪","俊秀","政閔","勝偉","振昌","凱文","均聲","致遠","金鋒","泰山","建民","宸緯","宇翔","冠廷","承翰","翊豪","哲瑄","皓然","凱翔","宥均","秉澄","冠宇","柏霖","宥辰","書豪","睿宸","柏睿","宥嘉","彥廷","子豪","冠緯","家緯","宇宸",
           "明軒","承恩","佳賢","志豪","冠傑","建銘","柏翰","耀輝","天佑","子銘","禹丞","彥博","宗翰","銘豪","哲宇","駿傑","博恩","明傑","建輝","志維",
           "家銘","冠仁","育賢","瑞霖","信哲","承宇","沛宸","立軒","詠恩","振華","豪傑","勝傑","文彥","君毅","奕辰","松軒","正皓","皓宇","培源","詮恩"];
+/* ---------- 姓名綁定（名單擴充後，既有球員不再換名） ----------
+   原本球員名字是每次開季用亂數從名單重抽，名單一改，全聯盟一起換名。
+   現在第一次見到球員就把名字寫進 CAREER.ov，之後以存檔裡的名字為準。
+   擴充名單以前開的舊存檔，用 SU_OLD／GI_OLD 重現「當初的名字」，老玩家的球員完全不會變。 */
+const NAMEPOOL_V=2;
+const SAVEKEY_HINT=["clubstory_save_v1","gekikuukan_baseball_save_v1"];
+const SU_OLD=["王","李","林","陳","張","黃","劉","蔡","楊","吳","許","鄭","謝","郭","洪","曾","廖","賴","徐","周","葉","蘇","莊","江","呂","何","羅","高","蕭","潘","彭","沈","柯","游","溫","盧","侯","石","詹","連","宋","曹","方","田","杜","韓","傅","鍾","涂","范"];
+const GI_OLD=["柏融","威晨","智勝","育成","子偉","岱鋼","國輝","泓志","家豪","俊秀","政閔","勝偉","振昌","凱文","均聲","致遠","金鋒","泰山","建民","宸緯","宇翔","冠廷","承翰","翊豪","哲瑄","皓然","凱翔","宥均","秉澄","冠宇","柏霖","宥辰","書豪","睿宸","柏睿","宥嘉","彥廷","子豪","冠緯","家緯","宇宸"];
+/* 用舊名單重現一支球隊原本的名字順序（先 13 名野手、再 6 名投手，共用同一組不重複記錄） */
+function legacyRosterNames(teamId){
+  const rnd=mulberry32(hashStr("gk-name-v1-"+teamId)),used=new Set(),out=[];
+  const mk=()=>{
+    for(let i=0;i<40;i++){const n=rpick(rnd,SU_OLD)+rpick(rnd,GI_OLD);if(!used.has(n)){used.add(n);return n;}}
+    return rpick(rnd,SU_OLD)+rpick(rnd,GI_OLD);
+  };
+  for(let i=0;i<19;i++)out.push(mk());
+  return out;
+}
+/* 綁定整隊球員的名字（getTeam 產生球員後呼叫一次）。
+   判斷「這是擴充名單以前的舊存檔嗎」只做一次，結果記在 CAREER.namePool：
+   綁定本身會寫進 CAREER.ov，若每支球隊都重新判斷，後面的隊伍會被自己剛寫入的紀錄誤判成舊存檔。 */
+function bindRosterNames(team){
+  const ov=CAREER.ov=CAREER.ov||{};
+  const players=team.batters.concat(team.pitchers);
+  // 判斷「這是擴充名單以前的舊存檔嗎」整個存檔只做一次，結果寫進 CAREER.namePool：
+  //   0 = 尚未決定、1 = 舊存檔（用舊名單重現原名）、2 = 全新玩家（直接用現行名單）
+  // 注意綁定本身會寫進 CAREER.ov，若每支球隊都重新判斷，後面的隊伍會被自己剛寫入的紀錄誤判。
+  if(!CAREER.namePool){
+    const old=((CAREER.seasons||0)>0)||((CAREER.history||[]).length>0)||Object.keys(ov).length>0||
+              SAVEKEY_HINT.some(k=>{try{return !!localStorage.getItem(k);}catch(e){return false;}});
+    CAREER.namePool=old?1:NAMEPOOL_V;
+  }
+  const legacy=CAREER.namePool===1?legacyRosterNames(team.id):null;
+  players.forEach((p,i)=>{
+    const o=ov[p.id]||(ov[p.id]={});
+    if(o.name==null)o.name=(legacy&&legacy[i])||p.name;
+  });
+}
 const POS_ZH={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊"};
 
 /* ---------- 球隊定義 ---------- */
@@ -431,6 +469,7 @@ function normalizeCareer(d){
   c.streakBest=c.streakBest||{};
   c.retirements=c.retirements||[];
   c.debut=c.debut||{};   // pid → 初登場球季（新人王資格用；沒有紀錄＝還沒在完成的球季出賽過）
+  c.namePool=c.namePool||0;   // 已綁定的姓名清單版本（0=尚未綁定）
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
@@ -564,6 +603,7 @@ function getTeam(id){
   if(!teamCache[id]){
     const def=TEAM_DEFS.find(t=>t.id===id);
     const team=Object.assign({},def,genRoster(def));
+    bindRosterNames(team);   // 首次見到球員就把名字寫進 CAREER.ov，名單之後再改也不換名
     team.batters.concat(team.pitchers).forEach(applyOv);
     teamCache[id]=team;
   }
