@@ -24,6 +24,7 @@ function normalizeCareer(d){
   c.lastTeam=c.lastTeam||null;
   c.streakBest=c.streakBest||{};
   c.retirements=c.retirements||[];
+  c.debut=c.debut||{};   // pid → 初登場球季（新人王資格用；沒有紀錄＝還沒在完成的球季出賽過）
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
@@ -54,6 +55,14 @@ function ageDelta(a){
   return ri(-5,-1);
 }
 function randName(){return pick(SU)+pick(GI);}
+/* 換人時取一個沒被用過的名字：避免新人與在役／已引退球員同名，
+   否則同一個名字會在聯盟裡反覆出現，看起來像同一人重出江湖（連帶讓獎項紀錄看起來重複）。 */
+let _freshNames=null;
+function freshName(){
+  if(!_freshNames)_freshNames=takenNames();
+  for(let i=0;i<60;i++){const n=randName();if(!_freshNames.has(n)){_freshNames.add(n);return n;}}
+  return randName();
+}
 /* 引退記錄：名字被新人覆蓋前留下名單＋生涯成績快照 */
 function recordRetirement(pid,name,teamId,age,pos){
   CAREER.retirements=CAREER.retirements||[];
@@ -63,6 +72,7 @@ function recordRetirement(pid,name,teamId,age,pos){
   CAREER.retirements.push({no:seasonNo(),pid,name,team:teamId,age:age||null,pos:pos||"",line});
 }
 function advanceCareer(){
+  _freshNames=null;   // 本輪換人用的名字集合（避免同隊兩名新人撞名）
   TEAM_DEFS.forEach(def=>{
     const t=teamCache[def.id]||getTeam(def.id);
     t.batters.concat(t.pitchers).forEach(p=>{
@@ -73,8 +83,9 @@ function advanceCareer(){
       let trend=0;
       if(o.age>=39){                      // 退休 → 新人
         recordRetirement(p.id,p.name,def.id,p.age,p.posLabel||p.role);
-        o.age=ri(19,22);o.name=randName();
+        o.age=ri(19,22);o.name=freshName();
         if(CAREER.career){delete CAREER.career.bat[p.id];delete CAREER.career.pit[p.id];}
+        if(CAREER.debut)delete CAREER.debut[p.id];   // 同一 pid 換新人時，初登場紀錄也要清掉
         keys.forEach(k=>{const v=Math.round(clamp(50+rf(-9,9)+(def.str||0),30,76));trend+=v-(p[k]||50);o[k]=v;});
       }else{
         keys.forEach(k=>{const v=Math.round(clamp((p[k]||50)+ageDelta(o.age),20,99));trend+=v-(p[k]||50);o[k]=v;});
