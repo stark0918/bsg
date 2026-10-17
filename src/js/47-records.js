@@ -353,7 +353,7 @@ function noHitterPanel(){
     <table class="grid"><tr><th>場合</th><th>球隊</th><th>投手</th><th>事蹟</th></tr>${cur||recent||'<tr><td colspan="4" class="muted">尚未出現。</td></tr>'}</table></div>`;
 }
 function recTabSeasonBest(){
-  return `<div class="panel"><p class="muted">單季紀錄門檻（14 場制）：打擊率需 20 打席以上，其餘打擊獎需 30 打席以上；防禦率需 21 出局以上，其餘投手獎需 36 出局以上。</p></div>`
+  return `<div class="panel"><p class="muted">跨季最佳單季成績（只統計已結束的球季；本季進行中的成績請看「📊 本季團隊」的暫列王座）。單季紀錄門檻（14 場制）：打擊率需 20 打席以上，其餘打擊獎需 30 打席以上；防禦率需 21 出局以上，其餘投手獎需 36 出局以上。</p></div>`
     +seasonBestTable("bat","單季打擊紀錄")+seasonBestTable("pit","單季投球紀錄")+noHitterPanel();
 }
 /* ---------- 生涯里程碑 ---------- */

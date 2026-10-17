@@ -144,9 +144,9 @@ function histSeasonsPanel(){
 const HIST_CATS=[["hr","全壘打"],["h","安打"],["rbi","打點"],["sb","盜壘"],["r","得分"],["avg","打擊率"],["k","三振"],["w","勝投"],["sv","救援"]];
 const HIST_MIN_AB=200;   // 生涯打擊率榜規定打席（與里程碑同門檻）
 function histMilePanel(){
-  const c=CAREER.career;
+  const c=careerMerged();   // 含本季進行中的成績，不必等球季結束
   if(!c||((!c.bat||!Object.keys(c.bat).length)&&(!c.pit||!Object.keys(c.pit).length)))
-    return `<div class="panel"><h2>生涯里程碑</h2><p class="muted">尚未有跨季累計資料。</p></div>`;
+    return `<div class="panel"><h2>生涯里程碑</h2><p class="muted">尚未有生涯累計資料。</p></div>`;
   const cat=S.histCat||"hr";
   const isPit=["k","w","sv"].indexOf(cat)>=0;
   const src=isPit?(c.pit||{}):(c.bat||{});
@@ -167,7 +167,7 @@ function histMilePanel(){
   const tabs=HIST_CATS.map(k=>`<button class="btn sm ${k[0]===cat?"gold":""}" data-act="histCat" data-arg="${k[0]}">${k[1]}</button>`).join("");
   const title=(HIST_CATS.find(k=>k[0]===cat)||["",""])[1];
   return `<div class="panel"><h2>生涯里程碑</h2>
-    <p class="muted">跨季累計的生涯數據排行榜（前 10 名）。${cat==="avg"?`打擊率需滿 ${HIST_MIN_AB} 打席。`:""}</p>
+    <p class="muted">生涯數據排行榜（前 10 名，含本季目前成績）。${cat==="avg"?`打擊率需滿 ${HIST_MIN_AB} 打席。`:""}</p>
     <div class="actions">${tabs}</div>
     <table class="grid"><tr><th>#</th><th>球員</th><th>現屬球隊</th><th>生涯${title}</th></tr>${rows}</table></div>`;
 }
