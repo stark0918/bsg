@@ -235,7 +235,7 @@ function viewAdmin(){
   if(p&&teamOfPlayer({id:p.id})===tid){
     const isPit=p.role!==undefined;
     const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
-    const kn={meet:"打擊",power:"力量",eye:"選球",speed:"速度",defense:"守備",velocity:"球速",control:"控球",breaking:"變化",stamina:"體力"};
+    const kn={meet:"打擊",power:"力量",eye:"選球",speed:"速度",defense:"守備",mentality:"膽識",velocity:"球速",control:"控球",breaking:"變化",stamina:"體力"};
     const rows=keys.map(k=>`<div class="lurow"><span class="luord">${kn[k]}</span>
       <div class="lumain"><div class="luname"><b>${p[k]}</b></div></div>
       <span class="lubtns"><button class="btn sm" data-act="adminStat" data-arg="${k},-5">-5</button><button class="btn sm" data-act="adminStat" data-arg="${k},-1">-1</button><button class="btn sm" data-act="adminStat" data-arg="${k},1">+1</button><button class="btn sm" data-act="adminStat" data-arg="${k},5">+5</button></span></div>`).join("");
@@ -354,6 +354,7 @@ function viewGame(){
   const eff=effOf(m,defSide);
   const form=formOf(m,batter);
   const momBandNow=momBand(momStat(m,batter));
+  const myLeverage=m.over?0:leverageOf(m,offSide);
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -386,7 +387,7 @@ function viewGame(){
 
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
-      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}　熱度 ${MOM_LABEL[momBandNow]||MOM_LABEL.flat}</span></div>
+      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}　熱度 ${MOM_LABEL[momBandNow]||MOM_LABEL.flat}${myLeverage>=0.4?`　壓力 ${Math.round(myLeverage*100)}%`:""}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
@@ -621,7 +622,7 @@ function viewAbilities(){
   let batsF=(pos==="all")?bats.slice():bats.filter(x=>x.p.posLabel===pos);
   if(role==="start")batsF=batsF.filter(x=>!x.p.bench);
   else if(role==="bench")batsF=batsF.filter(x=>x.p.bench);
-  const bkeys={overall:p=>playerOverall(p),meet:p=>p.meet,power:p=>p.power,eye:p=>p.eye,speed:p=>p.speed,defense:p=>p.defense};
+  const bkeys={overall:p=>playerOverall(p),meet:p=>p.meet,power:p=>p.power,eye:p=>p.eye,speed:p=>p.speed,defense:p=>p.defense,mentality:p=>p.mentality==null?50:p.mentality};
   if(S.abilBatSort==="age")batsF.sort((a,b)=>a.p.age-b.p.age);
   else if(S.abilBatSort!=="orig"&&bkeys[S.abilBatSort]){const f=bkeys[S.abilBatSort];batsF.sort((a,b)=>f(b.p)-f(a.p));}
   // 投手：篩選 + 排序
@@ -632,11 +633,11 @@ function viewAbilities(){
   if(S.abilPitSort==="age")pitsF.sort((a,b)=>a.p.age-b.p.age);
   else if(S.abilPitSort!=="orig"&&pkeys[S.abilPitSort]){const f=pkeys[S.abilPitSort];pitsF.sort((a,b)=>f(b.p)-f(a.p));}
   const teamCell=x=>isAll?`<td class="name"><span class="swatch" style="background:${getTeam(x.tid).c1}"></span>${esc(getTeam(x.tid).short)}</td>`:"";
-  const batRows=batsF.map(x=>{const b=x.p;return `<tr><td class="name">${playerAvatar(b,18)}<span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>${teamCell(x)}<td>${esc(b.posLabel)}</td><td class="num">${b.age}${ageNote(b.age)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${b.meet}</td><td class="num">${b.power}</td><td class="num">${b.eye}</td><td class="num">${b.speed}</td><td class="num">${b.defense}</td></tr>`;}).join("");
+  const batRows=batsF.map(x=>{const b=x.p;return `<tr><td class="name">${playerAvatar(b,18)}<span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>${teamCell(x)}<td>${esc(b.posLabel)}</td><td class="num">${b.age}${ageNote(b.age)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${b.meet}</td><td class="num">${b.power}</td><td class="num">${b.eye}</td><td class="num">${b.speed}</td><td class="num">${b.defense}</td><td class="num">${b.mentality==null?50:b.mentality}</td></tr>`;}).join("");
   const pitRows=pitsF.map(x=>{const p=x.p;return `<tr><td class="name">${playerAvatar(p,18)}<span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td>${teamCell(x)}<td>${esc(p.role)}</td><td class="num">${p.age}${ageNote(p.age)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${p.velocity}</td><td class="num">${p.control}</td><td class="num">${p.breaking}</td><td class="num">${p.stamina}</td></tr>`;}).join("");
   const teamCol=isAll?"<th>球隊</th>":"";
   const btSort=S.abilBatSort||"overall", ptSort=S.abilPitSort||"overall";
-  const bsortBtns=[["overall","綜合"],["meet","打擊"],["power","力量"],["eye","選球"],["speed","速度"],["defense","守備"],["age","年齡"],["orig","原本"]]
+  const bsortBtns=[["overall","綜合"],["meet","打擊"],["power","力量"],["eye","選球"],["speed","速度"],["defense","守備"],["mentality","膽識"],["age","年齡"],["orig","原本"]]
     .map(([k,l])=>`<button class="btn sm ${btSort===k?"blue":""}" data-act="abilSortBat" data-arg="${k}">${l}</button>`).join("");
   const psortBtns=[["overall","綜合"],["velocity","球速"],["control","控球"],["breaking","變化"],["stamina","體力"],["age","年齡"],["orig","原本"]]
     .map(([k,l])=>`<button class="btn sm ${ptSort===k?"blue":""}" data-act="abilSortPit" data-arg="${k}">${l}</button>`).join("");
@@ -653,11 +654,11 @@ function viewAbilities(){
     <div class="actgroup"><span class="gtitle">守位篩選</span><br>${posBtns}</div>
     <div class="actgroup"><span class="gtitle">先發／替補</span><br>${roleBtns}</div>
     <h3>野手</h3>
-    <table class="grid"><tr><th>球員</th>${teamCol}<th>守位</th><th>年齡</th><th>綜合</th><th>打擊</th><th>力量</th><th>選球</th><th>速度</th><th>守備</th></tr>${batRows||`<tr><td colspan="${isAll?10:9}" class="muted">沒有符合的球員</td></tr>`}</table>
+    <table class="grid"><tr><th>球員</th>${teamCol}<th>守位</th><th>年齡</th><th>綜合</th><th>打擊</th><th>力量</th><th>選球</th><th>速度</th><th>守備</th><th>膽識</th></tr>${batRows||`<tr><td colspan="${isAll?11:10}" class="muted">沒有符合的球員</td></tr>`}</table>
     <div class="actgroup"><span class="gtitle">投手排序</span><br>${psortBtns}</div>
     <h3>投手</h3>
     <table class="grid"><tr><th>球員</th>${teamCol}<th>角色</th><th>年齡</th><th>綜合</th><th>球速</th><th>控球</th><th>變化</th><th>體力</th></tr>${pitRows||`<tr><td colspan="${isAll?9:8}" class="muted">沒有符合的球員</td></tr>`}</table>
-    <div class="abilnote">箭頭表示年齡趨勢：<span style="color:#1f8f4a">▲</span>成長期　<span style="color:#6b6455">–</span>巔峰　<span style="color:#b5533a">▼</span>衰退期。每打完一季、開始新球季時，全聯盟球員會+1 歲並成長／老化（39 歲退休換新人）。</div>
+    <div class="abilnote">箭頭表示年齡趨勢：<span style="color:#1f8f4a">▲</span>成長期　<span style="color:#6b6455">–</span>巔峰　<span style="color:#b5533a">▼</span>衰退期。每打完一季、開始新球季時，全聯盟球員會+1 歲並成長／老化（39 歲退休換新人）。野手的「膽識」不影響綜合評級，只在三壘有人、滿壘、9 局後分差小的關鍵局面發揮（膽識高頂得住、低的手軟）。</div>
     <div class="hr"></div>
     <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
@@ -677,7 +678,7 @@ function viewPlayer(){
       <tr><td class="num">${s?s.g:0}</td><td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td><td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr></table>`;
   }else{
     roleLabel=p.posLabel;
-    bars=rbar("打擊",p.meet)+rbar("力量",p.power)+rbar("選球",p.eye)+rbar("速度",p.speed)+rbar("守備",p.defense);
+    bars=rbar("打擊",p.meet)+rbar("力量",p.power)+rbar("選球",p.eye)+rbar("速度",p.speed)+rbar("守備",p.defense)+rbar("膽識",p.mentality==null?50:p.mentality);
     const s=ps&&ps.bat[pid],ab=s?s.ab:0,h=s?s.h:0;
     statsTable=`<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>
       <tr><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td><td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr></table>`;
@@ -1016,8 +1017,13 @@ function viewHelp(){
       <dd><b>盜壘</b>：以跑者速度挑戰捕手。<b>代打</b>：換上替補野手。<b>換投手</b>：從牛棚派上後援投手。</dd>
       <dt>■ 加速遊玩</dt>
       <dd>不想每一球都下指令時，可用「自動完成本局」或「快速模擬全場」。</dd>
+      <dt>■ 當日狀態與心理（測試版）</dt>
+      <dd><b>投手調子</b>：每場開賽前每位投手各有當日調子（▲好調／－普通／▼不調），直接影響球速、控球與變化球威力；用球數超過體力門檻會疲勞，<b>前一天投太多</b>的話今天狀態會被拖慢。<br>
+      <b>打者手感</b>：每位打者當天也有手感（▲好打／－普通／▼不振），打線表會標示；好打時擊球品質與選球都比較好。<br>
+      <b>打席熱度</b>：每位打者只記錄最近 6 個打席，3 安打以上會進入「🔥火熱」、5 出局以上會陷入「🧊手冷」，最多讓擊球品質上下 10%。<br>
+      <b>關鍵局面與膽識</b>：三壘有人、滿壘、9 局後分差小時會累積「壓力值」（對戰畫面會顯示百分比）。膽識高的打者在高壓下頂得住、膽識低的手軟，最多 ±10%；膽識不列入綜合評級，只在關鍵局面發揮。</dd>
       <dt>■ 選手能力</dt>
-      <dd>主選單的「🧮 選手能力」可看全聯盟各隊球員的能力數值（打者：打擊、力量、選球、速度、守備；投手：球速、控球、變化、體力），也能切換球隊偵察對手，或切到「🌐 全聯盟」跨隊比較。可用按鈕<b>依能力或年齡排序</b>、<b>依守位篩選</b>，以及<b>只顯示先發／替補</b>。比賽畫面中，目前打者與投手的數值也會即時以長條圖顯示。點球員名字可開啟個人資料卡。</dd>
+      <dd>主選單的「🧮 選手能力」可看全聯盟各隊球員的能力數值（打者：打擊、力量、選球、速度、守備、膽識；投手：球速、控球、變化、體力），也能切換球隊偵察對手，或切到「🌐 全聯盟」跨隊比較。可用按鈕<b>依能力或年齡排序</b>、<b>依守位篩選</b>，以及<b>只顯示先發／替補</b>。比賽畫面中，目前打者與投手的數值也會即時以長條圖顯示。點球員名字可開啟個人資料卡。</dd>
       <dt>■ 年齡與成長</dt>
       <dd>每位球員都有年齡。欄位中的箭頭是年齡趨勢：<b style="color:#1f8f4a">▲ 成長期</b>（22 歲以下，能力易上升）、<b>– 巔峰</b>、<b style="color:#b5533a">▼ 衰退期</b>（34 歲以上，能力易下滑）。每當你打完一季並<b>開始新球季</b>，全聯盟球員會 +1 歲並成長／老化；39 歲以上退休，缺口由<b>新人選秀</b>補上。成長結果會自動保存在瀏覽器，跨球季累積。</dd>
       <dt>■ 成績與排行</dt>

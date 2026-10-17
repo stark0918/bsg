@@ -75,6 +75,27 @@ const MOM_LABEL={hot:'<b style="color:#ff9f43">🔥火熱</b>',flat:'<span class
 function momBand(st){return st.h>=3?"hot":st.o>=5?"cold":"flat";}
 /* 把熱度帶進打擊能力（總分 ±3 內，最多 ±10% 擊球品質） */
 function applyMom(B,st){const k=1+0.035*clamp(st.sum,-3,3);B.meet*=k;B.power*=k;return B;}
+/* 關鍵局面壓力（beta D3c）：0~1，越高代表這一席愈關鍵 */
+function leverageOf(m,offSide){
+  const n=m.bases.filter(Boolean).length;
+  const diff=Math.abs(m.score[offSide]-m.score[defenseSide(m)]);
+  const late=m.inning>=9,tight=diff<=2;
+  let lv=0;
+  if(n>=2)lv+=0.30;
+  if(m.bases[2])lv+=0.35;                                  // 三壘有人
+  if(n>=3&&m.outs<=1)lv+=0.25;                             // 滿壘且機會未過半
+  if(late)lv+=0.25;
+  if(late&&tight)lv+=0.25;
+  return clamp(lv,0,1);
+}
+/* 膽識：關鍵局面裡頂得住的人加成、手軟的人扣分（壓力 100% 時最多 ±10%） */
+function applyClutch(B,mnt,lv){
+  if(lv<=0)return B;
+  const edge=clamp(((mnt==null?50:mnt)-53)/13,-1,1);   // 膽識 53 為聯盟平均、±13 為一個標準差
+  const k=1+edge*0.10*lv;
+  B.meet*=k;B.power*=k;B.eye*=k;
+  return B;
+}
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
 function paOutcome(batter,eff,offT,defT){
@@ -238,7 +259,8 @@ function playPA(m,offT,defT){
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
   const momStat0=momStat(m,batter);
-  const B=applyMom(batterEffective(batter,formOf(m,batter)),momStat0);   // beta D3a 當日手感＋D3b 打席熱度
+  const leverage=leverageOf(m,offSide);                     // beta D3c：本席的關鍵程度
+  const B=applyClutch(applyMom(batterEffective(batter,formOf(m,batter)),momStat0),batter.mentality==null?50:batter.mentality,leverage);
   const momBefore=momBand(momStat0);
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
@@ -313,6 +335,8 @@ function playPA(m,offT,defT){
     const word={"HR":"全壘打","3B":"三壘安打","2B":"二壘安打","1B":"一壘安打"}[ev];
     if(ev==="HR"){desc=`全壘打～～！！ ${batter.name} 的${runs>1?runs+"分":"陽春"}彈！`;cls="big";}
     else{desc=`${word}！${batter.name} 擊出穿越防線的安打${runs?"，跑者回壘得分":""}。`;cls="hit";}
+    if(leverage>=0.6&&runs>0&&(batter.mentality==null?50:batter.mentality)>=62)
+      push(`　★ 關鍵時刻！${batter.name} 的膽識頂住了滿場壓力。`,"run");   // beta D3c
   }
 
   // 得分

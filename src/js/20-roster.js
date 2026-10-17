@@ -9,6 +9,7 @@ function genRoster(team){
   const rnd=mulberry32(hashStr("gk-roster-v3-"+team.id));
   const nrnd=mulberry32(hashStr("gk-name-v1-"+team.id));
   const arnd=mulberry32(hashStr("gk-arch-v1-"+team.id));
+  const mrnd=mulberry32(hashStr("gk-ment-v1-"+team.id));   // 膽識獨立亂數流（beta D3c，不影響其他能力）
   const used=new Set();
   const pos=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
   const benchPos=["C","SS","CF","1B"];   // 板凳球員守位（僅供顯示／換人對照，不影響能力加成）
@@ -36,7 +37,8 @@ function genRoster(team){
       pos:p||(bp||("B"+i)), posLabel:p?POS_ZH[p]:(bp?POS_ZH[bp]:"替補"), bench:i>=9,
       meet:Math.round(clamp(meet+s,25,96)), power:Math.round(clamp(power+s,20,96)),
       eye:Math.round(clamp(eye+s,25,96)), speed:Math.round(clamp(speed+s,20,96)),
-      defense:Math.round(clamp(def+s,20,96))
+      defense:Math.round(clamp(def+s,20,96)),
+      mentality:Math.round(clamp(nrm(mrnd,53,13)+s,25,96))   // 膽識：關鍵局面頂不頂得住（beta D3c）
     });
   }
   const pitchers=[];

@@ -42,7 +42,7 @@ function applyOv(p){
   const o=CAREER.ov[p.id];if(!o)return;
   if(o.age!=null)p.age=o.age;
   if(o.name)p.name=o.name;
-  ["meet","power","eye","speed","defense","velocity","control","breaking","stamina"].forEach(k=>{if(o[k]!=null)p[k]=o[k];});
+  ["meet","power","eye","speed","defense","mentality","velocity","control","breaking","stamina"].forEach(k=>{if(o[k]!=null)p[k]=o[k];});
 }
 function ageDelta(a){
   if(a<=21)return ri(0,4);
@@ -69,7 +69,7 @@ function advanceCareer(){
       const isPit=p.role!==undefined;
       const o=CAREER.ov[p.id]||(CAREER.ov[p.id]={});
       o.age=(p.age||26)+1;
-      const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
+      const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense","mentality"];
       let trend=0;
       if(o.age>=39){                      // 退休 → 新人
         recordRetirement(p.id,p.name,def.id,p.age,p.posLabel||p.role);
