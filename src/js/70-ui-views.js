@@ -678,18 +678,19 @@ function viewPlayer(){
       <tr><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td><td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr></table>`;
   }
   const overall=playerOverall(p);
-  const care=CAREER.career||{};
+  // 生涯累計＝已完成球季＋本季進行中（careerMerged 會併入未結算的本季），不必等球季結束才看得到
+  const care=careerMerged();
   const cs=isPit?(care.pit||{})[pid]:(care.bat||{})[pid];
   let careerTable;
   if(isPit){
     careerTable=cs?`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
       <tr><td class="num">${cs.g||0}</td><td class="num">${fmtIP(cs.outs||0)}</td><td class="num">${fmtERA(cs.er||0,cs.outs||0)}</td><td class="num">${cs.w||0}</td><td class="num">${cs.l||0}</td><td class="num">${cs.sv||0}</td><td class="num">${cs.k||0}</td></tr></table>`
-      :`<p class="muted">尚無跨季累計（完成一整季後開始累計）。</p>`;
+      :`<p class="muted">尚無生涯累計（本季目前也還沒有出賽紀錄）。</p>`;
   }else{
     const cab=cs?cs.ab:0,ch=cs?cs.h:0;
     careerTable=cs?`<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>盜壘</th></tr>
       <tr><td class="num">${cs.g||0}</td><td class="num">${cab}</td><td class="num">${ch}</td><td class="num">${fmtAvg(cab?ch/cab:0)}</td><td class="num">${cs.hr||0}</td><td class="num">${cs.rbi||0}</td><td class="num">${cs.sb||0}</td></tr></table>`
-      :`<p class="muted">尚無跨季累計（完成一整季後開始累計）。</p>`;
+      :`<p class="muted">尚無生涯累計（本季目前也還沒有出賽紀錄）。</p>`;
   }
   const best=playerBestGame(pid,isPit);
   const bestHTML=best?`<p>${best.text}</p>
@@ -712,7 +713,7 @@ function viewPlayer(){
       ${bars}
     </div>
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
-    <h3>生涯累計（跨季）</h3>${careerTable}
+    <h3>生涯累計（跨季＋本季）</h3>${careerTable}
     <h3>本季亮眼</h3>${bestHTML}
     <h3>生涯里程碑</h3>${milestoneSummary}${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}
