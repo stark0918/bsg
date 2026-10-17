@@ -42,6 +42,18 @@ function recordPitchLoad(dayIdx,boxesArr){
     for(const pid in b.pit){const l=b.pit[pid];if(pid)se.pitchLoad[pid]={pp:l[6]||0,day:dayIdx};}
   });
 }
+/* ---------- 打者當日手感（beta D3a） ---------- */
+/* 開賽前為兩隊每名打者各擲一次當日手感：好打 22%／普通 56%／不振 22% */
+function rollForm(){const r=Math.random();return r<0.22?"good":r<0.78?"normal":"bad";}
+const FORM_LABEL={good:'<b style="color:#4fd39a">▲好打</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不振</b>'};
+/* 打者有效能力（套用當日手感）：手感越好擊球品質越高，選球也較從容 */
+function batterEffective(b,form){
+  const f=form==="good"?1.10:form==="bad"?0.90:1;
+  const e=form==="good"?1.06:form==="bad"?0.94:1;
+  return Object.assign({},b,{meet:b.meet*f,power:b.power*f,eye:b.eye*e,form:form||"normal"});
+}
+/* 取打者當日手感（舊存檔的中途比賽沒有記錄時現場補一次） */
+function formOf(m,b){const F=m.batterForm||(m.batterForm={});if(!F[b.id])F[b.id]=rollForm();return F[b.id];}
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
 function paOutcome(batter,eff,offT,defT){
@@ -190,6 +202,8 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
   m.originals={away:m.lineups.away.slice(),home:m.lineups.home.slice()};  // 記錄原先發，供換人／打線對照
+  m.batterForm={};   // 打者當日手感（beta D3a；先發與替補都預先擲定，代打上場即套用）
+  m.lineups.away.concat(m.bench.away,m.lineups.home,m.bench.home).forEach(b=>{m.batterForm[b.id]=rollForm();});
   m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
   m.log.push(`　先發投手　${away.name}：${awayStarter.name}　／　${home.name}：${homeStarter.name}`);
   m.log.push(`◆ 1局上　${away.name}的進攻`);
@@ -202,6 +216,7 @@ function playPA(m,offT,defT){
   const batter=currentBatter(m);
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
+  const B=batterEffective(batter,formOf(m,batter));   // beta D3a：當日手感套進打擊模型
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
 
@@ -221,7 +236,7 @@ function playPA(m,offT,defT){
     if(chance(succ)) ev=chance(0.10)?"BUNTHIT":"SAC";
     else ev="BUNTOUT";
   }else{
-    ev=paOutcome(batter,eff,offT,defT);
+    ev=paOutcome(B,eff,offT,defT);
   }
 
   push(`　投手「${DEF_NAME[defT]||"配球"}」對決打者「${OFF_NAME[offT]||"揮擊"}」。`,null);

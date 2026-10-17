@@ -352,6 +352,7 @@ function viewGame(){
   const myOrder=(m.batterIdx[offSide]%m.lineups[offSide].length)+1;
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
+  const form=formOf(m,batter);
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -384,7 +385,7 @@ function viewGame(){
 
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
-      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}</span></div>
+      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
@@ -480,6 +481,8 @@ function batAvg(m,pid){
   if(!s||!s.ab)return ".000";
   return fmtAvg(s.h/s.ab);
 }
+/* beta D3a：當日手感小標籤（普通不打擾畫面） */
+function formPill(f){return f==="good"?'<span class="pill on" title="今日手感火燙">好打</span>':f==="bad"?'<span class="pill off" title="今日手感低迷">不振</span>':"";}
 function lineupBox(m,side){
   const lu=m.lineups[side];
   const isOff=!m.over&&side===offenseSide(m);
@@ -494,9 +497,10 @@ function lineupBox(m,side){
     const o=orig[i];
     const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
     const mark=onBase.has(b.id)?' <span class="pill on">壘</span>':"";
-    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
+    const fmark=formPill((m.batterForm||{})[b.id]);   // beta D3a：當日手感
+    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${fmark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
   }).join("");
-  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>`).join("、");
+  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>${formPill((m.batterForm||{})[b.id])}`).join("、");
   const bp=m.bullpen[side].map(p=>`${esc(p.name)}<span class="muted">（${esc(p.role)}）</span>`).join("、");
   const P=m.pitchers[side].obj;
   return `<div>

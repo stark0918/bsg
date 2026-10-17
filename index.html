@@ -591,6 +591,18 @@ function recordPitchLoad(dayIdx,boxesArr){
     for(const pid in b.pit){const l=b.pit[pid];if(pid)se.pitchLoad[pid]={pp:l[6]||0,day:dayIdx};}
   });
 }
+/* ---------- 打者當日手感（beta D3a） ---------- */
+/* 開賽前為兩隊每名打者各擲一次當日手感：好打 22%／普通 56%／不振 22% */
+function rollForm(){const r=Math.random();return r<0.22?"good":r<0.78?"normal":"bad";}
+const FORM_LABEL={good:'<b style="color:#4fd39a">▲好打</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不振</b>'};
+/* 打者有效能力（套用當日手感）：手感越好擊球品質越高，選球也較從容 */
+function batterEffective(b,form){
+  const f=form==="good"?1.10:form==="bad"?0.90:1;
+  const e=form==="good"?1.06:form==="bad"?0.94:1;
+  return Object.assign({},b,{meet:b.meet*f,power:b.power*f,eye:b.eye*e,form:form||"normal"});
+}
+/* 取打者當日手感（舊存檔的中途比賽沒有記錄時現場補一次） */
+function formOf(m,b){const F=m.batterForm||(m.batterForm={});if(!F[b.id])F[b.id]=rollForm();return F[b.id];}
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
 function paOutcome(batter,eff,offT,defT){
@@ -739,6 +751,8 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
   m.originals={away:m.lineups.away.slice(),home:m.lineups.home.slice()};  // 記錄原先發，供換人／打線對照
+  m.batterForm={};   // 打者當日手感（beta D3a；先發與替補都預先擲定，代打上場即套用）
+  m.lineups.away.concat(m.bench.away,m.lineups.home,m.bench.home).forEach(b=>{m.batterForm[b.id]=rollForm();});
   m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
   m.log.push(`　先發投手　${away.name}：${awayStarter.name}　／　${home.name}：${homeStarter.name}`);
   m.log.push(`◆ 1局上　${away.name}的進攻`);
@@ -751,6 +765,7 @@ function playPA(m,offT,defT){
   const batter=currentBatter(m);
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
+  const B=batterEffective(batter,formOf(m,batter));   // beta D3a：當日手感套進打擊模型
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
 
@@ -770,7 +785,7 @@ function playPA(m,offT,defT){
     if(chance(succ)) ev=chance(0.10)?"BUNTHIT":"SAC";
     else ev="BUNTOUT";
   }else{
-    ev=paOutcome(batter,eff,offT,defT);
+    ev=paOutcome(B,eff,offT,defT);
   }
 
   push(`　投手「${DEF_NAME[defT]||"配球"}」對決打者「${OFF_NAME[offT]||"揮擊"}」。`,null);
@@ -1096,6 +1111,8 @@ function applyRecord(awayId,homeId,ra,rh){
 }
 function synthBatting(teamId,runs){
   const t=getTeam(teamId);
+  const form=rollForm();                                   // beta D3a：當日手感（全隊共通）影響安打產出
+  const fm=form==="good"?1.10:form==="bad"?0.90:1;
   // 先發 9 人，並隨機讓 0~2 名替補代打上場（讓替補在模擬比賽也有上場機會）
   const roster=t.batters.slice(0,9).slice();
   const bench=t.batters.filter(x=>x.bench);
@@ -1103,7 +1120,7 @@ function synthBatting(teamId,runs){
   for(let i=0;i<subN&&bench.length;i++)roster.push(bench.splice(ri(0,bench.length-1),1)[0]);
   const ps=roster.map(p=>({pid:p.id,ab:p.bench?ri(1,2):ri(3,5),h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
   const totalAB=ps.reduce((a,x)=>a+x.ab,0);
-  const H=clamp(Math.round(runs*1.15+4.6+rf(-1.5,1.5)),runs,Math.min(15,totalAB));
+  const H=clamp(Math.round((runs*1.15+4.6+rf(-1.5,1.5))*fm),runs,Math.min(15,totalAB));
   const powW=roster.map(p=>Math.pow(Math.max(1,p.power-30),2));
   let hr=clamp(Math.round(runs*rf(0.12,0.45)),0,runs);
   hr=Math.min(hr,H);
@@ -3514,6 +3531,7 @@ function viewGame(){
   const myOrder=(m.batterIdx[offSide]%m.lineups[offSide].length)+1;
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
+  const form=formOf(m,batter);
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -3546,7 +3564,7 @@ function viewGame(){
 
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
-      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}</span></div>
+      <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
@@ -3642,6 +3660,8 @@ function batAvg(m,pid){
   if(!s||!s.ab)return ".000";
   return fmtAvg(s.h/s.ab);
 }
+/* beta D3a：當日手感小標籤（普通不打擾畫面） */
+function formPill(f){return f==="good"?'<span class="pill on" title="今日手感火燙">好打</span>':f==="bad"?'<span class="pill off" title="今日手感低迷">不振</span>':"";}
 function lineupBox(m,side){
   const lu=m.lineups[side];
   const isOff=!m.over&&side===offenseSide(m);
@@ -3656,9 +3676,10 @@ function lineupBox(m,side){
     const o=orig[i];
     const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
     const mark=onBase.has(b.id)?' <span class="pill on">壘</span>':"";
-    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
+    const fmark=formPill((m.batterForm||{})[b.id]);   // beta D3a：當日手感
+    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${fmark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
   }).join("");
-  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>`).join("、");
+  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>${formPill((m.batterForm||{})[b.id])}`).join("、");
   const bp=m.bullpen[side].map(p=>`${esc(p.name)}<span class="muted">（${esc(p.role)}）</span>`).join("、");
   const P=m.pitchers[side].obj;
   return `<div>
@@ -4549,7 +4570,7 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
-  rollCond, effOf,
+  rollCond, effOf, rollForm, batterEffective, formOf,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };
 })();

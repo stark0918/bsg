@@ -23,6 +23,6 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
-  rollCond, effOf,
+  rollCond, effOf, rollForm, batterEffective, formOf,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };

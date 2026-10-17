@@ -47,6 +47,8 @@ function applyRecord(awayId,homeId,ra,rh){
 }
 function synthBatting(teamId,runs){
   const t=getTeam(teamId);
+  const form=rollForm();                                   // beta D3a：當日手感（全隊共通）影響安打產出
+  const fm=form==="good"?1.10:form==="bad"?0.90:1;
   // 先發 9 人，並隨機讓 0~2 名替補代打上場（讓替補在模擬比賽也有上場機會）
   const roster=t.batters.slice(0,9).slice();
   const bench=t.batters.filter(x=>x.bench);
@@ -54,7 +56,7 @@ function synthBatting(teamId,runs){
   for(let i=0;i<subN&&bench.length;i++)roster.push(bench.splice(ri(0,bench.length-1),1)[0]);
   const ps=roster.map(p=>({pid:p.id,ab:p.bench?ri(1,2):ri(3,5),h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
   const totalAB=ps.reduce((a,x)=>a+x.ab,0);
-  const H=clamp(Math.round(runs*1.15+4.6+rf(-1.5,1.5)),runs,Math.min(15,totalAB));
+  const H=clamp(Math.round((runs*1.15+4.6+rf(-1.5,1.5))*fm),runs,Math.min(15,totalAB));
   const powW=roster.map(p=>Math.pow(Math.max(1,p.power-30),2));
   let hr=clamp(Math.round(runs*rf(0.12,0.45)),0,runs);
   hr=Math.min(hr,H);
