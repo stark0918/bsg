@@ -17,7 +17,7 @@ const TEAM_DEFS=[
 
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
 const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
-let CAREER={seasons:0,pending:false,ov:{},records:{}};
+let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
   c.ov=c.ov||{};c.records=c.records||{};c.history=c.history||[];c.awards=c.awards||[];c.career=c.career||{bat:{},pit:{}};

@@ -67,7 +67,7 @@ const ACT={
   },
   wipeCareer(){
     try{localStorage.removeItem(CAREERKEY);localStorage.removeItem(OLD_CAREERKEY);}catch(e){}
-    CAREER={seasons:0,pending:false,ov:{},records:{},history:[],career:{bat:{},pit:{}},awards:[]};
+    CAREER=normalizeCareer(null);   // 走同一套預設欄位，避免清掉後缺 career/milestones 等
     for(const k in teamCache)delete teamCache[k];
     flash("已清除生涯成就");render();
   },
