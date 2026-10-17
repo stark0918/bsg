@@ -27,9 +27,17 @@ function draftCurrentPick(){
   const d=S.season.draft;
   return d&&d.picks[d.idx];
 }
+/* 已被使用的姓名：全聯盟現有球員＋歷屆引退者（避免選秀新人與在役／退休球員同名） */
+function takenNames(){
+  const s=new Set();
+  TEAM_DEFS.forEach(def=>{const t=getTeam(def.id);t.batters.concat(t.pitchers).forEach(p=>{if(p.name)s.add(p.name);});});
+  (CAREER.retirements||[]).forEach(r=>{if(r.name)s.add(r.name);});
+  return s;
+}
 function draftCandidates(pick){
-  const rng=mulberry32(hashStr("gk-draft-"+pick.teamId+"-"+pick.pid));
-  const used=new Set();
+  // 亂數含球季號：同一個 pid 再次被選秀回收時，候選人（姓名與能力）不會跟上一輪一樣
+  const rng=mulberry32(hashStr("gk-draft-"+pick.teamId+"-"+pick.pid+"-"+seasonNo()));
+  const used=takenNames();   // 現有全聯盟球員＋已引退者都算已用，避免同名新人看起來像同一人
   const str=getTeam(pick.teamId).str;
   const base=52+str;
   const nf=a=>(rng()-0.5)*2*a;
@@ -75,6 +83,7 @@ function applyDraftRookie(pick,rookie){
   // 該 pid 由新人沿用：舊人的里程碑／明星賽出場次數一併清除，避免掛到新人頭上
   if(CAREER.milestones)delete CAREER.milestones[pick.pid];
   if(CAREER.allstarAppearances)delete CAREER.allstarAppearances[pick.pid];
+  if(CAREER.debut)delete CAREER.debut[pick.pid];   // 新人沿用舊 pid：他的初登場球季就是本季（=沒有紀錄）
   S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){

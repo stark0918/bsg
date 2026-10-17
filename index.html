@@ -427,6 +427,7 @@ function normalizeCareer(d){
   c.lastTeam=c.lastTeam||null;
   c.streakBest=c.streakBest||{};
   c.retirements=c.retirements||[];
+  c.debut=c.debut||{};   // pid → 初登場球季（新人王資格用；沒有紀錄＝還沒在完成的球季出賽過）
   return c;
 }
 function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
@@ -457,6 +458,14 @@ function ageDelta(a){
   return ri(-5,-1);
 }
 function randName(){return pick(SU)+pick(GI);}
+/* 換人時取一個沒被用過的名字：避免新人與在役／已引退球員同名，
+   否則同一個名字會在聯盟裡反覆出現，看起來像同一人重出江湖（連帶讓獎項紀錄看起來重複）。 */
+let _freshNames=null;
+function freshName(){
+  if(!_freshNames)_freshNames=takenNames();
+  for(let i=0;i<60;i++){const n=randName();if(!_freshNames.has(n)){_freshNames.add(n);return n;}}
+  return randName();
+}
 /* 引退記錄：名字被新人覆蓋前留下名單＋生涯成績快照 */
 function recordRetirement(pid,name,teamId,age,pos){
   CAREER.retirements=CAREER.retirements||[];
@@ -466,6 +475,7 @@ function recordRetirement(pid,name,teamId,age,pos){
   CAREER.retirements.push({no:seasonNo(),pid,name,team:teamId,age:age||null,pos:pos||"",line});
 }
 function advanceCareer(){
+  _freshNames=null;   // 本輪換人用的名字集合（避免同隊兩名新人撞名）
   TEAM_DEFS.forEach(def=>{
     const t=teamCache[def.id]||getTeam(def.id);
     t.batters.concat(t.pitchers).forEach(p=>{
@@ -476,8 +486,9 @@ function advanceCareer(){
       let trend=0;
       if(o.age>=39){                      // 退休 → 新人
         recordRetirement(p.id,p.name,def.id,p.age,p.posLabel||p.role);
-        o.age=ri(19,22);o.name=randName();
+        o.age=ri(19,22);o.name=freshName();
         if(CAREER.career){delete CAREER.career.bat[p.id];delete CAREER.career.pit[p.id];}
+        if(CAREER.debut)delete CAREER.debut[p.id];   // 同一 pid 換新人時，初登場紀錄也要清掉
         keys.forEach(k=>{const v=Math.round(clamp(50+rf(-9,9)+(def.str||0),30,76));trend+=v-(p[k]||50);o[k]=v;});
       }else{
         keys.forEach(k=>{const v=Math.round(clamp((p[k]||50)+ageDelta(o.age),20,99));trend+=v-(p[k]||50);o[k]=v;});
@@ -1595,6 +1606,13 @@ function finalizeSeason(){
   for(const pid in ps.bat){const s=ps.bat[pid],d=cb[pid]||(cb[pid]={});BAT.forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
   for(const pid in ps.pit){const s=ps.pit[pid],d=cp[pid]||(cp[pid]={});PIT.forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
 
+  /* 初登場球季：只要在這一季有過正式出賽就記下來（新人王只能拿第一季） */
+  CAREER.debut=CAREER.debut||{};
+  const debutNo=CAREER.seasons+1;
+  for(const pool of [ps.bat,ps.pit])for(const pid in pool){
+    if((pool[pid].g||0)>0&&!CAREER.debut[pid])CAREER.debut[pid]=debutNo;
+  }
+
   /* 跨季生涯摘要 */
   const st=standingsList();
   const me=se.playerTeam;
@@ -2410,9 +2428,17 @@ function draftCurrentPick(){
   const d=S.season.draft;
   return d&&d.picks[d.idx];
 }
+/* 已被使用的姓名：全聯盟現有球員＋歷屆引退者（避免選秀新人與在役／退休球員同名） */
+function takenNames(){
+  const s=new Set();
+  TEAM_DEFS.forEach(def=>{const t=getTeam(def.id);t.batters.concat(t.pitchers).forEach(p=>{if(p.name)s.add(p.name);});});
+  (CAREER.retirements||[]).forEach(r=>{if(r.name)s.add(r.name);});
+  return s;
+}
 function draftCandidates(pick){
-  const rng=mulberry32(hashStr("gk-draft-"+pick.teamId+"-"+pick.pid));
-  const used=new Set();
+  // 亂數含球季號：同一個 pid 再次被選秀回收時，候選人（姓名與能力）不會跟上一輪一樣
+  const rng=mulberry32(hashStr("gk-draft-"+pick.teamId+"-"+pick.pid+"-"+seasonNo()));
+  const used=takenNames();   // 現有全聯盟球員＋已引退者都算已用，避免同名新人看起來像同一人
   const str=getTeam(pick.teamId).str;
   const base=52+str;
   const nf=a=>(rng()-0.5)*2*a;
@@ -2458,6 +2484,7 @@ function applyDraftRookie(pick,rookie){
   // 該 pid 由新人沿用：舊人的里程碑／明星賽出場次數一併清除，避免掛到新人頭上
   if(CAREER.milestones)delete CAREER.milestones[pick.pid];
   if(CAREER.allstarAppearances)delete CAREER.allstarAppearances[pick.pid];
+  if(CAREER.debut)delete CAREER.debut[pick.pid];   // 新人沿用舊 pid：他的初登場球季就是本季（=沒有紀錄）
   S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){
@@ -2550,13 +2577,16 @@ function computeAwards(){
     return {kind,title,val:top?top.val:null,name:top?top.p.name:"",pid:top?top.pid:"",team:top?top.pid.replace(/[bp]\d+$/,""):""};
   });
   const batters=[],starters=[],relievers=[],rookies=[];
-  // 新人王資格：22 歲以下，且季初生涯累計未滿 30 打席（即第一個有意義的球季；參照 NPB 新人王以前年度出賽上限概念）
-  const ROOKIE_MAX_CAREER_AB=30;
+  /* 新人王資格：22 歲以下，且「本季是他的初登場」——CAREER.debut 記錄每位球員第一次
+     在正式球季出賽的球季（球季結束時寫入）；沒有紀錄＝從沒在前面任何一季登場過。
+     因此一個人一生涯只可能拿一次新人王。出道門檻放寬到一半，讓替補出身的新人也有機會。 */
+  const debut=CAREER.debut||{};
+  const rookieMinG=Math.max(3,Math.floor((qf.bat||6)/3));
   for(const pid in ps.bat){
     const s=ps.bat[pid],p=playerById(pid);
     if(!p||(s.g||0)<qf.bat)continue;
     batters.push({pid,p,s,pts:awardPts(s,false)});
-    if(p.age<=22&&((CAREER.career.bat[pid]||{}).ab||0)<ROOKIE_MAX_CAREER_AB)rookies.push({pid,p,s,pts:awardPts(s,false)});
+    if(p.age<=22&&!debut[pid]&&(s.g||0)>=rookieMinG)rookies.push({pid,p,s,pts:awardPts(s,false)});
   }
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
@@ -2624,7 +2654,7 @@ function pickSawamura(ps,qf){
   arr.sort((a,b)=>b.pts-a.pts);
   return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
 }
-function awardPodium(list,label,emoji,isPit){
+function awardPodium(list,label,emoji,isPit,emptyMsg){
   const row=a=>{
     const p = playerById(a.pid);
     const age = p ? p.age : (a.s?.age||"");
@@ -2637,6 +2667,8 @@ function awardPodium(list,label,emoji,isPit){
       <td class="num">${a.pts} 分</td><td class="muted" style="font-size:11px">${esc(stats)}</td></tr>`;
   };
   const statHeader=isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘";
+  if(!list||!list.length)
+    return `<h3>${emoji||""} ${label}</h3><table class="grid"><tr><td class="muted">${esc(emptyMsg||"本季無符合資格的球員。")}</td></tr></table>`;
   return `<h3>${emoji||""} ${label}</h3><table class="grid"><tr><th>#</th><th>球員</th><th>球隊</th><th>評分</th><th>關鍵數據（${statHeader}）</th></tr>${list.map(row).join("")}</table>`;
 }
 function awardKingGrid(title,list,a){
@@ -2705,10 +2737,10 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 球團年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、生涯未滿30打席的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
-  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、生涯未滿 30 打席）","🌟",false)}</div>`);
+  if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、本季初登場）","🌟",false,"本季沒有符合資格的新人（22 歲以下、且這一季才首次在正式球季出賽），不頒獎。")}</div>`);
   if(step>=4)parts.push(`<div class="panel ceremony">${awardPodium(a.cy,"最佳投手（先發）","🔥",true)}</div>`);
   if(step>=5&&a.reliever&&a.reliever.length)parts.push(`<div class="panel ceremony">${awardPodium(a.reliever,"最佳後援","🧱",true)}</div>`);
   if(step>=6&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
@@ -4183,7 +4215,7 @@ function viewHelp(){
       <dt>■ 遊戲紀錄</dt>
       <dd>從標題畫面或球季總部的「📜 遊戲紀錄」可回顧三種紀錄：<b>逐場賽果</b>（本季每場比賽的對戰與比數）、<b>跨季生涯</b>（每一季的戰績、名次與總冠軍）與<b>生涯里程碑</b>（跨季累計的全壘打、安打、三振、勝投等前 10 名）。</dd>
       <dt>■ 個人獎項</dt>
-      <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、生涯未滿30打席的野手）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。</dd>
+      <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、本季初登場的新人，一生只能拿一次）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。</dd>
       <dt>■ 新人選秀</dt>
       <dd>球季結束、有球員退休（39 歲以上）時，會展開<b>新人選秀</b>：依例行賽戰績由差到佳決定指名順序，輪到你的球團時可從 4 名候補中指名 1 人補強，其他球團會自動挑選。選進的新人會成為下一季的戰力。</dd>
       <dt>■ 季後賽</dt>

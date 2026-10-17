@@ -26,6 +26,13 @@ function finalizeSeason(){
   for(const pid in ps.bat){const s=ps.bat[pid],d=cb[pid]||(cb[pid]={});BAT.forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
   for(const pid in ps.pit){const s=ps.pit[pid],d=cp[pid]||(cp[pid]={});PIT.forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
 
+  /* 初登場球季：只要在這一季有過正式出賽就記下來（新人王只能拿第一季） */
+  CAREER.debut=CAREER.debut||{};
+  const debutNo=CAREER.seasons+1;
+  for(const pool of [ps.bat,ps.pit])for(const pid in pool){
+    if((pool[pid].g||0)>0&&!CAREER.debut[pid])CAREER.debut[pid]=debutNo;
+  }
+
   /* 跨季生涯摘要 */
   const st=standingsList();
   const me=se.playerTeam;
