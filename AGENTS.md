@@ -6,8 +6,9 @@
 - 打包：`powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1`
   （或直接雙擊 `build.cmd`）。
 - 打包是可重現的：打包後 `git status` 應保持乾淨（成品與 `src/` 同步）。
-- 測試版發布：`.\publish-beta.ps1`（或雙擊 `publish-beta.cmd`）＝打包本分支
-  ＋把成品同步到正式版 worktree 的 `beta/index.html`，正式版主頁線上入口才點得到。
+- `beta/index.html`：測試版成品副本，主頁「🧪 測試版」在**線上**就連到它；
+  由 beta 分支跑 `publish-beta.ps1`（或雙擊 `publish-beta.cmd`）同步過來：打包本分支
+  ＋複製到正式版 worktree 的 `beta/index.html`（`build.ps1` 不會動它，改了要 commit）。
 
 ## Commit 節奏（重要）
 採「**一個功能一段**」：

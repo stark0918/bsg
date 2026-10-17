@@ -30,7 +30,7 @@ function viewTitle(){
     <button class="btn blk" data-act="league">🏟 球團日報</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
-    <a class="btn blk" style="text-decoration:none" href="${location.protocol==="file:"?"../預設專案/index.html":"../index.html"}" target="_blank">← 回正式版</a>
+<a class="btn blk" style="text-decoration:none" href="${location.protocol==="file:"?"../預設專案/index.html":"../index.html"}" target="_blank">← 回正式版</a>
     ${danger}
   </div>
   <div class="panel">
@@ -541,10 +541,10 @@ function boxScore(m){
         <td class="num">${ps.bb}</td><td class="num">${ps.k}</td><td class="num">${ps.pp}</td></tr>`;
     }).join("");
     return `<h3>${esc(getTeam(id).name)}</h3>
-      <table class="grid"><tr><th>打者</th><th>守位</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th></tr>${rows}</table>
-      <table class="grid" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${pitRows}</table>`;
+      <table class="grid boxscore"><tr><th>打者</th><th>守位</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th></tr>${rows}</table>
+      <table class="grid boxscore" style="margin-top:6px"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${pitRows}</table>`;
   };
-  return `<div class="two">${mk(m.awayId,"away")}${mk(m.homeId,"home")}</div>`;
+  return `${mk(m.awayId,"away")}${mk(m.homeId,"home")}`;
 }
 function fieldSVG(bases){
   const occ=[!!bases[0],!!bases[1],!!bases[2]];
@@ -847,8 +847,8 @@ function boxDetailHTML(box,gd){
     <div class="hr"></div>
     ${inningLineTable(box)}
   </div>`;
-  const batPanel=`<div class="panel"><h2>打者成績</h2><div class="two">${boxBatTable(box,"aw")}${boxBatTable(box,"hm")}</div></div>`;
-  const pitPanel=`<div class="panel"><h2>投手成績</h2><div class="two">${boxPitTable(box,"aw")}${boxPitTable(box,"hm")}</div></div>`;
+  const batPanel=`<div class="panel"><h2>打者成績</h2>${boxBatTable(box,"aw")}${boxBatTable(box,"hm")}</div>`;
+  const pitPanel=`<div class="panel"><h2>投手成績</h2>${boxPitTable(box,"aw")}${boxPitTable(box,"hm")}</div>`;
   const dig=gameDigest(box);
   return head+batPanel+pitPanel+(dig?`<div class="panel"><h2>攻勢重點</h2>${dig}</div>`:"");
 }
@@ -867,7 +867,7 @@ function boxBatTable(box,side){
     const f=box.bat[pid],p=playerById(pid);
     return `<tr><td class="name">${esc(p?p.name:pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
-  return `<div><h3>${esc(getTeam(tid).name)}</h3><table class="grid"><tr><th>打者</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table></div>`;
+  return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>打者</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
 function boxPitTable(box,side){
   const tid=side==="aw"?box.aw:box.hm;
@@ -876,7 +876,7 @@ function boxPitTable(box,side){
     const cur=f[7]?' <span class="pill on">勝</span>':f[8]?' <span class="pill off">敗</span>':f[9]?' <span class="pill on">救</span>':"";
     return `<tr><td class="name">${esc(p?p.name:pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
-  return `<div><h3>${esc(getTeam(tid).name)}</h3><table class="grid"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table></div>`;
+  return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
 function gameDigest(box){
   const parts=[];
@@ -953,6 +953,7 @@ function leadersQualify(){
   };
 }
 function leadersList(kind){
+  if(!S.season.playerStats)S.season.playerStats={bat:{},pit:{}};
   const ps=S.season.playerStats;
   const q=leadersQualify();
   if(kind==="era"||kind==="w"||kind==="k"||kind==="sv"){

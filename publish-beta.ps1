@@ -1,27 +1,15 @@
-$ErrorActionPreference="Stop"
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-# 1) build the beta game in this worktree
-& (Join-Path $here "build.ps1")
-
-# 2) locate the main worktree of the same repo (branch main) via git
-$prevEnc = [Console]::OutputEncoding
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-try{
-  $mainWt = $null
-  $cur = $null
-  foreach($line in (git -C $here worktree list --porcelain)){
-    if($line.StartsWith("worktree ")) { $cur = $line.Substring(9) }
-    elseif($line -eq "branch refs/heads/main") { $mainWt = $cur }
-  }
-} finally {
-  [Console]::OutputEncoding = $prevEnc
+﻿# 把 beta 分支（測試版工作樹）打包並同步成品到 main 的 beta/index.html。
+# 主線 build.ps1 不會動這個檔案；同步後記得 commit。
+$ErrorActionPreference = "Stop"
+$proj = Split-Path -Parent $MyInvocation.MyCommand.Path
+$betaDir = $null
+foreach ($line in (git worktree list)) {
+  if ($line -match '\[beta\]') { $betaDir = ($line -split '\s+')[0]; break }
 }
-if(-not $mainWt){ throw "main worktree not found" }
-
-# 3) copy the artifact so the official site serves it at /beta/index.html
-$dstDir = Join-Path $mainWt "beta"
-if(-not (Test-Path -LiteralPath $dstDir)){ New-Item -ItemType Directory -Path $dstDir | Out-Null }
-$dst = Join-Path $dstDir "index.html"
-Copy-Item -LiteralPath (Join-Path $here "index.html") -Destination $dst -Force
-Write-Host ("synced -> " + $dst)
+if (-not $betaDir) { throw "找不到 beta 分支的工作樹（git worktree list 沒有 [beta]）" }
+Write-Host ("beta dir: " + $betaDir)
+powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $betaDir "build.ps1")
+$dstDir = Join-Path $proj "beta"
+if (-not (Test-Path $dstDir)) { New-Item -ItemType Directory $dstDir | Out-Null }
+Copy-Item (Join-Path $betaDir "index.html") (Join-Path $dstDir "index.html") -Force
+Write-Host "published -> beta/index.html"

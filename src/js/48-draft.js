@@ -1,22 +1,27 @@
 /* ---------- 新人選秀（球季結束後、開新球季前） ---------- */
-/* 規則：例行賽戰績越差越先選（一輪）。你的順位可從 4 名候補中挑人；
-   其他球團自動補上最需要的位置。未選到的退休缺口仍由舊機制自動遞補。 */
+/* 規則：每個退休缺口都是一個指名權，按輪次由戰績差者優先選（一輪一支）；
+   你的順位可從 4 名候補中挑人，其他球團自動補最強新人。 */
 function prepareDraft(){
   const se=S.season;
   if(se.drafted||se.draft)return;
   const order=standingsList().map(x=>x.id).reverse();   // 戰績差者優先
-  const picks=[];
-  order.forEach(tid=>{
+  // 每個退休缺口都是一個指名權（同隊多缺口就多籤），按輪次輪流：弱隊先拿第一輪
+  const vacsByTeam=order.map(tid=>{
     const t=getTeam(tid);
-    const vac=t.batters.concat(t.pitchers).filter(p=>(p.age||26)>=38);
-    if(vac.length){
-      const v=vac[0];
-      picks.push({teamId:tid,pid:v.id,pos:v.posLabel||v.role||"投手",kind:v.role!==undefined?"pit":"bat"});
-    }
+    return t.batters.concat(t.pitchers).filter(p=>(p.age||26)>=38)
+      .map(v=>({teamId:tid,pid:v.id,pos:v.posLabel||v.role||"投手",kind:v.role!==undefined?"pit":"bat"}));
   });
+  const picks=[];
+  let round=0;
+  for(;;){
+    let added=false;
+    vacsByTeam.forEach(vl=>{if(vl[round]){picks.push(vl[round]);added=true;}});
+    if(!added)break;
+    round++;
+  }
   se.draftLog=se.draftLog||[];
   if(!picks.length){se.drafted=true;return;}
-  se.draft={picks,idx:0,cands:null,done:false};
+  se.draft={picks,idx:0,cands:null,done:false,logStart:se.draftLog.length};
 }
 function draftCurrentPick(){
   const d=S.season.draft;
@@ -80,6 +85,7 @@ function draftJudge(){
     applyDraftRookie(pick,cs[draftBest(cs)]);d.idx++;d.cands=null;
   }
   if(S.season.draft&&S.season.draft.idx>=S.season.draft.picks.length){
+    if(S.season.draft.logStart!=null)S.season.lastDraftLogStart=S.season.draft.logStart;
     S.season.drafted=true;S.season.draft=null;
     for(const k in teamCache)delete teamCache[k];   // 讓選秀結果反映到名冊
     saveGame();
@@ -102,10 +108,13 @@ function candCard(c,pick,idx){
 function viewDraft(){
   const se=S.season;
   if(!se.draft||se.draft.idx>=se.draft.picks.length){
-    const log=(se.draftLog||[]).map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
+    const sno=(typeof seasonNo==="function"?seasonNo():0);
+    const start=(se.lastDraftLogStart!=null?se.lastDraftLogStart:null);
+    const log=(start!=null?(se.draftLog||[]).slice(start):(se.draftLog||[]).filter(x=>x.season>=sno-1));
+    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
     return `<div class="panel center"><h2>⭐ 新人選秀結束</h2>
       <p class="muted">新人們已陸續入團，下一球季就靠他們了！</p></div>
-      <div class="panel"><h2>指名結果</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${log}</table>
+      <div class="panel"><h2>指名結果（共 ${log.length} 位）</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${rows||'<tr><td colspan="5" class="muted">本季無選秀</td></tr>'}</table>
       <div class="hr"></div>
       <button class="btn red blk" data-act="newgame">開始新球季</button>
       <button class="btn blk" data-act="awards">🏆 頒獎典禮</button>
@@ -116,7 +125,7 @@ function viewDraft(){
   const cands=draftCandidates(pick);
   const step=`<span class="pill ${isMe?"on":""}">第 ${d.idx+1} 順位（${getTeam(pick.teamId).name}）</span>`;
   const body=isMe
-    ? `<p class="muted">輪到你的球團指名！從以下 4 名候補中選 1 人加入（其餘缺口由自動選秀補齊）。</p>
+    ? `<p class="muted">輪到你的球團指名！從以下 4 名候補中選 1 人加入（每個退休缺口都有一支籤，你隊上幾個缺口就能選幾次）。</p>
        <div class="two">${cands.map((c,i)=>candCard(c,pick,i)).join("")}</div>
        <div class="hr"></div>
        <button class="btn gold blk" data-act="draftAuto">🤖 自動選最強</button>`
