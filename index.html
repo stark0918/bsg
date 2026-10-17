@@ -3645,7 +3645,7 @@ function lineupBox(m,side){
   const cur=isOff?lu[m.batterIdx[side]%lu.length]:null;
   const onBase=new Set();m.bases.forEach(x=>{if(x)onBase.add(x.id);});
   const orig=(m.originals&&m.originals[side])||[];
-  const tid=side===m.awayId?m.awayId:m.homeId;
+  const tid=side==="away"?m.awayId:m.homeId;   // side 是 away/home，m.awayId/m.homeId 才是球隊 id（原本比錯對象，兩邊都顯示主隊）
   const rows=lu.map((b,i)=>{
     const cls=[];
     if(onBase.has(b.id))cls.push("onbase");
