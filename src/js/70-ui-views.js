@@ -30,7 +30,7 @@ function viewTitle(){
     <button class="btn blk" data-act="league">🏟 球團日報</button>
     ${(hasSave()||hasCareer)?`<button class="btn blk" data-act="history">📜 遊戲紀錄</button>`:""}
     <button class="btn blk" data-act="saveManager">💾 存檔管理</button>
-    ${location.protocol==="file:"?`<a class="btn blk" style="text-decoration:none" href="../預設專案/index.html" target="_blank">← 回正式版</a>`:""}
+    <a class="btn blk" style="text-decoration:none" href="${location.protocol==="file:"?"../預設專案/index.html":"../index.html"}" target="_blank">← 回正式版</a>
     ${danger}
   </div>
   <div class="panel">
