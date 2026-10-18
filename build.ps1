@@ -50,6 +50,34 @@ $out = $tpl.Replace('/*__BUNDLE__*/', $bundle)
 
 $outName = ([System.IO.File]::ReadAllText((Join-Path $srcdir "outname.txt"), [System.Text.Encoding]::UTF8)).Trim()
 $outPath = Join-Path $proj $outName
+
+# 語法檢查：把打包好的 JS 丟給 node --check（沒裝 node 就跳過）。
+# 少了這步，一個漏掉的括號會讓整頁在瀏覽器直接白畫面，而且要開瀏覽器才發現得到。
+# 找 node.exe：Get-Command 在某些環境下會找不到（腳本內 -ErrorAction 靜默時尤其明顯），
+# 所以再退回直接掃 PATH，確保語法檢查不會被安靜跳過。
+$nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue)
+if(-not $nodeExe){ $nodeExe = (Get-Command node -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -like "*.exe" } | Select-Object -First 1) }
+if(-not $nodeExe){ foreach($c in ($env:PATH -split ";")){ if($c -and (Test-Path (Join-Path $c "node.exe"))){ $nodeExe = [pscustomobject]@{ Path = (Join-Path $c "node.exe") }; break } } }
+if($nodeExe){
+  $tmpJs = Join-Path ([System.IO.Path]::GetTempPath()) ("gk_bundle_check_" + $PID + ".js")
+  $errFile = [System.IO.Path]::GetTempFileName()
+  [System.IO.File]::WriteAllText($tmpJs, $bundle, $utf8)
+  try{
+    $proc = Start-Process -FilePath $nodeExe.Path -ArgumentList @("--check", $tmpJs) -NoNewWindow -Wait -PassThru -RedirectStandardError $errFile
+    if($proc.ExitCode -ne 0){
+      $msg = ""
+      if(Test-Path -LiteralPath $errFile){
+        $msg = ((Get-Content -LiteralPath $errFile -ErrorAction SilentlyContinue) |
+                Where-Object { $_ -match "SyntaxError|Error:" } | Select-Object -First 1)
+      }
+      throw ("bundle JavaScript syntax error -> " + $msg)
+    }
+  } finally {
+    Remove-Item -LiteralPath $tmpJs -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $errFile -ErrorAction SilentlyContinue
+  }
+}
+
 [System.IO.File]::WriteAllText($outPath, $out, $utf8)
 
 Write-Host ("built -> " + $outName + " (" + $out.Length + " chars)")
