@@ -69,7 +69,25 @@ function normalizeCareer(d){
   c.namePool=c.namePool||0;   // 已綁定的姓名清單版本（0=尚未綁定）
   return c;
 }
-function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r)CAREER=normalizeCareer(JSON.parse(r));}catch(e){}}
+function loadCareer(){try{const r=localStorage.getItem(CAREERKEY)||localStorage.getItem(OLD_CAREERKEY);if(r){CAREER=normalizeCareer(JSON.parse(r));if(migrateRetirements())saveCareer();}}catch(e){}}
+/* 舊存檔遷移：① 補上 rid，讓「功能加入前就退休、但已有成績快照」的球員也能進生涯榜
+                 ② 完全沒有快照的舊紀錄只剩一行成績文字，從文字把能救的數字救回來 */
+function migrateRetirements(){
+  const l=CAREER.retirements||[];
+  let n=0;
+  l.forEach((r,i)=>{
+    if(!r.rid){r.rid="R"+i;n++;}
+    if(r.stats&&Object.keys(r.stats).length)return;
+    const line=r.line||"";
+    let m;
+    if((m=/出賽(\d+)　安打(\d+)　全壘打(\d+)　打點(\d+)/.exec(line))){
+      r.kind="bat";r.stats={g:+m[1],h:+m[2],hr:+m[3],rbi:+m[4]};r.partial=true;n++;
+    }else if((m=/出賽(\d+)　勝(\d+)敗(\d+)　救援(\d+)　三振(\d+)/.exec(line))){
+      r.kind="pit";r.stats={g:+m[1],w:+m[2],l:+m[3],sv:+m[4],k:+m[5]};r.partial=true;n++;
+    }
+  });
+  return n;
+}
 function saveCareer(){try{localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));localStorage.removeItem(OLD_CAREERKEY);}catch(e){}}
 function seasonNo(){return (CAREER.seasons||0)+1;}
 /* 上一季率領的球隊（優先取目前球季，其次生涯記錄），用於「續任原隊」 */

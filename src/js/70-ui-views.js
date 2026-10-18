@@ -738,27 +738,29 @@ function viewRetiree(){
   const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 返回${esc(ctxLabel(S.playerFrom)||"遊戲紀錄（引退名單）")}</button></div>`;
   if(!r)return `<div class="panel"><h2>球員資料</h2><div class="muted">找不到這位球員的紀錄。</div><div class="hr"></div>
     <button class="btn blk" data-act="backFromRetiree">← 返回</button></div>`;
-  const isPit=r.kind==="pit",s=r.stats||{};
-  const statsTable=isPit
+  const isPit=r.kind==="pit",s=r.stats||{},partial=!!r.partial;
+  const hasStats=Object.keys(s).length>0;
+  const statsTable=partial
+    ?`<p class="muted">${esc(r.line||"（無紀錄）")}</p>
+      <p class="muted" style="font-size:11px">這是舊存檔留下的紀錄，當時只保存了上面這些數字（打數、四壞等欄位沒有留下）。安打／全壘打／打點／勝敗／三振這些仍會計入生涯榜。</p>`
+    :(isPit
     ? `<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
         <tr><td class="num">${s.g||0}</td><td class="num">${s.outs?fmtIP(s.outs):"0.0"}</td><td class="num">${s.outs?fmtERA(s.er||0,s.outs):"-.-"}</td>
         <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td><td class="num">${s.k||0}</td></tr></table>`
     : `<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打擊率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>
         <tr><td class="num">${s.g||0}</td><td class="num">${s.ab||0}</td><td class="num">${s.h||0}</td><td class="num">${s.ab?fmtAvg(s.h/s.ab):".000"}</td>
-        <td class="num">${s.hr||0}</td><td class="num">${s.rbi||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td><td class="num">${s.r||0}</td><td class="num">${s.sb||0}</td></tr></table>`;
-  const hasStats=Object.keys(s).length>0;
+        <td class="num">${s.hr||0}</td><td class="num">${s.rbi||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td><td class="num">${s.r||0}</td><td class="num">${s.sb||0}</td></tr></table>`);
   const miles=milestonesFrom(r.miles);
-  const mileHTML=hasStats
+  const mileHTML=(hasStats&&!partial)
     ? (miles.length?`<ul class="awardlist">${miles.map(x=>`<li>🎖 ${esc(x)}</li>`).join("")}</ul>`
                    :`<p class="muted">未達成生涯里程碑。</p>`)
-    :`<p class="muted">這份存檔沒有留下數據快照（功能加入前的引退紀錄），只有下方的一行成績摘要。</p>
-      <p class="muted">${esc(r.line||"")}</p>`;
+    :`<p class="muted">${partial?"（舊存檔未保存里程碑）":"這份存檔沒有留下數據快照（功能加入前的引退紀錄），只有下方的一行成績摘要。"}</p>`;
   // 獲獎紀錄：pid 會被新人沿用，所以也要比對名字
   const aws=retireeAwardsOf(r.pid,r.name);
   const asN=retireeAllstarCount(r.pid,r.name);
   const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
     :`<p class="muted">${hasStats?"尚無獲獎紀錄。":"（舊存檔未保存獎項明細）"}</p>`;
-  const kindTxt=isPit?"投手":(s.ab!=null?"打者":"－");
+  const kindTxt=isPit?"投手":(r.kind==="bat"?"打者":"－");
   const gTxt=(s.g!=null)?`　生涯共 ${s.g} 場`:(hasStats?"":"");
   const asTxt=asN?`　明星賽入選 ${asN} 次`:"";
   const spanTxt=r.seasons

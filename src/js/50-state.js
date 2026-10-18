@@ -30,6 +30,7 @@ function writeSlot(n,p){try{localStorage.setItem(slotKey(n),JSON.stringify(p));r
 function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));localStorage.removeItem(oldSlotKey(n));}catch(e){}}
 function applyPayload(p){
   CAREER=normalizeCareer(p.career);
+  migrateRetirements();   // 匯入的舊存檔同樣補上 rid 與可救回的成績
   S.season=p.season||null;S.match=null;S.confirm=null;
   try{
     if(S.season)localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:p.at||Date.now()}));
