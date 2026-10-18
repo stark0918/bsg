@@ -754,19 +754,13 @@ function viewRetiree(){
     :`<p class="muted">這份存檔沒有留下數據快照（功能加入前的引退紀錄），只有下方的一行成績摘要。</p>
       <p class="muted">${esc(r.line||"")}</p>`;
   // 獲獎紀錄：pid 會被新人沿用，所以也要比對名字
-  const aws=[];
-  (CAREER.awards||[]).forEach(a=>{
-    const add=(e,label)=>{if(e&&e.pid===r.pid&&e.name===r.name)aws.push(`第 ${a.no} 季 ${label}`);};
-    add(a.mvp,"最有價值球員");add(a.cy,"最佳投手（先發）");add(a.reliever,"最佳後援");
-    add(a.rookie,"新人王");add(a.sawamura,"澤村賞");add(a.bestDH,"最佳指定打擊");
-    ((a.best9||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 最佳九人（${x.pos}）`);});
-    ((a.gloves||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 金手套（${x.pos}）`);});
-    ((a.kings||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 ${x.title}`);});
-  });
+  const aws=retireeAwardsOf(r.pid,r.name);
+  const asN=retireeAllstarCount(r.pid,r.name);
   const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
     :`<p class="muted">${hasStats?"尚無獲獎紀錄。":"（舊存檔未保存獎項明細）"}</p>`;
   const kindTxt=isPit?"投手":(s.ab!=null?"打者":"－");
   const gTxt=(s.g!=null)?`　生涯共 ${s.g} 場`:(hasStats?"":"");
+  const asTxt=asN?`　明星賽入選 ${asN} 次`:"";
   const spanTxt=r.seasons
     ?`　效力 ${r.seasons} 個球季（第 ${r.debutSeason} 季出道）`
     :(hasStats?`　出道球季不明（${r.debutSeason?"":"紀錄開始前就已在聯盟，"}無法計算效力球季）`:"");
@@ -775,7 +769,7 @@ function viewRetiree(){
       ${playerAvatar({id:r.pid},56)}
       <div style="margin-bottom:6px"><span class="who">${esc(r.name)}</span><span class="pos">${esc(r.pos||"")}</span>
         <span class="muted" style="font-size:12px">　${r.team?teamBadge(r.team):""}　<span class="age">${r.age!=null?r.age+" 歲":"年齡不詳"}</span>　${kindTxt}</span></div>
-      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${spanTxt}${gTxt}。已離開聯盟，下表為引退當時的跨季累計。</p>
+      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${spanTxt}${gTxt}${asTxt}。已離開聯盟，下表為引退當時的跨季累計。</p>
     </div>
     <h3>生涯成績（跨季累計）</h3>${statsTable}
     <h3>生涯里程碑</h3>${mileHTML}

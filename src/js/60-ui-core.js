@@ -77,8 +77,18 @@ function retireeIdx(pid,name){
   }
   return -1;
 }
+/* 引退紀錄索引（用自己專屬的 rid，已併入生涯榜的球員就是用這個 key） */
+function retireeIdxByRid(rid){
+  const list=CAREER.retirements||[];
+  for(let i=0;i<list.length;i++)if(list[i].rid===rid)return i;
+  return -1;
+}
 /* 排行榜／名單上的球員名稱：在役 → 進資料卡；已引退 → 進引退資料卡 */
 function pidLink(pid,name){
+  if(/^R\d+$/.test(pid)){                       // 已引退球員的跨季紀錄（rid）
+    const i=retireeIdxByRid(pid);
+    return i>=0?`<span class="plink" data-act="retiree" data-arg="${i}">${esc(name||"")}</span>`:esc(name||pid);
+  }
   const p=playerById(pid);
   const label=name||(p?p.name:pid);
   if(p&&(!name||p.name===name))return `<span class="plink" data-act="player" data-arg="${pid}">${esc(p.name)}</span>`;

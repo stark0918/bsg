@@ -105,7 +105,11 @@ function freshName(){
   for(let i=0;i<60;i++){const n=randName();if(!_freshNames.has(n)){_freshNames.add(n);return n;}}
   return randName();
 }
-/* 引退記錄：名字被新人覆蓋前留下名單＋生涯成績快照 */
+/* 引退記錄：名字被新人覆蓋前留下名單＋生涯成績快照。
+   快照裡一併存下 stats／miles／效力球季數：原本的 CAREER.career 與 milestones 在換人後
+   就被清掉了（pid 會被新人沿用），不存的話，引退頁只剩一行文字，點進去看不到資料。
+   每筆帶一個自己的 rid（不與 pid 共用），這樣這個人的終身成績就能留在存檔裡，
+   生涯榜／里程碑榜也把他算進去，不會因為位置被新人接班就從紀錄上消失。 */
 function recordRetirement(pid,name,teamId,age,pos){
   CAREER.retirements=CAREER.retirements||[];
   const cb=(CAREER.career&&CAREER.career.bat||{})[pid],cp=(CAREER.career&&CAREER.career.pit||{})[pid];
@@ -123,14 +127,45 @@ function recordRetirement(pid,name,teamId,age,pos){
     const byDebut=no-deb+1;
     if(minSeasons<=byDebut)seasons=byDebut;
   }
-  CAREER.retirements.push({no,pid,name,team:teamId,age:age||null,pos:pos||"",line,
-    // 快照：原本的 CAREER.career 與 milestones 在換人後會被清掉（pid 被新人沿用），
-    // 不預先存下來的話，引退頁只剩一行文字，點進去看不到生涯資料與里程碑。
-    kind:cb?"bat":cp?"pit":"",
+  const kind=cb?"bat":cp?"pit":"";
+  CAREER.retirements.push({rid:"R"+CAREER.retirements.length,no,pid,name,team:teamId,age:age||null,pos:pos||"",line,
+    kind,
     stats:Object.assign({},cb||cp||null),
     miles:Object.assign({},(CAREER.milestones||{})[pid]||null),
     seasons,
     debutSeason:deb>0?deb:null});
+}
+/* 已引退球員的成績以 rid 查（pid 已被新人沿用，不能用 pid 找人） */
+function retireeByRid(rid){
+  const l=CAREER.retirements||[];
+  for(let i=0;i<l.length;i++)if(l[i].rid===rid)return l[i];
+  return null;
+}
+/* 跨季累計裡的名字／球隊：在役球員用 pid，退役球員用 rid → 取引退紀錄 */
+function careerName(pid){const r=retireeByRid(pid);return r?r.name:recName(pid);}
+function careerTeam(pid){const r=retireeByRid(pid);return r?r.team:recTeam(pid);}
+/* 該球員的明星賽入選次數（從歷屆名單數，pid 被沿用也不怕算錯人） */
+function retireeAllstarCount(pid,name){
+  let n=0;
+  (CAREER.allstars||[]).forEach(a=>{
+    [[...(a.red||[])],[...(a.blue||[])]].forEach(side=>{
+      if(side.some(p=>p.pid===pid&&p.name===name))n++;
+    });
+  });
+  return n;
+}
+/* 該球員歷屆獲獎（pid＋名字雙重比對，避免算到同位置的新人） */
+function retireeAwardsOf(pid,name){
+  const out=[];
+  (CAREER.awards||[]).forEach(a=>{
+    const add=(e,label)=>{if(e&&e.pid===pid&&e.name===name)out.push(`第${a.no}季 ${label}`);};
+    add(a.mvp,"MVP");add(a.cy,"最佳投手");add(a.reliever,"最佳後援");
+    add(a.rookie,"新人王");add(a.sawamura,"澤村賞");add(a.bestDH,"最佳DH");
+    ((a.best9||[])||[]).forEach(x=>{if(x.pid===pid&&x.name===name)out.push(`第${a.no}季 最佳九人`);});
+    ((a.gloves||[])||[]).forEach(x=>{if(x.pid===pid&&x.name===name)out.push(`第${a.no}季 金手套`);});
+    ((a.kings||[])||[]).forEach(x=>{if(x.pid===pid&&x.name===name)out.push(`第${a.no}季 ${x.title}`);});
+  });
+  return out;
 }
 function advanceCareer(){
   _freshNames=null;   // 本輪換人用的名字集合（避免同隊兩名新人撞名）

@@ -187,8 +187,10 @@ function streakBestPanel(){
   return `<div class="panel"><h2>隊史最長連勝／連敗</h2>
     <table class="grid"><tr><th>球隊</th><th>最長連勝</th><th>最長連敗</th><th>本季目前</th></tr>${rows}</table></div>`;
 }
-/* 生涯（跨季）累計：已完成球季＋本季進行中（若未結算） */
-function careerMerged(){
+/* 生涯（跨季）累計：已完成球季＋本季進行中（若未結算）。
+   includeRetired=true 時再併入已引退球員的終身成績（用 rid，不與新人共用的 pid 衝突），
+   讓生涯榜／里程碑榜不會因為那個位置換人接班就漏掉一個老將。 */
+function careerMerged(includeRetired){
   const cb={},cp={};
   const care=CAREER.career||{};
   for(const pid in (care.bat||{}))cb[pid]=Object.assign({},care.bat[pid]);
@@ -197,6 +199,14 @@ function careerMerged(){
   if(se&&!se.finalized&&se.playerStats){
     for(const pid in se.playerStats.bat){const s=se.playerStats.bat[pid],d=cb[pid]||(cb[pid]={});["g","ab","h","hr","rbi","bb","k","r","sb"].forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
     for(const pid in se.playerStats.pit){const s=se.playerStats.pit[pid],d=cp[pid]||(cp[pid]={});["g","outs","h","r","er","bb","k","pp","w","l","sv"].forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
+  }
+  if(includeRetired){
+    for(const r of (CAREER.retirements||[])){
+      if(!r.stats||!r.rid)continue;
+      const isPit=r.kind==="pit",tgt=isPit?cp:cb;
+      const d=tgt[r.rid]||(tgt[r.rid]={});
+      for(const k in r.stats)d[k]=(d[k]||0)+(r.stats[k]||0);
+    }
   }
   return {bat:cb,pit:cp};
 }
@@ -215,13 +225,14 @@ const CAREER_PIT_REC=[
 ];
 function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   const arr=[];
-  const re=isPit?/p\d+$/:/b\d+$/;
+  // 在役球員 pid（如 azureb3）／已引退球員 rid（如 R12）都收
+  const re=isPit?/^(?:[a-z]+p\d+|R\d+)$/:/^(?:[a-z]+b\d+|R\d+)$/;
   for(const pid in pool){
     const s=pool[pid];
     if(!re.test(pid))continue;
     if(isPit){if((s.outs||0)<min)continue;}else if((s.ab||0)<min)continue;
     const v=valFn(s);if(v==null)continue;
-    arr.push({pid,v,name:recName(pid),team:recTeam(pid)});
+    arr.push({pid,v,name:careerName(pid),team:careerTeam(pid)});
   }
   arr.sort((a,b)=>desc?b.v-a.v:a.v-b.v);
   const rows=arr.slice(0,5).map((r,i)=>`<tr><td class="num">${i<3?`<span class="medal g${i+1}">${i+1}</span>`:i+1}</td>
