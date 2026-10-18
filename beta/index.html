@@ -2104,17 +2104,17 @@ function recUp(book,cat,key,val,name,team,when,extra){
   const cur=book[cat][key];
   if(!cur||val>cur.val){
     const old = cur ? cur.val : null;
-    book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0};
+    book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0,pid:(extra&&extra.pid)||""};
     return {old, val, isNew: !cur};
   }
   return null;
 }
-function recUpBoth(cat,key,val,name,team,when){
+function recUpBoth(cat,key,val,name,team,when,pid){
   if(S.season&&!S.season.recs)S.season.recs=newRecBook();
-  const br1 = recUp(S.season.recs,cat,key,val,name,team,when);
+  const br1 = recUp(S.season.recs,cat,key,val,name,team,when,{pid:pid||""});
   const c=CAREER.records||(CAREER.records={});
   if(!c.bat)c.bat={};if(!c.pit)c.pit={};if(!c.team)c.team={};
-  const br2 = recUp(c,cat,key,val,name,team,when,{season:seasonNo()});
+  const br2 = recUp(c,cat,key,val,name,team,when,{season:seasonNo(),pid:pid||""});
   const br = br1 || br2;
   if(br && S.season){
     const lbl = REC_LABELS[cat]&&REC_LABELS[cat][key]||key;
@@ -2137,11 +2137,11 @@ function checkMatchRecords(m,when){
   if(!S.season.recs)S.season.recs=newRecBook();
   if(!S.season.recs.bat)S.season.recs=newRecBook();
   for(const pid in m.stats){const s=m.stats[pid];
-    ["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(pid),recTeam(pid),when));
+    ["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(pid),recTeam(pid),when,pid));
   }
   for(const pid in m.pstats){const s=m.pstats[pid];
-    recUpBoth("pit","k",s.k||0,recName(pid),recTeam(pid),when);
-    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(pid),recTeam(pid),when);
+    recUpBoth("pit","k",s.k||0,recName(pid),recTeam(pid),when,pid);
+    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(pid),recTeam(pid),when,pid);
   }
   const aName=getTeam(m.awayId).name,hName=getTeam(m.homeId).name;
   recUpBoth("team","r",m.score.away,aName,m.awayId,when);
@@ -2152,10 +2152,10 @@ function checkMatchRecords(m,when){
 }
 /* 快速模擬比賽的逐人成績掃描（synthGameStats 回傳） */
 function checkLineRecords(lines,teamId,when){
-  (lines.bat||[]).forEach(s=>{["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(s.pid),teamId,when));});
+  (lines.bat||[]).forEach(s=>{["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(s.pid),teamId,when,s.pid));});
   (lines.pit||[]).forEach(s=>{
-    recUpBoth("pit","k",s.k||0,recName(s.pid),teamId,when);
-    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(s.pid),teamId,when);
+    recUpBoth("pit","k",s.k||0,recName(s.pid),teamId,when,s.pid);
+    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(s.pid),teamId,when,s.pid);
   });
 }
 function checkSimTeamRecords(awayId,homeId,ra,rh,when){
@@ -2184,7 +2184,7 @@ function recRow(book,cat,key){
   if(!r)return `<tr><td>${REC_LABELS[cat][key]}</td><td class="num muted">－</td><td></td></tr>`;
   const when=r.season?`第 ${r.season} 季 ${r.when}`:r.when;
   return `<tr><td>${REC_LABELS[cat][key]}</td><td class="num"><b>${r.val}</b></td>
-    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">${esc(when||"")}</span></td></tr>`;
+    <td class="name">${r.team?teamBadge(r.team):""} ${r.pid?pidLink(r.pid,r.name):esc(r.name)}<br><span class="muted" style="font-size:11px">${esc(when||"")}</span></td></tr>`;
 }
 function recPanel(book,title){
   let rows="";
@@ -2228,7 +2228,7 @@ function recTabSeason(){
   const ks=AWARD_KINGS.map(([kind,title])=>{
     const top=leadersList(kind)[0];
     if(!top)return "";
-    return `<tr><td class="name">${esc(title)}</td><td class="name">${esc(top.p.name)}</td><td class="name">${teamBadge(top.pid.replace(/[bp]\d+$/,""))}</td><td class="num"><b>${esc(top.val)}</b></td></tr>`;
+    return `<tr><td class="name">${esc(title)}</td><td class="name">${pidLink(top.pid,top.p.name)}</td><td class="name">${teamBadge(top.pid.replace(/[bp]\d+$/,""))}</td><td class="num"><b>${esc(top.val)}</b></td></tr>`;
   }).join("");
   return `<div class="panel"><h2>團隊攻守（含所有模擬場次）</h2>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>出賽</th><th>戰績</th><th>得:失</th><th>得失差</th></tr>${rows}</table></div>
@@ -2332,30 +2332,30 @@ function downloadCSV(){
 }
 
 /* ---------- 單季紀錄（跨季最佳單季成績） ---------- */
-function seasonBestUp(cat,key,val,name,team,no,higher){
+function seasonBestUp(cat,key,val,name,team,no,higher,pid){
   if(val==null||!isFinite(val))return;
   const B=CAREER.seasonBest||(CAREER.seasonBest={bat:{},pit:{}});
   if(!B[cat])B[cat]={};
   const cur=B[cat][key];
-  if(!cur||(higher?val>cur.val:val<cur.val))B[cat][key]={val,name,team,no};
+  if(!cur||(higher?val>cur.val:val<cur.val))B[cat][key]={val,name,team,no,pid:pid||""};
 }
 function recordSeasonBest(ps,no){
   if(!ps)return;
   // 門檻依 14 場例行賽調整（先發野手整季約 45~55 打數，先發投手約 60~90 出局數）
   for(const pid in (ps.bat||{})){
     const s=ps.bat[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.ab||0)>=20)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true);
-    if((s.ab||0)>=30){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
-      seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true);
-      seasonBestUp("bat","h",s.h||0,nm,tm,no,true);
-      seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true);}
+    if((s.ab||0)>=20)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true,pid);
+    if((s.ab||0)>=30){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true,pid);
+      seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true,pid);
+      seasonBestUp("bat","h",s.h||0,nm,tm,no,true,pid);
+      seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true,pid);}
   }
   for(const pid in (ps.pit||{})){
     const s=ps.pit[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.outs||0)>=21)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false);
-    if((s.outs||0)>=36){seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
-      seasonBestUp("pit","k",s.k||0,nm,tm,no,true);
-      seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true);}
+    if((s.outs||0)>=21)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false,pid);
+    if((s.outs||0)>=36){seasonBestUp("pit","w",s.w||0,nm,tm,no,true,pid);
+      seasonBestUp("pit","k",s.k||0,nm,tm,no,true,pid);
+      seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true,pid);}
   }
 }
 const SEASON_BEST=[
@@ -2374,7 +2374,7 @@ function seasonBestTable(cat,title){
   const rows=SEASON_BEST.filter(x=>x[0]===cat).map(x=>{
     const r=B[x[1]];
     return `<tr><td>${x[2]}</td><td class="num">${r?`<b>${x[3](r.val)}</b>`:'<span class="muted">－</span>'}</td>
-      <td class="name">${r?`${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">第 ${r.no} 季</span>`:""}</td></tr>`;
+      <td class="name">${r?`${r.team?teamBadge(r.team):""} ${r.pid?pidLink(r.pid,r.name):esc(r.name)}<br><span class="muted" style="font-size:11px">第 ${r.no} 季</span>`:""}</td></tr>`;
   }).join("");
   return `<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">${esc(title)}</h3>
     <table class="grid"><tr><th>項目</th><th>紀錄值</th><th>締造者</th></tr>${rows}</table></div>`;
@@ -3273,6 +3273,28 @@ function standingsList(){
 }
 /* ===================== 60-ui-core.js ===================== */
 /* ---------- 畫面渲染 ---------- */
+/* 開啟球員資料前記住「從哪裡來」，才能原路返回，不用繞回總部再點一次 */
+const PLAYER_CTX=["screen","leadCat","recTab","histTab","histCat","gameDetail","awardsStep"];
+function screenCtx(){const c={};PLAYER_CTX.forEach(k=>{if(S[k]!==undefined)c[k]=S[k];});return c;}
+function ctxLabel(c){
+  if(!c)return "";
+  const map={leaders:"球員排行",records:"球團紀錄殿堂",history:"遊戲紀錄",gameDetail:"比賽明細",
+             awards:"頒獎典禮",roster:"陣容與成績",abilities:"選手能力數值",allstar:"明星賽",
+             hub:"球季總部",title:"主選單",season:"球季資訊"};
+  let n=map[c.screen]||"上一頁";
+  if(c.screen==="leaders"){
+    const cats={avg:"打擊率",hr:"全壘打",rbi:"打點",h:"安打",sb:"盜壘",r:"得分",era:"防禦率",w:"勝投",k:"三振",sv:"救援"};
+    n+="（"+(cats[c.leadCat]||"")+"）";
+  }else if(c.screen==="history"){
+    const t={games:"逐場賽果",seasons:"跨季生涯",detail:"球季詳細",player:"球員生涯",
+             mile:"生涯里程碑",allstar:"明星賽",retire:"引退名單",boards:"生涯榜"};
+    n+="（"+(t[c.histTab]||"")+"）";
+  }else if(c.screen==="records"){
+    const t={single:"單場紀錄",season:"本季團隊",seasonbest:"單季紀錄"};
+    n+="（"+(t[c.recTab]||"")+"）";
+  }
+  return n;
+}
 /* 需要「進行中的球季」才成立的畫面；無球季時退回標題，避免存取 null。 */
 const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1,lineup:1,allstar:1,season:1,admin:1};
 function render(){
@@ -4096,18 +4118,25 @@ function viewPlayer(){
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>
+    ${backFromPlayerBtn()}
     <button class="btn" data-act="roster">← 回陣容</button>
     <button class="btn" data-act="abilities">選手能力一覽</button>
     <button class="btn" data-act="backHub">回球季總部</button>
   </div>`;
 }
+/* 原路返回鈕：從排行榜／紀錄／典禮點進來時才顯示（陣容、能力表已有專屬按鈕） */
+function backFromPlayerBtn(){
+  const c=S.playerFrom;
+  if(!c||c.screen==="roster"||c.screen==="abilities")return "";
+  return `<button class="btn blk" data-act="backFromPlayer">← 返回${esc(ctxLabel(c))}</button>`;
+}
 /* ----- 引退球員資料卡（人已離開聯盟，資料取引退當下存下的快照） ----- */
 function viewRetiree(){
   const list=CAREER.retirements||[];
   const r=list[S.selRetire];
-  const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button></div>`;
+  const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 返回${esc(ctxLabel(S.playerFrom)||"遊戲紀錄（引退名單）")}</button></div>`;
   if(!r)return `<div class="panel"><h2>球員資料</h2><div class="muted">找不到這位球員的紀錄。</div><div class="hr"></div>
-    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄</button></div>`;
+    <button class="btn blk" data-act="backFromRetiree">← 返回</button></div>`;
   const isPit=r.kind==="pit",s=r.stats||{};
   const statsTable=isPit
     ? `<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
@@ -4148,7 +4177,7 @@ function viewRetiree(){
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">球員編號 ${esc(r.pid)}：這個位置日後由新人沿用，所以這裡只顯示引退當下留下的資料。</div>
     <div class="hr"></div>
-    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button>
+    <button class="btn blk" data-act="backFromRetiree">← 返回${esc(ctxLabel(S.playerFrom)||"遊戲紀錄（引退名單）")}</button>
   </div>${back}`;
 }
 /* 從本季逐場 box 找出該球員最亮眼的一場 */
@@ -4666,9 +4695,10 @@ const ACT={
   abilSortPit(k){S.abilPitSort=k;render();},
   abilPos(p){S.abilPos=p;render();},
   abilRole(r){S.abilRole=r;render();},
-  player(id){S.selPlayer=id;S.screen="player";render();},
-  retiree(i){S.selRetire=+i;S.screen="retiree";render();},
-  backFromRetiree(){S.screen="history";S.histTab="retire";render();},
+  player(id){S.playerFrom=screenCtx();S.selPlayer=id;S.screen="player";render();},
+  retiree(i){S.playerFrom=screenCtx();S.selRetire=+i;S.screen="retiree";render();},
+  backFromPlayer(){const f=S.playerFrom;S.playerFrom=null;if(f){PLAYER_CTX.forEach(k=>{if(f[k]!==undefined)S[k]=f[k];});}else S.screen="hub";render();},
+  backFromRetiree(){ACT.backFromPlayer();},
   schedule(){S.screen="schedule";render();},
   standings(){S.screen="standings";render();},
   leaders(){S.screen="leaders";render();},
