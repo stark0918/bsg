@@ -514,7 +514,14 @@ function recordRetirement(pid,name,teamId,age,pos){
   const cb=(CAREER.career&&CAREER.career.bat||{})[pid],cp=(CAREER.career&&CAREER.career.pit||{})[pid];
   const line=cb?`出賽${cb.g||0}　安打${cb.h||0}　全壘打${cb.hr||0}　打點${cb.rbi||0}`
     :cp?`出賽${cp.g||0}　勝${cp.w||0}敗${cp.l||0}　救援${cp.sv||0}　三振${cp.k||0}`:"";
-  CAREER.retirements.push({no:seasonNo(),pid,name,team:teamId,age:age||null,pos:pos||"",line});
+  const no=seasonNo(),deb=(CAREER.debut||{})[pid];
+  CAREER.retirements.push({no,pid,name,team:teamId,age:age||null,pos:pos||"",line,
+    // 快照：原本的 CAREER.career 與 milestones 在換人後會被清掉（pid 被新人沿用），
+    // 不預先存下來的話，引退頁只剩一行文字，點進去看不到生涯資料與里程碑。
+    kind:cb?"bat":cp?"pit":"",
+    stats:Object.assign({},cb||cp||null),
+    miles:Object.assign({},(CAREER.milestones||{})[pid]||null),
+    seasons:deb?no-deb+1:null});
 }
 function advanceCareer(){
   _freshNames=null;   // 本輪換人用的名字集合（避免同隊兩名新人撞名）
@@ -1888,14 +1895,22 @@ function histSeasonDetailPanel(){
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){
-  const list=(CAREER.retirements||[]).slice().reverse();
+  const all=CAREER.retirements||[];
+  const list=all.slice().reverse();          // 由新到舊顯示，但引用的索引是原始順序
   if(!list.length)return `<div class="panel"><h2>引退名單</h2><p class="muted">尚無引退球員。</p></div>`;
-  const rows=list.map(r=>`<tr><td class="num">第 ${r.no} 季</td>
-    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}</td>
+  const rows=list.map((r,ri)=>{
+    const idx=all.indexOf(r);
+    const s=r.stats||{};
+    const summary=s.ab!=null?`出賽${s.g||0}　打率${s.ab?fmtAvg(s.h/s.ab):".000"}　安打${s.h||0}　全壘${s.hr||0}　打點${s.rbi||0}`
+      :s.outs!=null?`出賽${s.g||0}　${s.outs?fmtERA(s.er||0,s.outs):"-.-"}　${s.w||0}勝${s.l||0}敗　三振${s.k||0}`
+      :(r.line||"（舊存檔無詳細紀錄）");
+    return `<tr><td class="num">第 ${r.no} 季</td>
+    <td class="name">${r.team?teamBadge(r.team):""} ${pidLink(r.pid,r.name)}</td>
     <td>${esc(r.pos||"")}</td><td class="num">${r.age!=null?r.age+" 歲":""}</td>
-    <td class="muted" style="font-size:11px">${esc(r.line||"")}</td></tr>`).join("");
+    <td class="muted" style="font-size:11px">${esc(summary)}</td></tr>`;
+  }).join("");
   return `<div class="panel"><h2>引退名單</h2>
-    <p class="muted">高掛球鞋的球員們（38 歲以上由選秀新人接班，39 歲自動引退），附生涯成績。</p>
+    <p class="muted">高掛球鞋的球員們（38 歲以上由選秀新人接班，39 歲自動引退）。<b>點名字</b>可看他的生涯成績、里程碑與獲獎紀錄。</p>
     <table class="grid"><tr><th>球季</th><th>球員</th><th>守位</th><th>年齡</th><th>生涯成績</th></tr>${rows}</table></div>`;
 }
 function histBoardsPanel(){
@@ -2369,8 +2384,10 @@ function checkMilestones(){
   scan(merged.bat,false);scan(merged.pit,true);
   return hit;
 }
-function playerMilestones(pid){
-  const ms=(CAREER.milestones||{})[pid]||{};
+function playerMilestones(pid){return milestonesFrom((CAREER.milestones||{})[pid]);}
+/* 里程碑文字（可傳入快照，讓已引退球員重用同一套說明） */
+function milestonesFrom(ms){
+  ms=ms||{};
   const out=[];
   MILESTONES.forEach(def=>{
     if(ms[def.cat]>0)out.push(def.cat==="avg"?`生涯打擊率 ${fmtAvg(ms[def.cat])}（${HIST_MIN_AB} 打席以上）`:`生涯 ${ms[def.cat]} ${def.label}`);
@@ -3168,6 +3185,7 @@ function render(){
   else if(S.screen==="roster")app.innerHTML=viewRoster();
   else if(S.screen==="abilities")app.innerHTML=viewAbilities();
   else if(S.screen==="player")app.innerHTML=viewPlayer();
+  else if(S.screen==="retiree")app.innerHTML=viewRetiree();
   else if(S.screen==="schedule")app.innerHTML=viewSchedule();
   else if(S.screen==="standings")app.innerHTML=viewStandings();
   else if(S.screen==="leaders")app.innerHTML=viewLeaders();
@@ -3201,6 +3219,24 @@ function teamBadge(id,size){
   return `${emblemSVG(t,size||18)}<span class="tname">${esc(t.name)}</span>`;
 }
 function teamOfPlayer(p){return String(p.id||"").replace(/[bp]\d+$/,"");}
+/* 引退紀錄索引：pid 會被新人沿用，所以要同時比對名字，才不會點到同位置的新人 */
+function retireeIdx(pid,name){
+  const list=CAREER.retirements||[];
+  for(let i=list.length-1;i>=0;i--){
+    const r=list[i];
+    if(r.pid===pid&&(!name||r.name===name))return i;
+  }
+  return -1;
+}
+/* 排行榜／名單上的球員名稱：在役 → 進資料卡；已引退 → 進引退資料卡 */
+function pidLink(pid,name){
+  const p=playerById(pid);
+  const label=name||(p?p.name:pid);
+  if(p&&(!name||p.name===name))return `<span class="plink" data-act="player" data-arg="${pid}">${esc(p.name)}</span>`;
+  const i=retireeIdx(pid,name);
+  if(i>=0)return `<span class="plink" data-act="retiree" data-arg="${i}">${esc(label)}</span>`;
+  return esc(label);
+}
 function playerAvatar(p,size){
   const s=size||34;
   const h=hashStr(p.id||"x");
@@ -3958,6 +3994,56 @@ function viewPlayer(){
     <button class="btn" data-act="backHub">回球季總部</button>
   </div>`;
 }
+/* ----- 引退球員資料卡（人已離開聯盟，資料取引退當下存下的快照） ----- */
+function viewRetiree(){
+  const list=CAREER.retirements||[];
+  const r=list[S.selRetire];
+  const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button></div>`;
+  if(!r)return `<div class="panel"><h2>球員資料</h2><div class="muted">找不到這位球員的紀錄。</div><div class="hr"></div>
+    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄</button></div>`;
+  const isPit=r.kind==="pit",s=r.stats||{};
+  const statsTable=isPit
+    ? `<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
+        <tr><td class="num">${s.g||0}</td><td class="num">${s.outs?fmtIP(s.outs):"0.0"}</td><td class="num">${s.outs?fmtERA(s.er||0,s.outs):"-.-"}</td>
+        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td><td class="num">${s.k||0}</td></tr></table>`
+    : `<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打擊率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>
+        <tr><td class="num">${s.g||0}</td><td class="num">${s.ab||0}</td><td class="num">${s.h||0}</td><td class="num">${s.ab?fmtAvg(s.h/s.ab):".000"}</td>
+        <td class="num">${s.hr||0}</td><td class="num">${s.rbi||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td><td class="num">${s.r||0}</td><td class="num">${s.sb||0}</td></tr></table>`;
+  const hasStats=Object.keys(s).length>0;
+  const miles=milestonesFrom(r.miles);
+  const mileHTML=hasStats
+    ? (miles.length?`<ul class="awardlist">${miles.map(x=>`<li>🎖 ${esc(x)}</li>`).join("")}</ul>`
+                   :`<p class="muted">未達成生涯里程碑。</p>`)
+    :`<p class="muted">這份存檔沒有留下數據快照（功能加入前的引退紀錄），只有下方的一行成績摘要。</p>
+      <p class="muted">${esc(r.line||"")}</p>`;
+  // 獲獎紀錄：pid 會被新人沿用，所以也要比對名字
+  const aws=[];
+  (CAREER.awards||[]).forEach(a=>{
+    const add=(e,label)=>{if(e&&e.pid===r.pid&&e.name===r.name)aws.push(`第 ${a.no} 季 ${label}`);};
+    add(a.mvp,"最有價值球員");add(a.cy,"最佳投手（先發）");add(a.reliever,"最佳後援");
+    add(a.rookie,"新人王");add(a.sawamura,"澤村賞");add(a.bestDH,"最佳指定打擊");
+    ((a.best9||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 最佳九人（${x.pos}）`);});
+    ((a.gloves||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 金手套（${x.pos}）`);});
+    ((a.kings||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 ${x.title}`);});
+  });
+  const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
+    :`<p class="muted">${hasStats?"尚無獲獎紀錄。":"（舊存檔未保存獎項明細）"}</p>`;
+  const kindTxt=isPit?"投手":(s.ab!=null?"打者":"－");
+  return `<div class="panel"><h2>球員資料（已引退）</h2>
+    <div class="matchup">
+      ${playerAvatar({id:r.pid},56)}
+      <div style="margin-bottom:6px"><span class="who">${esc(r.name)}</span><span class="pos">${esc(r.pos||"")}</span>
+        <span class="muted" style="font-size:12px">　${r.team?teamBadge(r.team):""}　<span class="age">${r.age!=null?r.age+" 歲":"年齡不詳"}</span>　${kindTxt}</span></div>
+      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${r.seasons?`　效力 ${r.seasons} 個球季`:""}。已離開聯盟，以下為引退當時的生涯累計。</p>
+    </div>
+    <h3>生涯成績（跨季累計）</h3>${statsTable}
+    <h3>生涯里程碑</h3>${mileHTML}
+    <h3>獲獎紀錄</h3>${awardHTML}
+    <div class="abilnote">球員編號 ${esc(r.pid)}：這個位置日後由新人沿用，所以這裡只顯示引退當下留下的資料。</div>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button>
+  </div>${back}`;
+}
 /* 從本季逐場 box 找出該球員最亮眼的一場 */
 function playerBestGame(pid,isPit){
   const se=S.season;if(!se)return null;
@@ -4469,6 +4555,8 @@ const ACT={
   abilPos(p){S.abilPos=p;render();},
   abilRole(r){S.abilRole=r;render();},
   player(id){S.selPlayer=id;S.screen="player";render();},
+  retiree(i){S.selRetire=+i;S.screen="retiree";render();},
+  backFromRetiree(){S.screen="history";S.histTab="retire";render();},
   schedule(){S.screen="schedule";render();},
   standings(){S.screen="standings";render();},
   leaders(){S.screen="leaders";render();},

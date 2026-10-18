@@ -265,14 +265,22 @@ function histSeasonDetailPanel(){
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){
-  const list=(CAREER.retirements||[]).slice().reverse();
+  const all=CAREER.retirements||[];
+  const list=all.slice().reverse();          // 由新到舊顯示，但引用的索引是原始順序
   if(!list.length)return `<div class="panel"><h2>引退名單</h2><p class="muted">尚無引退球員。</p></div>`;
-  const rows=list.map(r=>`<tr><td class="num">第 ${r.no} 季</td>
-    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}</td>
+  const rows=list.map((r,ri)=>{
+    const idx=all.indexOf(r);
+    const s=r.stats||{};
+    const summary=s.ab!=null?`出賽${s.g||0}　打率${s.ab?fmtAvg(s.h/s.ab):".000"}　安打${s.h||0}　全壘${s.hr||0}　打點${s.rbi||0}`
+      :s.outs!=null?`出賽${s.g||0}　${s.outs?fmtERA(s.er||0,s.outs):"-.-"}　${s.w||0}勝${s.l||0}敗　三振${s.k||0}`
+      :(r.line||"（舊存檔無詳細紀錄）");
+    return `<tr><td class="num">第 ${r.no} 季</td>
+    <td class="name">${r.team?teamBadge(r.team):""} ${pidLink(r.pid,r.name)}</td>
     <td>${esc(r.pos||"")}</td><td class="num">${r.age!=null?r.age+" 歲":""}</td>
-    <td class="muted" style="font-size:11px">${esc(r.line||"")}</td></tr>`).join("");
+    <td class="muted" style="font-size:11px">${esc(summary)}</td></tr>`;
+  }).join("");
   return `<div class="panel"><h2>引退名單</h2>
-    <p class="muted">高掛球鞋的球員們（38 歲以上由選秀新人接班，39 歲自動引退），附生涯成績。</p>
+    <p class="muted">高掛球鞋的球員們（38 歲以上由選秀新人接班，39 歲自動引退）。<b>點名字</b>可看他的生涯成績、里程碑與獲獎紀錄。</p>
     <table class="grid"><tr><th>球季</th><th>球員</th><th>守位</th><th>年齡</th><th>生涯成績</th></tr>${rows}</table></div>`;
 }
 function histBoardsPanel(){

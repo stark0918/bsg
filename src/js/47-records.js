@@ -423,8 +423,10 @@ function checkMilestones(){
   scan(merged.bat,false);scan(merged.pit,true);
   return hit;
 }
-function playerMilestones(pid){
-  const ms=(CAREER.milestones||{})[pid]||{};
+function playerMilestones(pid){return milestonesFrom((CAREER.milestones||{})[pid]);}
+/* 里程碑文字（可傳入快照，讓已引退球員重用同一套說明） */
+function milestonesFrom(ms){
+  ms=ms||{};
   const out=[];
   MILESTONES.forEach(def=>{
     if(ms[def.cat]>0)out.push(def.cat==="avg"?`生涯打擊率 ${fmtAvg(ms[def.cat])}（${HIST_MIN_AB} 打席以上）`:`生涯 ${ms[def.cat]} ${def.label}`);
