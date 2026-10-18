@@ -112,13 +112,25 @@ function recordRetirement(pid,name,teamId,age,pos){
   const line=cb?`出賽${cb.g||0}　安打${cb.h||0}　全壘打${cb.hr||0}　打點${cb.rbi||0}`
     :cp?`出賽${cp.g||0}　勝${cp.w||0}敗${cp.l||0}　救援${cp.sv||0}　三振${cp.k||0}`:"";
   const no=seasonNo(),deb=(CAREER.debut||{})[pid];
+  const g=(cb&&cb.g)||(cp&&cp.g)||0;
+  // 效力球季數：只有在 debut 可信時才顯示。
+  // 舊存檔的 debut 是「紀錄功能上線後」才補的，會算少；用生涯總出賽推一個下限來驗算，
+  // 下限都比 debut 算出的球季多 → 判定 debut 不可信，寧可不要顯示錯的數字。
+  let seasons=null;
+  if(deb>0){
+    const perSeason=((S.season&&S.season.schedule)||[]).length||14;
+    const minSeasons=Math.ceil(g/perSeason);
+    const byDebut=no-deb+1;
+    if(minSeasons<=byDebut)seasons=byDebut;
+  }
   CAREER.retirements.push({no,pid,name,team:teamId,age:age||null,pos:pos||"",line,
     // 快照：原本的 CAREER.career 與 milestones 在換人後會被清掉（pid 被新人沿用），
     // 不預先存下來的話，引退頁只剩一行文字，點進去看不到生涯資料與里程碑。
     kind:cb?"bat":cp?"pit":"",
     stats:Object.assign({},cb||cp||null),
     miles:Object.assign({},(CAREER.milestones||{})[pid]||null),
-    seasons:deb?no-deb+1:null});
+    seasons,
+    debutSeason:deb>0?deb:null});
 }
 function advanceCareer(){
   _freshNames=null;   // 本輪換人用的名字集合（避免同隊兩名新人撞名）
