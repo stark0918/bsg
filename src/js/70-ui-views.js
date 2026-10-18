@@ -725,18 +725,25 @@ function viewPlayer(){
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">${isPit?"先發投手體力較高、後援球速與變化較突出。":"替補球員（藍色「替」標籤）可在比賽中用代打上場。"}</div>
     <div class="hr"></div>
+    ${backFromPlayerBtn()}
     <button class="btn" data-act="roster">← 回陣容</button>
     <button class="btn" data-act="abilities">選手能力一覽</button>
     <button class="btn" data-act="backHub">回球季總部</button>
   </div>`;
 }
+/* 原路返回鈕：從排行榜／紀錄／典禮點進來時才顯示（陣容、能力表已有專屬按鈕） */
+function backFromPlayerBtn(){
+  const c=S.playerFrom;
+  if(!c||c.screen==="roster"||c.screen==="abilities")return "";
+  return `<button class="btn blk" data-act="backFromPlayer">← 返回${esc(ctxLabel(c))}</button>`;
+}
 /* ----- 引退球員資料卡（人已離開聯盟，資料取引退當下存下的快照） ----- */
 function viewRetiree(){
   const list=CAREER.retirements||[];
   const r=list[S.selRetire];
-  const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button></div>`;
+  const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 返回${esc(ctxLabel(S.playerFrom)||"遊戲紀錄（引退名單）")}</button></div>`;
   if(!r)return `<div class="panel"><h2>球員資料</h2><div class="muted">找不到這位球員的紀錄。</div><div class="hr"></div>
-    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄</button></div>`;
+    <button class="btn blk" data-act="backFromRetiree">← 返回</button></div>`;
   const isPit=r.kind==="pit",s=r.stats||{};
   const statsTable=isPit
     ? `<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
@@ -777,7 +784,7 @@ function viewRetiree(){
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">球員編號 ${esc(r.pid)}：這個位置日後由新人沿用，所以這裡只顯示引退當下留下的資料。</div>
     <div class="hr"></div>
-    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button>
+    <button class="btn blk" data-act="backFromRetiree">← 返回${esc(ctxLabel(S.playerFrom)||"遊戲紀錄（引退名單）")}</button>
   </div>${back}`;
 }
 /* 從本季逐場 box 找出該球員最亮眼的一場 */

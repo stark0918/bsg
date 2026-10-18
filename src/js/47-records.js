@@ -42,17 +42,17 @@ function recUp(book,cat,key,val,name,team,when,extra){
   const cur=book[cat][key];
   if(!cur||val>cur.val){
     const old = cur ? cur.val : null;
-    book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0};
+    book[cat][key]={val:val,name:name,team:team,when:when,season:(extra&&extra.season)||0,pid:(extra&&extra.pid)||""};
     return {old, val, isNew: !cur};
   }
   return null;
 }
-function recUpBoth(cat,key,val,name,team,when){
+function recUpBoth(cat,key,val,name,team,when,pid){
   if(S.season&&!S.season.recs)S.season.recs=newRecBook();
-  const br1 = recUp(S.season.recs,cat,key,val,name,team,when);
+  const br1 = recUp(S.season.recs,cat,key,val,name,team,when,{pid:pid||""});
   const c=CAREER.records||(CAREER.records={});
   if(!c.bat)c.bat={};if(!c.pit)c.pit={};if(!c.team)c.team={};
-  const br2 = recUp(c,cat,key,val,name,team,when,{season:seasonNo()});
+  const br2 = recUp(c,cat,key,val,name,team,when,{season:seasonNo(),pid:pid||""});
   const br = br1 || br2;
   if(br && S.season){
     const lbl = REC_LABELS[cat]&&REC_LABELS[cat][key]||key;
@@ -75,11 +75,11 @@ function checkMatchRecords(m,when){
   if(!S.season.recs)S.season.recs=newRecBook();
   if(!S.season.recs.bat)S.season.recs=newRecBook();
   for(const pid in m.stats){const s=m.stats[pid];
-    ["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(pid),recTeam(pid),when));
+    ["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(pid),recTeam(pid),when,pid));
   }
   for(const pid in m.pstats){const s=m.pstats[pid];
-    recUpBoth("pit","k",s.k||0,recName(pid),recTeam(pid),when);
-    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(pid),recTeam(pid),when);
+    recUpBoth("pit","k",s.k||0,recName(pid),recTeam(pid),when,pid);
+    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(pid),recTeam(pid),when,pid);
   }
   const aName=getTeam(m.awayId).name,hName=getTeam(m.homeId).name;
   recUpBoth("team","r",m.score.away,aName,m.awayId,when);
@@ -90,10 +90,10 @@ function checkMatchRecords(m,when){
 }
 /* 快速模擬比賽的逐人成績掃描（synthGameStats 回傳） */
 function checkLineRecords(lines,teamId,when){
-  (lines.bat||[]).forEach(s=>{["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(s.pid),teamId,when));});
+  (lines.bat||[]).forEach(s=>{["h","hr","rbi","r","sb","bb","k"].forEach(k=>recUpBoth("bat",k,s[k]||0,recName(s.pid),teamId,when,s.pid));});
   (lines.pit||[]).forEach(s=>{
-    recUpBoth("pit","k",s.k||0,recName(s.pid),teamId,when);
-    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(s.pid),teamId,when);
+    recUpBoth("pit","k",s.k||0,recName(s.pid),teamId,when,s.pid);
+    recUpBoth("pit","ip",Math.round((s.outs||0)/3*10)/10,recName(s.pid),teamId,when,s.pid);
   });
 }
 function checkSimTeamRecords(awayId,homeId,ra,rh,when){
@@ -122,7 +122,7 @@ function recRow(book,cat,key){
   if(!r)return `<tr><td>${REC_LABELS[cat][key]}</td><td class="num muted">－</td><td></td></tr>`;
   const when=r.season?`第 ${r.season} 季 ${r.when}`:r.when;
   return `<tr><td>${REC_LABELS[cat][key]}</td><td class="num"><b>${r.val}</b></td>
-    <td class="name">${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">${esc(when||"")}</span></td></tr>`;
+    <td class="name">${r.team?teamBadge(r.team):""} ${r.pid?pidLink(r.pid,r.name):esc(r.name)}<br><span class="muted" style="font-size:11px">${esc(when||"")}</span></td></tr>`;
 }
 function recPanel(book,title){
   let rows="";
@@ -166,7 +166,7 @@ function recTabSeason(){
   const ks=AWARD_KINGS.map(([kind,title])=>{
     const top=leadersList(kind)[0];
     if(!top)return "";
-    return `<tr><td class="name">${esc(title)}</td><td class="name">${esc(top.p.name)}</td><td class="name">${teamBadge(top.pid.replace(/[bp]\d+$/,""))}</td><td class="num"><b>${esc(top.val)}</b></td></tr>`;
+    return `<tr><td class="name">${esc(title)}</td><td class="name">${pidLink(top.pid,top.p.name)}</td><td class="name">${teamBadge(top.pid.replace(/[bp]\d+$/,""))}</td><td class="num"><b>${esc(top.val)}</b></td></tr>`;
   }).join("");
   return `<div class="panel"><h2>團隊攻守（含所有模擬場次）</h2>
     <table class="grid"><tr><th>#</th><th>球隊</th><th>出賽</th><th>戰績</th><th>得:失</th><th>得失差</th></tr>${rows}</table></div>
@@ -270,30 +270,30 @@ function downloadCSV(){
 }
 
 /* ---------- 單季紀錄（跨季最佳單季成績） ---------- */
-function seasonBestUp(cat,key,val,name,team,no,higher){
+function seasonBestUp(cat,key,val,name,team,no,higher,pid){
   if(val==null||!isFinite(val))return;
   const B=CAREER.seasonBest||(CAREER.seasonBest={bat:{},pit:{}});
   if(!B[cat])B[cat]={};
   const cur=B[cat][key];
-  if(!cur||(higher?val>cur.val:val<cur.val))B[cat][key]={val,name,team,no};
+  if(!cur||(higher?val>cur.val:val<cur.val))B[cat][key]={val,name,team,no,pid:pid||""};
 }
 function recordSeasonBest(ps,no){
   if(!ps)return;
   // 門檻依 14 場例行賽調整（先發野手整季約 45~55 打數，先發投手約 60~90 出局數）
   for(const pid in (ps.bat||{})){
     const s=ps.bat[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.ab||0)>=20)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true);
-    if((s.ab||0)>=30){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true);
-      seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true);
-      seasonBestUp("bat","h",s.h||0,nm,tm,no,true);
-      seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true);}
+    if((s.ab||0)>=20)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true,pid);
+    if((s.ab||0)>=30){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true,pid);
+      seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true,pid);
+      seasonBestUp("bat","h",s.h||0,nm,tm,no,true,pid);
+      seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true,pid);}
   }
   for(const pid in (ps.pit||{})){
     const s=ps.pit[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.outs||0)>=21)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false);
-    if((s.outs||0)>=36){seasonBestUp("pit","w",s.w||0,nm,tm,no,true);
-      seasonBestUp("pit","k",s.k||0,nm,tm,no,true);
-      seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true);}
+    if((s.outs||0)>=21)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false,pid);
+    if((s.outs||0)>=36){seasonBestUp("pit","w",s.w||0,nm,tm,no,true,pid);
+      seasonBestUp("pit","k",s.k||0,nm,tm,no,true,pid);
+      seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true,pid);}
   }
 }
 const SEASON_BEST=[
@@ -312,7 +312,7 @@ function seasonBestTable(cat,title){
   const rows=SEASON_BEST.filter(x=>x[0]===cat).map(x=>{
     const r=B[x[1]];
     return `<tr><td>${x[2]}</td><td class="num">${r?`<b>${x[3](r.val)}</b>`:'<span class="muted">－</span>'}</td>
-      <td class="name">${r?`${r.team?teamBadge(r.team):""} ${esc(r.name)}<br><span class="muted" style="font-size:11px">第 ${r.no} 季</span>`:""}</td></tr>`;
+      <td class="name">${r?`${r.team?teamBadge(r.team):""} ${r.pid?pidLink(r.pid,r.name):esc(r.name)}<br><span class="muted" style="font-size:11px">第 ${r.no} 季</span>`:""}</td></tr>`;
   }).join("");
   return `<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">${esc(title)}</h3>
     <table class="grid"><tr><th>項目</th><th>紀錄值</th><th>締造者</th></tr>${rows}</table></div>`;
