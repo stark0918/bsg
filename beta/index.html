@@ -515,13 +515,25 @@ function recordRetirement(pid,name,teamId,age,pos){
   const line=cb?`出賽${cb.g||0}　安打${cb.h||0}　全壘打${cb.hr||0}　打點${cb.rbi||0}`
     :cp?`出賽${cp.g||0}　勝${cp.w||0}敗${cp.l||0}　救援${cp.sv||0}　三振${cp.k||0}`:"";
   const no=seasonNo(),deb=(CAREER.debut||{})[pid];
+  const g=(cb&&cb.g)||(cp&&cp.g)||0;
+  // 效力球季數：只有在 debut 可信時才顯示。
+  // 舊存檔的 debut 是「紀錄功能上線後」才補的，會算少；用生涯總出賽推一個下限來驗算，
+  // 下限都比 debut 算出的球季多 → 判定 debut 不可信，寧可不要顯示錯的數字。
+  let seasons=null;
+  if(deb>0){
+    const perSeason=((S.season&&S.season.schedule)||[]).length||14;
+    const minSeasons=Math.ceil(g/perSeason);
+    const byDebut=no-deb+1;
+    if(minSeasons<=byDebut)seasons=byDebut;
+  }
   CAREER.retirements.push({no,pid,name,team:teamId,age:age||null,pos:pos||"",line,
     // 快照：原本的 CAREER.career 與 milestones 在換人後會被清掉（pid 被新人沿用），
     // 不預先存下來的話，引退頁只剩一行文字，點進去看不到生涯資料與里程碑。
     kind:cb?"bat":cp?"pit":"",
     stats:Object.assign({},cb||cp||null),
     miles:Object.assign({},(CAREER.milestones||{})[pid]||null),
-    seasons:deb?no-deb+1:null});
+    seasons,
+    debutSeason:deb>0?deb:null});
 }
 function advanceCareer(){
   _freshNames=null;   // 本輪換人用的名字集合（避免同隊兩名新人撞名）
@@ -1752,17 +1764,22 @@ function finalizeSeason(){
   CAREER.career=CAREER.career||{bat:{},pit:{}};
   const cb=CAREER.career.bat,cp=CAREER.career.pit;
   const ps=se.playerStats||{bat:{},pit:{}};
+
+  /* 初登場球季：只要在這一季有過正式出賽就記下來（新人王只能拿第一季）。
+     必須在生涯累計合併「之前」判斷：若這位球員前面幾季就已有跨季成績，代表他出道更早，
+     只是當時還沒有這個紀錄功能 → 記 -1（未知），日後不拿它算效力球季數。 */
+  CAREER.debut=CAREER.debut||{};
+  const debutNo=CAREER.seasons+1;
+  for(const pool of [ps.bat,ps.pit])for(const pid in pool){
+    if((pool[pid].g||0)<=0||CAREER.debut[pid])continue;
+    const priorG=(cb[pid]&&cb[pid].g)||(cp[pid]&&cp[pid].g)||0;
+    CAREER.debut[pid]=priorG>0?-1:debutNo;
+  }
+
   const BAT=["g","ab","h","hr","rbi","bb","k","r","sb"];
   const PIT=["g","outs","h","r","er","bb","k","pp","w","l","sv"];
   for(const pid in ps.bat){const s=ps.bat[pid],d=cb[pid]||(cb[pid]={});BAT.forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
   for(const pid in ps.pit){const s=ps.pit[pid],d=cp[pid]||(cp[pid]={});PIT.forEach(k=>d[k]=(d[k]||0)+(s[k]||0));}
-
-  /* 初登場球季：只要在這一季有過正式出賽就記下來（新人王只能拿第一季） */
-  CAREER.debut=CAREER.debut||{};
-  const debutNo=CAREER.seasons+1;
-  for(const pool of [ps.bat,ps.pit])for(const pid in pool){
-    if((pool[pid].g||0)>0&&!CAREER.debut[pid])CAREER.debut[pid]=debutNo;
-  }
 
   /* 跨季生涯摘要 */
   const st=standingsList();
@@ -2002,11 +2019,12 @@ function histRetirePanel(){
   const rows=list.map((r,ri)=>{
     const idx=all.indexOf(r);
     const s=r.stats||{};
+    const span=r.seasons?`${r.seasons}季`:(Object.keys(s).length?"出道季不明":"");
     const summary=s.ab!=null?`出賽${s.g||0}　打率${s.ab?fmtAvg(s.h/s.ab):".000"}　安打${s.h||0}　全壘${s.hr||0}　打點${s.rbi||0}`
       :s.outs!=null?`出賽${s.g||0}　${s.outs?fmtERA(s.er||0,s.outs):"-.-"}　${s.w||0}勝${s.l||0}敗　三振${s.k||0}`
       :(r.line||"（舊存檔無詳細紀錄）");
     return `<tr><td class="num">第 ${r.no} 季</td>
-    <td class="name">${r.team?teamBadge(r.team):""} ${pidLink(r.pid,r.name)}</td>
+    <td class="name">${r.team?teamBadge(r.team):""} ${pidLink(r.pid,r.name)}${span?`<br><span class="muted" style="font-size:11px">${esc(span)}</span>`:""}</td>
     <td>${esc(r.pos||"")}</td><td class="num">${r.age!=null?r.age+" 歲":""}</td>
     <td class="muted" style="font-size:11px">${esc(summary)}</td></tr>`;
   }).join("");
@@ -4165,12 +4183,16 @@ function viewRetiree(){
   const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
     :`<p class="muted">${hasStats?"尚無獲獎紀錄。":"（舊存檔未保存獎項明細）"}</p>`;
   const kindTxt=isPit?"投手":(s.ab!=null?"打者":"－");
+  const gTxt=(s.g!=null)?`　生涯共 ${s.g} 場`:(hasStats?"":"");
+  const spanTxt=r.seasons
+    ?`　效力 ${r.seasons} 個球季（第 ${r.debutSeason} 季出道）`
+    :(hasStats?`　出道球季不明（${r.debutSeason?"":"紀錄開始前就已在聯盟，"}無法計算效力球季）`:"");
   return `<div class="panel"><h2>球員資料（已引退）</h2>
     <div class="matchup">
       ${playerAvatar({id:r.pid},56)}
       <div style="margin-bottom:6px"><span class="who">${esc(r.name)}</span><span class="pos">${esc(r.pos||"")}</span>
         <span class="muted" style="font-size:12px">　${r.team?teamBadge(r.team):""}　<span class="age">${r.age!=null?r.age+" 歲":"年齡不詳"}</span>　${kindTxt}</span></div>
-      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${r.seasons?`　效力 ${r.seasons} 個球季`:""}。已離開聯盟，以下為引退當時的生涯累計。</p>
+      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${spanTxt}${gTxt}。已離開聯盟，下表為引退當時的跨季累計。</p>
     </div>
     <h3>生涯成績（跨季累計）</h3>${statsTable}
     <h3>生涯里程碑</h3>${mileHTML}
