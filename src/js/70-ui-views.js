@@ -766,12 +766,16 @@ function viewRetiree(){
   const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
     :`<p class="muted">${hasStats?"尚無獲獎紀錄。":"（舊存檔未保存獎項明細）"}</p>`;
   const kindTxt=isPit?"投手":(s.ab!=null?"打者":"－");
+  const gTxt=(s.g!=null)?`　生涯共 ${s.g} 場`:(hasStats?"":"");
+  const spanTxt=r.seasons
+    ?`　效力 ${r.seasons} 個球季（第 ${r.debutSeason} 季出道）`
+    :(hasStats?`　出道球季不明（${r.debutSeason?"":"紀錄開始前就已在聯盟，"}無法計算效力球季）`:"");
   return `<div class="panel"><h2>球員資料（已引退）</h2>
     <div class="matchup">
       ${playerAvatar({id:r.pid},56)}
       <div style="margin-bottom:6px"><span class="who">${esc(r.name)}</span><span class="pos">${esc(r.pos||"")}</span>
         <span class="muted" style="font-size:12px">　${r.team?teamBadge(r.team):""}　<span class="age">${r.age!=null?r.age+" 歲":"年齡不詳"}</span>　${kindTxt}</span></div>
-      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${r.seasons?`　效力 ${r.seasons} 個球季`:""}。已離開聯盟，以下為引退當時的生涯累計。</p>
+      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${spanTxt}${gTxt}。已離開聯盟，下表為引退當時的跨季累計。</p>
     </div>
     <h3>生涯成績（跨季累計）</h3>${statsTable}
     <h3>生涯里程碑</h3>${mileHTML}
