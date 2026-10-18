@@ -196,6 +196,8 @@ const ACT={
   abilPos(p){S.abilPos=p;render();},
   abilRole(r){S.abilRole=r;render();},
   player(id){S.selPlayer=id;S.screen="player";render();},
+  retiree(i){S.selRetire=+i;S.screen="retiree";render();},
+  backFromRetiree(){S.screen="history";S.histTab="retire";render();},
   schedule(){S.screen="schedule";render();},
   standings(){S.screen="standings";render();},
   leaders(){S.screen="leaders";render();},

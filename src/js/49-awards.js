@@ -110,7 +110,7 @@ function awardPodium(list,label,emoji,isPit,emptyMsg){
       ? `防禦率 ${s.er!=null&&s.outs?fmtERA(s.er,s.outs):"-.--"}　勝投 ${s.w||0}　三振 ${s.k||0}　救援 ${s.sv||0}　局數 ${s.outs?fmtIP(s.outs):"0.0"}`
       : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`;
     return `<tr class="${a.rank===1?"me":""}"><td class="num">${a.rank<=3?`<span class="medal g${a.rank}">${a.rank}</span>`:a.rank}</td>
-      <td class="name">${esc(a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
+      <td class="name">${pidLink(a.pid,a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
       <td class="num">${a.pts} 分</td><td class="muted" style="font-size:11px">${esc(stats)}</td></tr>`;
   };
   const statHeader=isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘";
@@ -121,7 +121,7 @@ function awardPodium(list,label,emoji,isPit,emptyMsg){
 function awardKingGrid(title,list,a){
   const rows=list.map(k=>{
     const e=a.kings.find(x=>x.kind===k[0])||{};
-    return `<tr><td class="name">${k[1]}</td><td class="name">${e.name?esc(e.name):"－"}</td>
+    return `<tr><td class="name">${k[1]}</td><td class="name">${e.name?pidLink(e.pid,e.name):"－"}</td>
       <td class="name">${e.team?teamBadge(e.team):""}</td><td class="num"><b>${e.val!=null?esc(String(e.val)):""}</b></td></tr>`;
   }).join("");
   return `<h3>${title}</h3><table class="grid"><tr><th>獎項</th><th>得主</th><th>球隊</th><th>成績</th></tr>${rows}</table>`;
@@ -137,7 +137,7 @@ function awardBest9(list){
     const p=playerById(x.pid);
     const age=p?` <span class="muted">（${p.age}歲）</span>`:"";
     return `<tr><td class="name">${posName[x.pos]||x.pos}</td>
-      <td class="name">${esc(x.name)}${age}</td><td class="name">${teamBadge(x.team)}</td>
+      <td class="name">${pidLink(x.pid,x.name)}${age}</td><td class="name">${teamBadge(x.team)}</td>
       <td class="muted" style="font-size:11px">${statOf(x)}</td></tr>`;
   }).join("");
   return `<h3>🌟 最佳九人</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>成績</th></tr>${rows}</table>`;
@@ -162,7 +162,7 @@ function pickGloves(ps,qf){
 function awardGloves(list){
   const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊"};
   const rows=list.map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td>
-      <td class="name">${esc(x.name)}</td><td class="name">${teamBadge(x.team)}</td>
+      <td class="name">${pidLink(x.pid,x.name)}</td><td class="name">${teamBadge(x.team)}</td>
       <td class="num">守備 ${x.def}　出賽 ${x.g}</td></tr>`).join("");
   return `<h3>🧤 金手套</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>依據</th></tr>${rows}</table>`;
 }

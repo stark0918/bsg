@@ -12,6 +12,7 @@ function render(){
   else if(S.screen==="roster")app.innerHTML=viewRoster();
   else if(S.screen==="abilities")app.innerHTML=viewAbilities();
   else if(S.screen==="player")app.innerHTML=viewPlayer();
+  else if(S.screen==="retiree")app.innerHTML=viewRetiree();
   else if(S.screen==="schedule")app.innerHTML=viewSchedule();
   else if(S.screen==="standings")app.innerHTML=viewStandings();
   else if(S.screen==="leaders")app.innerHTML=viewLeaders();
@@ -45,6 +46,24 @@ function teamBadge(id,size){
   return `${emblemSVG(t,size||18)}<span class="tname">${esc(t.name)}</span>`;
 }
 function teamOfPlayer(p){return String(p.id||"").replace(/[bp]\d+$/,"");}
+/* 引退紀錄索引：pid 會被新人沿用，所以要同時比對名字，才不會點到同位置的新人 */
+function retireeIdx(pid,name){
+  const list=CAREER.retirements||[];
+  for(let i=list.length-1;i>=0;i--){
+    const r=list[i];
+    if(r.pid===pid&&(!name||r.name===name))return i;
+  }
+  return -1;
+}
+/* 排行榜／名單上的球員名稱：在役 → 進資料卡；已引退 → 進引退資料卡 */
+function pidLink(pid,name){
+  const p=playerById(pid);
+  const label=name||(p?p.name:pid);
+  if(p&&(!name||p.name===name))return `<span class="plink" data-act="player" data-arg="${pid}">${esc(p.name)}</span>`;
+  const i=retireeIdx(pid,name);
+  if(i>=0)return `<span class="plink" data-act="retiree" data-arg="${i}">${esc(label)}</span>`;
+  return esc(label);
+}
 function playerAvatar(p,size){
   const s=size||34;
   const h=hashStr(p.id||"x");

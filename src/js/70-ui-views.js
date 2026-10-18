@@ -730,6 +730,56 @@ function viewPlayer(){
     <button class="btn" data-act="backHub">回球季總部</button>
   </div>`;
 }
+/* ----- 引退球員資料卡（人已離開聯盟，資料取引退當下存下的快照） ----- */
+function viewRetiree(){
+  const list=CAREER.retirements||[];
+  const r=list[S.selRetire];
+  const back=`<div class="panel"><button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button></div>`;
+  if(!r)return `<div class="panel"><h2>球員資料</h2><div class="muted">找不到這位球員的紀錄。</div><div class="hr"></div>
+    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄</button></div>`;
+  const isPit=r.kind==="pit",s=r.stats||{};
+  const statsTable=isPit
+    ? `<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th></tr>
+        <tr><td class="num">${s.g||0}</td><td class="num">${s.outs?fmtIP(s.outs):"0.0"}</td><td class="num">${s.outs?fmtERA(s.er||0,s.outs):"-.-"}</td>
+        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td><td class="num">${s.k||0}</td></tr></table>`
+    : `<table class="grid"><tr><th>出賽</th><th>打數</th><th>安打</th><th>打擊率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>
+        <tr><td class="num">${s.g||0}</td><td class="num">${s.ab||0}</td><td class="num">${s.h||0}</td><td class="num">${s.ab?fmtAvg(s.h/s.ab):".000"}</td>
+        <td class="num">${s.hr||0}</td><td class="num">${s.rbi||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td><td class="num">${s.r||0}</td><td class="num">${s.sb||0}</td></tr></table>`;
+  const hasStats=Object.keys(s).length>0;
+  const miles=milestonesFrom(r.miles);
+  const mileHTML=hasStats
+    ? (miles.length?`<ul class="awardlist">${miles.map(x=>`<li>🎖 ${esc(x)}</li>`).join("")}</ul>`
+                   :`<p class="muted">未達成生涯里程碑。</p>`)
+    :`<p class="muted">這份存檔沒有留下數據快照（功能加入前的引退紀錄），只有下方的一行成績摘要。</p>
+      <p class="muted">${esc(r.line||"")}</p>`;
+  // 獲獎紀錄：pid 會被新人沿用，所以也要比對名字
+  const aws=[];
+  (CAREER.awards||[]).forEach(a=>{
+    const add=(e,label)=>{if(e&&e.pid===r.pid&&e.name===r.name)aws.push(`第 ${a.no} 季 ${label}`);};
+    add(a.mvp,"最有價值球員");add(a.cy,"最佳投手（先發）");add(a.reliever,"最佳後援");
+    add(a.rookie,"新人王");add(a.sawamura,"澤村賞");add(a.bestDH,"最佳指定打擊");
+    ((a.best9||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 最佳九人（${x.pos}）`);});
+    ((a.gloves||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 金手套（${x.pos}）`);});
+    ((a.kings||[])||[]).forEach(x=>{if(x.pid===r.pid&&x.name===r.name)aws.push(`第 ${a.no} 季 ${x.title}`);});
+  });
+  const awardHTML=aws.length?`<ul class="awardlist">${aws.map(x=>`<li>🏆 ${esc(x)}</li>`).join("")}</ul>`
+    :`<p class="muted">${hasStats?"尚無獲獎紀錄。":"（舊存檔未保存獎項明細）"}</p>`;
+  const kindTxt=isPit?"投手":(s.ab!=null?"打者":"－");
+  return `<div class="panel"><h2>球員資料（已引退）</h2>
+    <div class="matchup">
+      ${playerAvatar({id:r.pid},56)}
+      <div style="margin-bottom:6px"><span class="who">${esc(r.name)}</span><span class="pos">${esc(r.pos||"")}</span>
+        <span class="muted" style="font-size:12px">　${r.team?teamBadge(r.team):""}　<span class="age">${r.age!=null?r.age+" 歲":"年齡不詳"}</span>　${kindTxt}</span></div>
+      <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${r.seasons?`　效力 ${r.seasons} 個球季`:""}。已離開聯盟，以下為引退當時的生涯累計。</p>
+    </div>
+    <h3>生涯成績（跨季累計）</h3>${statsTable}
+    <h3>生涯里程碑</h3>${mileHTML}
+    <h3>獲獎紀錄</h3>${awardHTML}
+    <div class="abilnote">球員編號 ${esc(r.pid)}：這個位置日後由新人沿用，所以這裡只顯示引退當下留下的資料。</div>
+    <div class="hr"></div>
+    <button class="btn blk" data-act="backFromRetiree">← 回遊戲紀錄（引退名單）</button>
+  </div>${back}`;
+}
 /* 從本季逐場 box 找出該球員最亮眼的一場 */
 function playerBestGame(pid,isPit){
   const se=S.season;if(!se)return null;
@@ -866,7 +916,7 @@ function boxBatTable(box,side){
   const tid=side==="aw"?box.aw:box.hm;
   const rows=Object.keys(box.bat).filter(pid=>pid.indexOf(tid+"b")===0).map(pid=>{
     const f=box.bat[pid],p=playerById(pid);
-    return `<tr><td class="name">${esc(p?p.name:pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+    return `<tr><td class="name">${pidLink(pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
   return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>打者</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
@@ -875,7 +925,7 @@ function boxPitTable(box,side){
   const rows=Object.keys(box.pit).filter(pid=>pid.indexOf(tid+"p")===0).map(pid=>{
     const f=box.pit[pid],p=playerById(pid);
     const cur=f[7]?' <span class="pill on">勝</span>':f[8]?' <span class="pill off">敗</span>':f[9]?' <span class="pill on">救</span>':"";
-    return `<tr><td class="name">${esc(p?p.name:pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+    return `<tr><td class="name">${pidLink(pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
   return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
@@ -986,7 +1036,7 @@ function viewLeaders(){
     const tid=x.pid.replace(/[bp]\d+$/,"");
     const team=getTeam(tid);
     const isMine=tid===S.season.playerTeam;
-    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${esc(x.p.name)}</td>
+    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${pidLink(x.pid,x.p.name)}</td>
       <td class="name"><span class="swatch" style="background:${team.c1}"></span>${esc(team.short)}</td>
       <td>${esc(x.p.posLabel||x.p.role)}</td><td class="num">${x.s.g||0}</td><td class="num" style="font-weight:700">${x.val}</td></tr>`;
   }).join("");

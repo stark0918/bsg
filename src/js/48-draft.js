@@ -120,7 +120,7 @@ function viewDraft(){
     const sno=(typeof seasonNo==="function"?seasonNo():0);
     const start=(se.lastDraftLogStart!=null?se.lastDraftLogStart:null);
     const log=(start!=null?(se.draftLog||[]).slice(start):(se.draftLog||[]).filter(x=>x.season>=sno-1));
-    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
+    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${pidLink(x.pid,x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
     return `<div class="panel center"><h2>⭐ 新人選秀結束</h2>
       <p class="muted">新人們已陸續入團，下一球季就靠他們了！</p></div>
       <div class="panel"><h2>指名結果（共 ${log.length} 位）</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${rows||'<tr><td colspan="5" class="muted">本季無選秀</td></tr>'}</table>
