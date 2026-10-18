@@ -910,7 +910,7 @@ function boxBatTable(box,side){
   const tid=side==="aw"?box.aw:box.hm;
   const rows=Object.keys(box.bat).filter(pid=>pid.indexOf(tid+"b")===0).map(pid=>{
     const f=box.bat[pid],p=playerById(pid);
-    return `<tr><td class="name">${esc(p?p.name:pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+    return `<tr><td class="name">${pidLink(pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
   return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>打者</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
@@ -919,7 +919,7 @@ function boxPitTable(box,side){
   const rows=Object.keys(box.pit).filter(pid=>pid.indexOf(tid+"p")===0).map(pid=>{
     const f=box.pit[pid],p=playerById(pid);
     const cur=f[7]?' <span class="pill on">勝</span>':f[8]?' <span class="pill off">敗</span>':f[9]?' <span class="pill on">救</span>':"";
-    return `<tr><td class="name">${esc(p?p.name:pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+    return `<tr><td class="name">${pidLink(pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
   return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
@@ -1030,7 +1030,7 @@ function viewLeaders(){
     const tid=x.pid.replace(/[bp]\d+$/,"");
     const team=getTeam(tid);
     const isMine=tid===S.season.playerTeam;
-    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${esc(x.p.name)}</td>
+    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${pidLink(x.pid,x.p.name)}</td>
       <td class="name"><span class="swatch" style="background:${team.c1}"></span>${esc(team.short)}</td>
       <td>${esc(x.p.posLabel||x.p.role)}</td><td class="num">${x.s.g||0}</td><td class="num" style="font-weight:700">${x.val}</td></tr>`;
   }).join("");

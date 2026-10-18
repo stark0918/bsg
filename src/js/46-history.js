@@ -168,7 +168,7 @@ function histMilePanel(){
   const rows=arr.slice(0,10).map((x,i)=>{
     const p=playerById(x.pid);
     const tid=teamOfPlayer({id:x.pid});
-    return `<tr><td class="num">${i+1}</td><td class="name">${p?esc(p.name):x.pid}</td>
+    return `<tr><td class="num">${i+1}</td><td class="name">${pidLink(x.pid,p?p.name:(recName(x.pid)))}</td>
       <td class="name">${teamBadge(tid)}</td><td class="num" style="font-weight:700">${fmtV(x.v)}</td></tr>`;
   }).join("")||`<tr><td colspan="4" class="muted">尚無資料。</td></tr>`;
   const tabs=HIST_CATS.map(k=>`<button class="btn sm ${k[0]===cat?"gold":""}" data-act="histCat" data-arg="${k[0]}">${k[1]}</button>`).join("");
@@ -182,10 +182,10 @@ function histAllstarPanel(){
   const list=(CAREER.allstars||[]).slice().reverse();
   if(!list.length)return `<div class="panel"><h2>明星賽</h2><p class="muted">尚未舉辦過明星賽。</p></div>`;
   const cards=list.map(x=>{
-    const redNames=(x.red||[]).map(p=>`<span class="player-tag">${esc(p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
-    const blueNames=(x.blue||[]).map(p=>`<span class="player-tag">${esc(p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
+    const redNames=(x.red||[]).map(p=>`<span class="player-tag">${pidLink(p.pid,p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
+    const blueNames=(x.blue||[]).map(p=>`<span class="player-tag">${pidLink(p.pid,p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
     const wName=x.winner==="red"?"🔴 紅隊":"🔵 藍隊";
-    const mvpTxt=x.mvp?esc(x.mvp):"－";
+    const mvpTxt=x.mvpPid?pidLink(x.mvpPid,x.mvp):esc(x.mvp||"－");
     const mvpTeam=x.mvpTeam?teamBadge(x.mvpTeam):"";
     return `
       <div class="panel card">
@@ -233,11 +233,11 @@ function histSeasonDetailPanel(){
       const stats=isPit
         ? `防禦率 ${s.outs?fmtERA(s.er||0,s.outs):"-.--"}　${s.w||0}勝 ${s.k||0}K ${s.sv||0}SV`
         : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`;
-      return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
+      return `${e.team?teamBadge(e.team):""} ${e.pid?pidLink(e.pid,e.name):esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
     const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
     const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=(pick("bestDH")||[])[0];
-    const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
+    const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${k.pid?pidLink(k.pid,k.name):esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
     const statOf=x=>{
       const s=x.s||{};
@@ -245,7 +245,7 @@ function histSeasonDetailPanel(){
       if(!s.ab)return "";
       return `打擊率 ${fmtAvg((s.h||0)/s.ab)} ${s.hr||0}轟 ${s.rbi||0}打點`;
     };
-    const best9rows=(pick("best9")||[]).map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td><td class="name">${x.team?teamBadge(x.team):""} ${esc(x.name)}</td><td class="muted" style="font-size:11px">${statOf(x)}</td></tr>`).join("");
+    const best9rows=(pick("best9")||[]).map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td><td class="name">${x.team?teamBadge(x.team):""} ${x.pid?pidLink(x.pid,x.name):esc(x.name)}</td><td class="muted" style="font-size:11px">${statOf(x)}</td></tr>`).join("");
     return `<div class="panel card ${isChamp?"me":""}">
       <div class="card-head"><span class="num">第 ${sd.no} 季</span>
         <span class="name">${teamBadge(sd.team)}　${sd.rec.w}-${sd.rec.l}${sd.rec.t?"-"+sd.rec.t:""}（第 ${sd.rec.rank} 名）</span>
@@ -308,7 +308,7 @@ function histPlayerCareerPanel(){
     const w=pt.w||0, l=pt.l||0, k=pt.k||0, era=pt.outs?fmtERA(pt.er,pt.outs):"-.--";
     const as=pl.as>0?`<span class="pill on">${pl.as}⭐</span>`:"<span class=\"muted\">－</span>";
     return `<tr><td class="num">${i+1}</td>
-      <td class="name">${esc(pl.name)} ${teamBadge(pl.team)} <span class="pill ${pl.isBat?"on":"off"}">${pl.isBat?"打者":"投手"}</span></td>
+      <td class="name">${pidLink(pl.pid,pl.name)} ${teamBadge(pl.team)} <span class="pill ${pl.isBat?"on":"off"}">${pl.isBat?"打者":"投手"}</span></td>
       <td class="num">${b.g||0}</td><td class="num">${ab}</td><td class="num">${avg}</td><td class="num">${hr}</td><td class="num">${rbi}</td><td class="num">${sb}</td>
       <td class="num">${pt.g||0}</td><td class="num">${w}-${l}</td><td class="num">${era}</td><td class="num">${k}</td>
       <td class="name">${as}</td></tr>`;

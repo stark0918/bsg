@@ -1798,7 +1798,7 @@ function histMilePanel(){
   const rows=arr.slice(0,10).map((x,i)=>{
     const p=playerById(x.pid);
     const tid=teamOfPlayer({id:x.pid});
-    return `<tr><td class="num">${i+1}</td><td class="name">${p?esc(p.name):x.pid}</td>
+    return `<tr><td class="num">${i+1}</td><td class="name">${pidLink(x.pid,p?p.name:(recName(x.pid)))}</td>
       <td class="name">${teamBadge(tid)}</td><td class="num" style="font-weight:700">${fmtV(x.v)}</td></tr>`;
   }).join("")||`<tr><td colspan="4" class="muted">尚無資料。</td></tr>`;
   const tabs=HIST_CATS.map(k=>`<button class="btn sm ${k[0]===cat?"gold":""}" data-act="histCat" data-arg="${k[0]}">${k[1]}</button>`).join("");
@@ -1812,10 +1812,10 @@ function histAllstarPanel(){
   const list=(CAREER.allstars||[]).slice().reverse();
   if(!list.length)return `<div class="panel"><h2>明星賽</h2><p class="muted">尚未舉辦過明星賽。</p></div>`;
   const cards=list.map(x=>{
-    const redNames=(x.red||[]).map(p=>`<span class="player-tag">${esc(p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
-    const blueNames=(x.blue||[]).map(p=>`<span class="player-tag">${esc(p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
+    const redNames=(x.red||[]).map(p=>`<span class="player-tag">${pidLink(p.pid,p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
+    const blueNames=(x.blue||[]).map(p=>`<span class="player-tag">${pidLink(p.pid,p.name)}(${p.pos?esc(p.pos):"P"})</span>`).join("")||"無";
     const wName=x.winner==="red"?"🔴 紅隊":"🔵 藍隊";
-    const mvpTxt=x.mvp?esc(x.mvp):"－";
+    const mvpTxt=x.mvpPid?pidLink(x.mvpPid,x.mvp):esc(x.mvp||"－");
     const mvpTeam=x.mvpTeam?teamBadge(x.mvpTeam):"";
     return `
       <div class="panel card">
@@ -1863,11 +1863,11 @@ function histSeasonDetailPanel(){
       const stats=isPit
         ? `防禦率 ${s.outs?fmtERA(s.er||0,s.outs):"-.--"}　${s.w||0}勝 ${s.k||0}K ${s.sv||0}SV`
         : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`;
-      return `${e.team?teamBadge(e.team):""} ${esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
+      return `${e.team?teamBadge(e.team):""} ${e.pid?pidLink(e.pid,e.name):esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
     const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
     const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=(pick("bestDH")||[])[0];
-    const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
+    const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${k.pid?pidLink(k.pid,k.name):esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
     const statOf=x=>{
       const s=x.s||{};
@@ -1875,7 +1875,7 @@ function histSeasonDetailPanel(){
       if(!s.ab)return "";
       return `打擊率 ${fmtAvg((s.h||0)/s.ab)} ${s.hr||0}轟 ${s.rbi||0}打點`;
     };
-    const best9rows=(pick("best9")||[]).map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td><td class="name">${x.team?teamBadge(x.team):""} ${esc(x.name)}</td><td class="muted" style="font-size:11px">${statOf(x)}</td></tr>`).join("");
+    const best9rows=(pick("best9")||[]).map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td><td class="name">${x.team?teamBadge(x.team):""} ${x.pid?pidLink(x.pid,x.name):esc(x.name)}</td><td class="muted" style="font-size:11px">${statOf(x)}</td></tr>`).join("");
     return `<div class="panel card ${isChamp?"me":""}">
       <div class="card-head"><span class="num">第 ${sd.no} 季</span>
         <span class="name">${teamBadge(sd.team)}　${sd.rec.w}-${sd.rec.l}${sd.rec.t?"-"+sd.rec.t:""}（第 ${sd.rec.rank} 名）</span>
@@ -1938,7 +1938,7 @@ function histPlayerCareerPanel(){
     const w=pt.w||0, l=pt.l||0, k=pt.k||0, era=pt.outs?fmtERA(pt.er,pt.outs):"-.--";
     const as=pl.as>0?`<span class="pill on">${pl.as}⭐</span>`:"<span class=\"muted\">－</span>";
     return `<tr><td class="num">${i+1}</td>
-      <td class="name">${esc(pl.name)} ${teamBadge(pl.team)} <span class="pill ${pl.isBat?"on":"off"}">${pl.isBat?"打者":"投手"}</span></td>
+      <td class="name">${pidLink(pl.pid,pl.name)} ${teamBadge(pl.team)} <span class="pill ${pl.isBat?"on":"off"}">${pl.isBat?"打者":"投手"}</span></td>
       <td class="num">${b.g||0}</td><td class="num">${ab}</td><td class="num">${avg}</td><td class="num">${hr}</td><td class="num">${rbi}</td><td class="num">${sb}</td>
       <td class="num">${pt.g||0}</td><td class="num">${w}-${l}</td><td class="num">${era}</td><td class="num">${k}</td>
       <td class="name">${as}</td></tr>`;
@@ -2186,7 +2186,7 @@ function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   }
   arr.sort((a,b)=>desc?b.v-a.v:a.v-b.v);
   const rows=arr.slice(0,5).map((r,i)=>`<tr><td class="num">${i<3?`<span class="medal g${i+1}">${i+1}</span>`:i+1}</td>
-    <td class="name">${esc(r.name)}</td><td class="name">${teamBadge(r.team)}</td><td class="num"><b>${fmt(r.v)}</b></td></tr>`).join("");
+    <td class="name">${pidLink(r.pid,r.name)}</td><td class="name">${teamBadge(r.team)}</td><td class="num"><b>${fmt(r.v)}</b></td></tr>`).join("");
   const gate=isPit?`需 ${min} 出局數`:`需 ${min} 打席`;
   return `<div style="margin:8px 0"><h3 style="font-size:14px;margin:0 0 4px">${esc(title)}</h3>
     <table class="grid"><tr><th>#</th><th>球員</th><th>隊</th><th>成績</th></tr>${rows||`<tr><td colspan="4" class="muted">尚無人達上榜門檻（${gate}）</td></tr>`}</table></div>`;
@@ -2581,7 +2581,7 @@ function viewDraft(){
     const sno=(typeof seasonNo==="function"?seasonNo():0);
     const start=(se.lastDraftLogStart!=null?se.lastDraftLogStart:null);
     const log=(start!=null?(se.draftLog||[]).slice(start):(se.draftLog||[]).filter(x=>x.season>=sno-1));
-    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
+    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${pidLink(x.pid,x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
     return `<div class="panel center"><h2>⭐ 新人選秀結束</h2>
       <p class="muted">新人們已陸續入團，下一球季就靠他們了！</p></div>
       <div class="panel"><h2>指名結果（共 ${log.length} 位）</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${rows||'<tr><td colspan="5" class="muted">本季無選秀</td></tr>'}</table>
@@ -2723,7 +2723,7 @@ function awardPodium(list,label,emoji,isPit,emptyMsg){
       ? `防禦率 ${s.er!=null&&s.outs?fmtERA(s.er,s.outs):"-.--"}　勝投 ${s.w||0}　三振 ${s.k||0}　救援 ${s.sv||0}　局數 ${s.outs?fmtIP(s.outs):"0.0"}`
       : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`;
     return `<tr class="${a.rank===1?"me":""}"><td class="num">${a.rank<=3?`<span class="medal g${a.rank}">${a.rank}</span>`:a.rank}</td>
-      <td class="name">${esc(a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
+      <td class="name">${pidLink(a.pid,a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
       <td class="num">${a.pts} 分</td><td class="muted" style="font-size:11px">${esc(stats)}</td></tr>`;
   };
   const statHeader=isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘";
@@ -2734,7 +2734,7 @@ function awardPodium(list,label,emoji,isPit,emptyMsg){
 function awardKingGrid(title,list,a){
   const rows=list.map(k=>{
     const e=a.kings.find(x=>x.kind===k[0])||{};
-    return `<tr><td class="name">${k[1]}</td><td class="name">${e.name?esc(e.name):"－"}</td>
+    return `<tr><td class="name">${k[1]}</td><td class="name">${e.name?pidLink(e.pid,e.name):"－"}</td>
       <td class="name">${e.team?teamBadge(e.team):""}</td><td class="num"><b>${e.val!=null?esc(String(e.val)):""}</b></td></tr>`;
   }).join("");
   return `<h3>${title}</h3><table class="grid"><tr><th>獎項</th><th>得主</th><th>球隊</th><th>成績</th></tr>${rows}</table>`;
@@ -2750,7 +2750,7 @@ function awardBest9(list){
     const p=playerById(x.pid);
     const age=p?` <span class="muted">（${p.age}歲）</span>`:"";
     return `<tr><td class="name">${posName[x.pos]||x.pos}</td>
-      <td class="name">${esc(x.name)}${age}</td><td class="name">${teamBadge(x.team)}</td>
+      <td class="name">${pidLink(x.pid,x.name)}${age}</td><td class="name">${teamBadge(x.team)}</td>
       <td class="muted" style="font-size:11px">${statOf(x)}</td></tr>`;
   }).join("");
   return `<h3>🌟 最佳九人</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>成績</th></tr>${rows}</table>`;
@@ -2775,7 +2775,7 @@ function pickGloves(ps,qf){
 function awardGloves(list){
   const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊"};
   const rows=list.map(x=>`<tr><td class="name">${posName[x.pos]||x.pos}</td>
-      <td class="name">${esc(x.name)}</td><td class="name">${teamBadge(x.team)}</td>
+      <td class="name">${pidLink(x.pid,x.name)}</td><td class="name">${teamBadge(x.team)}</td>
       <td class="num">守備 ${x.def}　出賽 ${x.g}</td></tr>`).join("");
   return `<h3>🧤 金手套</h3><table class="grid"><tr><th>守位</th><th>球員</th><th>球隊</th><th>依據</th></tr>${rows}</table>`;
 }
@@ -4180,7 +4180,7 @@ function boxBatTable(box,side){
   const tid=side==="aw"?box.aw:box.hm;
   const rows=Object.keys(box.bat).filter(pid=>pid.indexOf(tid+"b")===0).map(pid=>{
     const f=box.bat[pid],p=playerById(pid);
-    return `<tr><td class="name">${esc(p?p.name:pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+    return `<tr><td class="name">${pidLink(pid)}</td><td class="num">${f[0]}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
   return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>打者</th><th>打數</th><th>安打</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
@@ -4189,7 +4189,7 @@ function boxPitTable(box,side){
   const rows=Object.keys(box.pit).filter(pid=>pid.indexOf(tid+"p")===0).map(pid=>{
     const f=box.pit[pid],p=playerById(pid);
     const cur=f[7]?' <span class="pill on">勝</span>':f[8]?' <span class="pill off">敗</span>':f[9]?' <span class="pill on">救</span>':"";
-    return `<tr><td class="name">${esc(p?p.name:pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
+    return `<tr><td class="name">${pidLink(pid)}${cur}</td><td class="num">${fmtIP(f[0])}</td><td class="num">${f[1]}</td><td class="num">${f[2]}</td><td class="num">${f[3]}</td><td class="num">${f[4]}</td><td class="num">${f[5]}</td><td class="num">${f[6]}</td></tr>`;
   }).join("");
   return `<h3>${esc(getTeam(tid).name)}</h3><table class="grid boxscore"><tr><th>投手</th><th>局數</th><th>被安</th><th>失分</th><th>責失</th><th>四壞</th><th>三振</th><th>球數</th></tr>${rows||`<tr><td colspan="8" class="muted">－</td></tr>`}</table>`;
 }
@@ -4300,7 +4300,7 @@ function viewLeaders(){
     const tid=x.pid.replace(/[bp]\d+$/,"");
     const team=getTeam(tid);
     const isMine=tid===S.season.playerTeam;
-    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${esc(x.p.name)}</td>
+    return `<tr class="${isMine?"me":""}"><td>${i+1}</td><td class="name">${pidLink(x.pid,x.p.name)}</td>
       <td class="name"><span class="swatch" style="background:${team.c1}"></span>${esc(team.short)}</td>
       <td>${esc(x.p.posLabel||x.p.role)}</td><td class="num">${x.s.g||0}</td><td class="num" style="font-weight:700">${x.val}</td></tr>`;
   }).join("");
