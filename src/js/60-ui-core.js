@@ -1,4 +1,26 @@
 /* ---------- 畫面渲染 ---------- */
+/* 開啟球員資料前記住「從哪裡來」，才能原路返回，不用繞回總部再點一次 */
+const PLAYER_CTX=["screen","leadCat","recTab","histTab","histCat","gameDetail","awardsStep"];
+function screenCtx(){const c={};PLAYER_CTX.forEach(k=>{if(S[k]!==undefined)c[k]=S[k];});return c;}
+function ctxLabel(c){
+  if(!c)return "";
+  const map={leaders:"球員排行",records:"球團紀錄殿堂",history:"遊戲紀錄",gameDetail:"比賽明細",
+             awards:"頒獎典禮",roster:"陣容與成績",abilities:"選手能力數值",allstar:"明星賽",
+             hub:"球季總部",title:"主選單",season:"球季資訊"};
+  let n=map[c.screen]||"上一頁";
+  if(c.screen==="leaders"){
+    const cats={avg:"打擊率",hr:"全壘打",rbi:"打點",h:"安打",sb:"盜壘",r:"得分",era:"防禦率",w:"勝投",k:"三振",sv:"救援"};
+    n+="（"+(cats[c.leadCat]||"")+"）";
+  }else if(c.screen==="history"){
+    const t={games:"逐場賽果",seasons:"跨季生涯",detail:"球季詳細",player:"球員生涯",
+             mile:"生涯里程碑",allstar:"明星賽",retire:"引退名單",boards:"生涯榜"};
+    n+="（"+(t[c.histTab]||"")+"）";
+  }else if(c.screen==="records"){
+    const t={single:"單場紀錄",season:"本季團隊",seasonbest:"單季紀錄"};
+    n+="（"+(t[c.recTab]||"")+"）";
+  }
+  return n;
+}
 /* 需要「進行中的球季」才成立的畫面；無球季時退回標題，避免存取 null。 */
 const NEED_SEASON={hub:1,game:1,roster:1,abilities:1,player:1,schedule:1,standings:1,leaders:1,records:1,awards:1,draft:1,gameDetail:1,lineup:1,allstar:1,season:1,admin:1};
 function render(){
