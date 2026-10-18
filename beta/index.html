@@ -1715,11 +1715,13 @@ function seriesHomeLine(s){
   for(let i=0;i<s.best;i++){const home=homeIsHi(i)?s.hi:s.lo;a.push(home===me?"主":"客");}
   return a.join("-");
 }
-/* 季後賽期間的總部導覽按鈕（補上球員排行／單場紀錄等） */
+/* 季後賽期間的總部導覽按鈕（補上球員排行／單場紀錄等；打線／守位也要有，否則季後賽完全無法調打線） */
 function poNav(){
   return `<div class="two">
       <button class="btn blk" data-act="roster">👥 陣容與成績</button>
       <button class="btn blk" data-act="abilities">🧮 選手能力</button>
+      <button class="btn blk" data-act="lineup">🧢 打線／守位</button>
+      <button class="btn blk" data-act="seasonInfo">📋 球季資訊</button>
       <button class="btn blk" data-act="schedule">🗓 賽程表</button>
       <button class="btn blk" data-act="standings">📊 聯盟排名</button>
       <button class="btn blk" data-act="leaders">📈 球員排行</button>
