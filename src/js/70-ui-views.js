@@ -206,7 +206,7 @@ function startersPanel(){
   const me=s.playerTeam,myHome=g.home===me;
   const my=getTeam(me),lu=buildLineup(my),sp=starterOf(my,day);
   const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
-  // 投手狀態（beta D2a/D2b）
+  // 投手狀態（D2a/D2b）
   const myP={obj:sp,pitches:0,cond:rollCond(),carryPP:carryFor(sp.id,day)};
   const oppP={obj:osp,pitches:0,cond:rollCond(),carryPP:carryFor(osp.id,day)};
   const myEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"away":"home");
@@ -217,7 +217,9 @@ function startersPanel(){
   const myCond=condBadge(myEff.cond),oppCond=condBadge(oppEff.cond);
   const myFatigue=fatigueBadge(myEff),oppFatigue=fatigueBadge(oppEff);
   const myCarry=carryTxt(myP.carryPP),oppCarry=carryTxt(oppP.carryPP);
-  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
+  // 打者當日手感（D3a）
+  const formBadge=f=>FORM_LABEL[f]||FORM_LABEL.normal;
+  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)} ${formBadge(rollForm())}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
   return `<div class="panel">
     <h2>今日先發</h2>
     <div class="two">

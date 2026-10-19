@@ -98,6 +98,12 @@ function applyClutch(B,mnt,lv){
 }
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
+/* ---------- 打者當日手感（D3a） ---------- */
+/* 開賽前為兩隊每名打者各擲一次當日手感：好打 22%／普通 56%／不振 22% */
+function rollForm(){const r=Math.random();return r<0.22?"good":r<0.78?"normal":"bad";}
+const FORM_LABEL={good:'<b style="color:#4fd39a">▲好打</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不振</b>'};
+/* 取打者當日手感（舊存檔的中途比賽沒有記錄時現場補一次） */
+function formOf(m,b){const F=m.batterForm||(m.batterForm={});if(!F[b.id])F[b.id]=rollForm();return F[b.id];}
 function paOutcome(batter,eff,offT,defT){
   const om=OFF_MODS[offT]||OFF_MODS.normal, dm=DEF_MODS[defT]||DEF_MODS.control;
   const kAb=eff.velocity*0.45+eff.breaking*0.55;
