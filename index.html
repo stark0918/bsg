@@ -3633,16 +3633,27 @@ function startersPanel(){
   const me=s.playerTeam,myHome=g.home===me;
   const my=getTeam(me),lu=buildLineup(my),sp=starterOf(my,day);
   const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
+  // 投手狀態（beta D2a/D2b）
+  const myP={obj:sp,pitches:0,cond:rollCond(),carryPP:carryFor(sp.id,day)};
+  const oppP={obj:osp,pitches:0,cond:rollCond(),carryPP:carryFor(osp.id,day)};
+  const myEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"away":"home");
+  const oppEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"home":"away");
+  const condBadge=c=>COND_LABEL[c]||COND_LABEL.normal;
+  const fatigueBadge=e=>e.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>';
+  const carryTxt=p=>(p>=30?' <span class="pill off">昨日'+p+'球連投注意</span>':(p?' <span class="muted">昨日'+p+'球</span>':''));
+  const myCond=condBadge(myEff.cond),oppCond=condBadge(oppEff.cond);
+  const myFatigue=fatigueBadge(myEff),oppFatigue=fatigueBadge(oppEff);
+  const myCarry=carryTxt(myP.carryPP),oppCarry=carryTxt(oppP.carryPP);
   const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
   return `<div class="panel">
     <h2>今日先發</h2>
     <div class="two">
       <div><h3>${teamBadge(me)} <span class="pill">${myHome?"主場":"客場"}</span></h3>
         <table class="grid lineup"><tr><th>棒</th><th>球員</th><th>守位</th></tr>${rows}</table>
-        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b></p>
+        <p class="muted" style="font-size:12px;margin-top:6px">先發投手：<b>${esc(sp.name)}</b> ${condBadge(myEff.cond)}${fatigueBadge(myEff)} ${myP.carryPP>=30?' <span class="pill off">昨日'+myP.carryPP+'球連投注意</span>':(myP.carryPP?' <span class="muted">昨日'+myP.carryPP+'球</span>':'')}</p>
         <button class="btn sm blk" data-act="lineup">🧢 編輯打線／守位</button></div>
       <div><h3>${teamBadge(oppId)}</h3>
-        <p class="muted">對手先發投手：<b>${esc(osp.name)}</b></p>
+        <p class="muted">對手先發投手：<b>${esc(osp.name)}</b> ${condBadge(oppEff.cond)}${fatigueBadge(oppEff)} ${oppCarry}</p>
         <p class="muted" style="font-size:12px">開打後可在比賽畫面查看雙方完整打線、板凳與牛棚。</p></div>
     </div>
   </div>`;
