@@ -728,6 +728,12 @@ function recordPitchLoad(dayIdx,boxesArr){
 }
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
+/* ---------- 打者當日手感（D3a） ---------- */
+/* 開賽前為兩隊每名打者各擲一次當日手感：好打 22%／普通 56%／不振 22% */
+function rollForm(){const r=Math.random();return r<0.22?"good":r<0.78?"normal":"bad";}
+const FORM_LABEL={good:'<b style="color:#4fd39a">▲好打</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不振</b>'};
+/* 取打者當日手感（舊存檔的中途比賽沒有記錄時現場補一次） */
+function formOf(m,b){const F=m.batterForm||(m.batterForm={});if(!F[b.id])F[b.id]=rollForm();return F[b.id];}
 function paOutcome(batter,eff,offT,defT){
   const om=OFF_MODS[offT]||OFF_MODS.normal, dm=DEF_MODS[defT]||DEF_MODS.control;
   const kAb=eff.velocity*0.45+eff.breaking*0.55;
@@ -3633,7 +3639,7 @@ function startersPanel(){
   const me=s.playerTeam,myHome=g.home===me;
   const my=getTeam(me),lu=buildLineup(my),sp=starterOf(my,day);
   const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
-  // 投手狀態（beta D2a/D2b）
+  // 投手狀態（D2a/D2b）
   const myP={obj:sp,pitches:0,cond:rollCond(),carryPP:carryFor(sp.id,day)};
   const oppP={obj:osp,pitches:0,cond:rollCond(),carryPP:carryFor(osp.id,day)};
   const myEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"away":"home");
@@ -3644,7 +3650,9 @@ function startersPanel(){
   const myCond=condBadge(myEff.cond),oppCond=condBadge(oppEff.cond);
   const myFatigue=fatigueBadge(myEff),oppFatigue=fatigueBadge(oppEff);
   const myCarry=carryTxt(myP.carryPP),oppCarry=carryTxt(oppP.carryPP);
-  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
+  // 打者當日手感（D3a）
+  const formBadge=f=>FORM_LABEL[f]||FORM_LABEL.normal;
+  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)} ${formBadge(rollForm())}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
   return `<div class="panel">
     <h2>今日先發</h2>
     <div class="two">
