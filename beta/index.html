@@ -702,17 +702,10 @@ const DEF_NAME={power:"全力投球",control:"控球至上",corner:"邊邊角角
 
 function pitcherEffective(p,pitches,cond,carryPP){
   const thr=42+p.stamina*0.62;
-<<<<<<< HEAD
   const effP=(pitches||0)+(carryPP||0)*0.5;   // 昨日投球量折半併入今日（連投疲勞，beta D2b）
   let f=1;
   if(effP>thr) f=clamp(1-(effP-thr)*0.0032,0.70,1);
   const cm=cond==="good"?1.06:cond==="bad"?0.94:1;   // 調子：beta 新增
-=======
-  const effP=(pitches||0)+(carryPP||0)*0.5;   // 昨日投球量折半併入今日（連投疲勞）
-  let f=1;
-  if(effP>thr) f=clamp(1-(effP-thr)*0.0032,0.70,1);
-  const cm=cond==="good"?1.06:cond==="bad"?0.94:1;   // 調子：好調 +6%、不調 -6%
->>>>>>> main
   return {velocity:p.velocity*f*cm,control:p.control*(0.86+0.14*f)*cm,breaking:p.breaking*f*cm,fatigue:f,cond:cond||"normal"};
 }
 /* 當日調子：好調 20%／普通 60%／不調 20% */
@@ -734,7 +727,6 @@ function recordPitchLoad(dayIdx,boxesArr){
     if(!b||!b.pit)return;
     for(const pid in b.pit){const l=b.pit[pid];if(pid)se.pitchLoad[pid]={pp:l[6]||0,day:dayIdx};}
   });
-<<<<<<< HEAD
 }
 /* ---------- 打者當日手感（beta D3a） ---------- */
 /* 開賽前為兩隊每名打者各擲一次當日手感：好打 22%／普通 56%／不振 22% */
@@ -789,8 +781,6 @@ function applyClutch(B,mnt,lv){
   const k=1+edge*0.10*lv;
   B.meet*=k;B.power*=k;B.eye*=k;
   return B;
-=======
->>>>>>> main
 }
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
@@ -954,13 +944,10 @@ function playPA(m,offT,defT){
   const batter=currentBatter(m);
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
-<<<<<<< HEAD
   const momStat0=momStat(m,batter);
   const leverage=leverageOf(m,offSide);                     // beta D3c：本席的關鍵程度
   const B=applyClutch(applyMom(batterEffective(batter,formOf(m,batter)),momStat0),batter.mentality==null?50:batter.mentality,leverage);
   const momBefore=momBand(momStat0);
-=======
->>>>>>> main
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
 
@@ -1479,11 +1466,7 @@ function processGameEnd(m){
     checkSimTeamRecords(x.away,x.home,r.a,r.b,when);
   });
   checkInningRecords(m.dayIndex,when);   // 單局團隊得分（當日全部 box 含實戰場）
-<<<<<<< HEAD
   recordPitchLoad(m.dayIndex,(S.season.boxes||[])[m.dayIndex]);   // beta D2b：記錄本日用球數供明日連投判定
-=======
-  recordPitchLoad(m.dayIndex,(S.season.boxes||[])[m.dayIndex]);   // 記錄本日用球數供明日連投判定
->>>>>>> main
   /* 特殊事蹟與生涯里程碑（本日全部打完後結算） */
   let special="";
   (boxes[m.dayIndex]||[]).forEach(b=>{
@@ -1668,11 +1651,7 @@ function recordPlayoffResult(m){
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
   const bx=boxFromMatch(m);
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
-<<<<<<< HEAD
   recordPitchLoad(m.dayIndex,[bx]);   // beta D2b：季後賽用球數也記（連戰疲勞）
-=======
-  recordPitchLoad(m.dayIndex,[bx]);   // 季後賽用球數也記（連戰疲勞）
->>>>>>> main
   const nh=recordNoHitter(bx,stName+"·第"+(m.po.gameNo+1)+"戰");
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;
@@ -3875,12 +3854,9 @@ function viewGame(){
   const myOrder=(m.batterIdx[offSide]%m.lineups[offSide].length)+1;
   const P=m.pitchers[defSide];
   const eff=effOf(m,defSide);
-<<<<<<< HEAD
   const form=formOf(m,batter);
   const momBandNow=momBand(momStat(m,batter));
   const myLeverage=m.over?0:leverageOf(m,offSide);
-=======
->>>>>>> main
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -3911,20 +3887,13 @@ function viewGame(){
     <div class="countrow" style="margin-top:6px"><span class="lbl">局面</span><b style="color:#ffe07a">${m.inning}局${innLabel}</b>　<span class="lbl">壘上</span>${batterDesc(m)}</div>
   </div>`;
 
-  const condBadge=COND_LABEL[P.cond]||COND_LABEL.normal;
-  const fatigueBadge=eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>';
-  const carryTxt=(P.carryPP||0)>=30?' <span class="pill off">昨日'+P.carryPP+'球連投注意</span>':(P.carryPP?' <span class="muted">昨日'+P.carryPP+'球</span>':'');
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
       <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}　手感 ${FORM_LABEL[form]||FORM_LABEL.normal}　熱度 ${MOM_LABEL[momBandNow]||MOM_LABEL.flat}${myLeverage>=0.4?`　壓力 ${Math.round(myLeverage*100)}%`:""}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
-<<<<<<< HEAD
       <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}　調子 ${COND_LABEL[P.cond]||COND_LABEL.normal}${(P.carryPP||0)>=30?' <span class="pill off">昨日'+P.carryPP+'球連投注意</span>':(P.carryPP?' <span class="muted">昨日'+P.carryPP+'球</span>':'')}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
-=======
-      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${fatigueBadge}　調子 ${condBadge}${carryTxt}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
->>>>>>> main
     ${rbar("球速",P.obj.velocity)}${rbar("控球",P.obj.control)}${rbar("變化",P.obj.breaking)}${rbar("體力",P.obj.stamina)}
   </div>`;
 
