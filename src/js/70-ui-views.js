@@ -351,7 +351,7 @@ function viewGame(){
   const batter=currentBatter(m);
   const myOrder=(m.batterIdx[offSide]%m.lineups[offSide].length)+1;
   const P=m.pitchers[defSide];
-  const eff=pitcherEffective(P.obj,P.pitches);
+  const eff=effOf(m,defSide);
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -382,13 +382,16 @@ function viewGame(){
     <div class="countrow" style="margin-top:6px"><span class="lbl">局面</span><b style="color:#ffe07a">${m.inning}局${innLabel}</b>　<span class="lbl">壘上</span>${batterDesc(m)}</div>
   </div>`;
 
+  const condBadge=COND_LABEL[P.cond]||COND_LABEL.normal;
+  const fatigueBadge=eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>';
+  const carryTxt=(P.carryPP||0)>=30?' <span class="pill off">昨日'+P.carryPP+'球連投注意</span>':(P.carryPP?' <span class="muted">昨日'+P.carryPP+'球</span>':'');
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
       <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
-      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
+      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${fatigueBadge}　調子 ${condBadge}${carryTxt}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
     ${rbar("球速",P.obj.velocity)}${rbar("控球",P.obj.control)}${rbar("變化",P.obj.breaking)}${rbar("體力",P.obj.stamina)}
   </div>`;
 

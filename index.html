@@ -698,11 +698,33 @@ const DEF_MODS={
 const OFF_NAME={normal:"正常揮擊",power:"強力揮擊",take:"耐心等球",bunt:"犧牲短打",hitrun:"打帶跑"};
 const DEF_NAME={power:"全力投球",control:"控球至上",corner:"邊邊角角",chase:"引誘球",ibb:"故意四壞"};
 
-function pitcherEffective(p,pitches){
+function pitcherEffective(p,pitches,cond,carryPP){
   const thr=42+p.stamina*0.62;
+  const effP=(pitches||0)+(carryPP||0)*0.5;   // 昨日投球量折半併入今日（連投疲勞）
   let f=1;
-  if(pitches>thr) f=clamp(1-(pitches-thr)*0.0032,0.70,1);
-  return {velocity:p.velocity*f,control:p.control*(0.86+0.14*f),breaking:p.breaking*f,fatigue:f};
+  if(effP>thr) f=clamp(1-(effP-thr)*0.0032,0.70,1);
+  const cm=cond==="good"?1.06:cond==="bad"?0.94:1;   // 調子：好調 +6%、不調 -6%
+  return {velocity:p.velocity*f*cm,control:p.control*(0.86+0.14*f)*cm,breaking:p.breaking*f*cm,fatigue:f,cond:cond||"normal"};
+}
+/* 當日調子：好調 20%／普通 60%／不調 20% */
+function rollCond(){const r=Math.random();return r<0.2?"good":r<0.8?"normal":"bad";}
+const COND_LABEL={good:'<b style="color:#4fd39a">▲好調</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不調</b>'};
+/* 取守備方有效投球狀態（含調子＋連投） */
+function effOf(m,side){const P=m.pitchers[side];return pitcherEffective(P.obj,P.pitches,P.cond||"normal",P.carryPP||0);}
+/* 前一日投球量（中1日以上或無紀錄視為充分休息） */
+function carryFor(pid,dayIdx){
+  const se=S.season;if(!se||!se.pitchLoad)return 0;
+  const L=se.pitchLoad[pid];
+  return (L&&L.day===dayIdx-1)?(L.pp||0):0;
+}
+/* 記錄投球量（實戰＋模擬），供明日連投判定；dayIdx 為該場次的日序 */
+function recordPitchLoad(dayIdx,boxesArr){
+  const se=S.season;if(!se)return;
+  se.pitchLoad=se.pitchLoad||{};
+  (boxesArr||[]).forEach(b=>{
+    if(!b||!b.pit)return;
+    for(const pid in b.pit){const l=b.pit[pid];if(pid)se.pitchLoad[pid]={pp:l[6]||0,day:dayIdx};}
+  });
 }
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
@@ -846,7 +868,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
-    pitchers:{away:{obj:awayStarter,pitches:0},home:{obj:homeStarter,pitches:0}},
+    pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond(),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:rollCond(),carryPP:carryFor(homeStarter.id,dayIndex)}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()
@@ -863,7 +885,7 @@ function playPA(m,offT,defT){
   const offSide=offenseSide(m),defSide=defenseSide(m);
   const batter=currentBatter(m);
   const P=m.pitchers[defSide];
-  const eff=pitcherEffective(P.obj,P.pitches);
+  const eff=effOf(m,defSide);
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
 
@@ -1110,8 +1132,10 @@ function doChangePitcher(m,pid){
   const np=bp.splice(i,1)[0];
   const old=m.pitchers[defSide].obj;
   m.usedPitchers[defSide].push(old.id);
-  m.pitchers[defSide]={obj:np,pitches:0};
-  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球。`,c:"run"});
+  const npCond=rollCond();
+  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex)};
+  const condTxt=npCond==="good"?"（好調）":npCond==="bad"?"（不調）":"";
+  m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球${condTxt}。`,c:"run"});
 }
 
 /* ---------- 遊戲回合控制 ---------- */
@@ -1367,6 +1391,7 @@ function processGameEnd(m){
     checkSimTeamRecords(x.away,x.home,r.a,r.b,when);
   });
   checkInningRecords(m.dayIndex,when);   // 單局團隊得分（當日全部 box 含實戰場）
+  recordPitchLoad(m.dayIndex,(S.season.boxes||[])[m.dayIndex]);   // 記錄本日用球數供明日連投判定
   /* 特殊事蹟與生涯里程碑（本日全部打完後結算） */
   let special="";
   (boxes[m.dayIndex]||[]).forEach(b=>{
@@ -1551,6 +1576,7 @@ function recordPlayoffResult(m){
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
   const bx=boxFromMatch(m);
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
+  recordPitchLoad(m.dayIndex,[bx]);   // 季後賽用球數也記（連戰疲勞）
   const nh=recordNoHitter(bx,stName+"·第"+(m.po.gameNo+1)+"戰");
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;
@@ -3752,7 +3778,7 @@ function viewGame(){
   const batter=currentBatter(m);
   const myOrder=(m.batterIdx[offSide]%m.lineups[offSide].length)+1;
   const P=m.pitchers[defSide];
-  const eff=pitcherEffective(P.obj,P.pitches);
+  const eff=effOf(m,defSide);
   const team=esc(getTeam(S.season.playerTeam).name);
 
   // 記分板：只顯示已進行到的局數，未開打的半局留白（避免誤看成 0 分）
@@ -3783,13 +3809,16 @@ function viewGame(){
     <div class="countrow" style="margin-top:6px"><span class="lbl">局面</span><b style="color:#ffe07a">${m.inning}局${innLabel}</b>　<span class="lbl">壘上</span>${batterDesc(m)}</div>
   </div>`;
 
+  const condBadge=COND_LABEL[P.cond]||COND_LABEL.normal;
+  const fatigueBadge=eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>';
+  const carryTxt=(P.carryPP||0)>=30?' <span class="pill off">昨日'+P.carryPP+'球連投注意</span>':(P.carryPP?' <span class="muted">昨日'+P.carryPP+'球</span>':'');
   const matchup=`<div class="matchup">
     <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
       <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
     <div style="margin-bottom:6px"><span class="who">🔥 ${esc(P.obj.name)}</span><span class="pos">${esc(P.obj.role)}</span>
-      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>'}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
+      <span class="muted" style="font-size:12px">　投球數 ${P.pitches}${fatigueBadge}　調子 ${condBadge}${carryTxt}　<span class="speed">⚡ ${m.pitchSpeed||"-"} km/h</span></span></div>
     ${rbar("球速",P.obj.velocity)}${rbar("控球",P.obj.control)}${rbar("變化",P.obj.breaking)}${rbar("體力",P.obj.stamina)}
   </div>`;
 

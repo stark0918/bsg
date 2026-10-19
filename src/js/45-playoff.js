@@ -130,6 +130,7 @@ function recordPlayoffResult(m){
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
   const bx=boxFromMatch(m);
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
+  recordPitchLoad(m.dayIndex,[bx]);   // 季後賽用球數也記（連戰疲勞）
   const nh=recordNoHitter(bx,stName+"·第"+(m.po.gameNo+1)+"戰");
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;

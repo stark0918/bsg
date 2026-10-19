@@ -207,6 +207,7 @@ function processGameEnd(m){
     checkSimTeamRecords(x.away,x.home,r.a,r.b,when);
   });
   checkInningRecords(m.dayIndex,when);   // 單局團隊得分（當日全部 box 含實戰場）
+  recordPitchLoad(m.dayIndex,(S.season.boxes||[])[m.dayIndex]);   // 記錄本日用球數供明日連投判定
   /* 特殊事蹟與生涯里程碑（本日全部打完後結算） */
   let special="";
   (boxes[m.dayIndex]||[]).forEach(b=>{
