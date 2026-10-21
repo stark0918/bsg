@@ -50,11 +50,12 @@ function computeAwards(){
   const cy=pick3(starters);
   // 澤村賞排除最佳投手得主：兩個獎項不重複頒給同一人
   const sawamura=pickSawamura(ps,qf,cy.length?cy[0].pid:null);
-  S.season.awards={kings,mvp:pick3(batters),cy,reliever:pick3(relievers),rookie:pick3(rookies),sawamura,best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
+  const bestDH=pickBestDH(ps,qf);
+  S.season.awards={kings,mvp:pick3(batters),cy,reliever:pick3(relievers),rookie:pick3(rookies),sawamura,best9:pickBest9(ps,qf,bestDH),gloves:pickGloves(ps,qf),bestDH,gp:q.gp};
 }
-/* 最佳九人：按守位選最佳打者＋最佳投手 */
-function pickBest9(ps,qf){
-  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+/* 最佳九人：8 個守備位置各選最佳打者 ＋ DH 席（實際以 DH 身份上場過的最佳）＋ 投手席 */
+function pickBest9(ps,qf,bestDH){
+  const posOrder=["C","1B","2B","3B","SS","LF","CF","RF"];
   const out=[];
   posOrder.forEach(pos=>{
     let best=null;
@@ -67,6 +68,11 @@ function pickBest9(ps,qf){
     }
     if(best)out.push(best);
   });
+  // DH 席：不是看名單守位，而是看本季「實際以 DH 身份上場過」的最佳打者
+  if(bestDH&&bestDH.length){
+    const d=bestDH[0];
+    out.push({pos:"DH",name:d.name,pid:d.pid,team:d.team,pts:d.pts,s:d.s});
+  }
   let bestP=null;
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
@@ -239,7 +245,8 @@ function viewAwards(){
 }
 
 /* ---------- 明星賽（季中表演賽，不列入戰績） ---------- */
-const AS_POS=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+/* 明星賽 9 人：8 個守備位置各一位，第 9 位（DH）取綜合評分最高者 —— DH 是棒次不是守位 */
+const AS_POS=["C","1B","2B","3B","SS","LF","CF","RF"];
 function asReady(){
   const se=S.season;if(!se)return false;
   return (se.day||0)>=Math.floor(((se.schedule||[]).length)/2);

@@ -322,7 +322,7 @@ function viewLineup(){
   const dhManual=(CAREER.dhSlot||{})[se.playerTeam]!=null;
   const dhPlayer=lu[dhIdx];
   const dhNote=`<div class="hr"></div><h3>🎯 指定打擊（DH）</h3>
-    <p class="muted" style="font-size:12px">目前由 <b>${dhPlayer?esc(dhPlayer.name):"－"}</b>（第 ${dhIdx+1} 棒）擔任 DH，${dhManual?"（手動指定）":"（未指定：預設由第 9 棒擔任）"}。DH 是專職打擊位置，<b>不限制守位</b>，內野手或外野手都可以排進來。點打線上的 🎯 即可指定 DH 棒次。</p>
+    <p class="muted" style="font-size:12px">目前由 <b>${dhPlayer?esc(dhPlayer.name):"－"}</b>（第 ${dhIdx+1} 棒）擔任 DH，${dhManual?"（手動指定）":"（未指定：預設由第 9 棒擔任）"}。DH 是<b>打線上的一個棒次</b>，不是球員的守位——<b>任何球員</b>（內野手、外野手都行）排進那個棒次就是該場的 DH，該棒以外他就照自己的守位守備。</p>
     <div class="two">
       <button class="btn blk" data-act="luDHAuto">🤖 改回自動挑人</button>
       <button class="btn blk" data-act="backHub">← 回球季總部</button>
@@ -333,7 +333,7 @@ function viewLineup(){
         <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}${i===dhIdx?' <span class="pill on">🎯 DH</span>':""}</div>
         ${luStatLine(b)}
       </div>
-      <span class="lups">${esc(b.posLabel||"")}</span>
+      <span class="lups">${i===dhIdx?"指定打擊":esc(b.posLabel||"")}</span>
       <span class="lubtns">
         <button class="btn sm ${i===dhIdx?'gold':''}" data-act="luDH" data-arg="${i}" title="指定這一位擔任指定打擊（DH）">🎯</button>
         <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
@@ -638,8 +638,8 @@ function viewAbilities(){
   }else{
     const tt=getTeam(sel);tt.batters.forEach(b=>bats.push({p:b,tid:sel}));tt.pitchers.forEach(p=>pits.push({p,tid:sel}));
   }
-  // 守位清單（依傳統順序）
-  const POS_ORDER=["捕手","一壘手","二壘手","三壘手","游擊手","左外野","中外野","右外野","指定打擊"];
+  // 守位清單（依傳統順序；沒有「DH 守位」——DH 是打線棒次，不是球員守位）
+  const POS_ORDER=["捕手","一壘手","二壘手","三壘手","游擊手","左外野","中外野","右外野"];
   const posSet=[];
   bats.forEach(x=>{if(posSet.indexOf(x.p.posLabel)<0)posSet.push(x.p.posLabel);});
   posSet.sort((a,b)=>{const ia=POS_ORDER.indexOf(a),ib=POS_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
@@ -853,8 +853,8 @@ function playerAwards(pid){
     if(same(a.rookie))out.push(`第 ${a.no} 季 新人王`);
     if(same(a.sawamura))out.push(`第 ${a.no} 季 澤村賞`);
     if(same(a.bestDH))out.push(`第 ${a.no} 季 最佳指定打擊`);
-    (a.best9||[]).forEach(b=>{if(b.pid===pid&&(!myName||b.name===myName))out.push(`第 ${a.no} 季 最佳九人（${b.pos}）`);});
-    (a.gloves||[]).forEach(g=>{if(g.pid===pid&&(!myName||g.name===myName))out.push(`第 ${a.no} 季 金手套（${g.pos}）`);});
+    (a.best9||[]).forEach(b=>{if(b.pid===pid&&(!myName||b.name===myName))out.push(`第 ${a.no} 季 最佳九人（${POS_ZH[b.pos]||b.pos}）`);});
+    (a.gloves||[]).forEach(g=>{if(g.pid===pid&&(!myName||g.name===myName))out.push(`第 ${a.no} 季 金手套（${POS_ZH[g.pos]||g.pos}）`);});
     (a.kings||[]).forEach(k=>{if(same(k))out.push(`第 ${a.no} 季 ${k.title}${k.val!=null?"（"+k.val+"）":""}`);});
   });
   return out;
@@ -1114,7 +1114,7 @@ function viewHelp(){
       <dd>從標題畫面或球季總部的「📜 遊戲紀錄」可回顧三種紀錄：<b>逐場賽果</b>（本季每場比賽的對戰與比數）、<b>跨季生涯</b>（每一季的戰績、名次與總冠軍）與<b>生涯里程碑</b>（跨季累計的全壘打、安打、三振、勝投等前 10 名）。</dd>
       <dt>■ 個人獎項</dt>
       <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、本季初登場的新人，一生只能拿一次）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。</dd>
-      <dd><b>指定打擊（DH）</b>：打線中有<b>一棒</b>由指定打擊擔任，任何球員都可以排進那個位置（不限制守位，內野手也能當 DH）。在「🧢 打線／守位編輯」點打線上的 🎯 就能指定 DH 棒次；沒指定時預設由第 9 棒擔任。年度的「🎯 最佳指定打擊」是看<b>實際以 DH 身份上場過</b>的球員（不是看名單上的守位），只計 DH 期間的表現。</dd>
+      <dd><b>指定打擊（DH）</b>：DH 是<b>打線上的一個棒次</b>，不是球員的守位——名單上每位球員都有真正的守備位置（捕手／一壘／二壘／三壘／游擊／左外野／中外野／右外野），而打線裡有<b>一棒</b>由指定打擊擔任，<b>任何球員</b>排進那個棒次就是該場的 DH，該棒以外他就照自己的守位守備。在「🧢 打線／守位編輯」點打線上的 🎯 就能指定 DH 棒次；沒指定時預設由第 9 棒擔任。年度的「🎯 最佳指定打擊」是看<b>實際以 DH 身份上場過</b>的球員，只計 DH 期間的表現。</dd>
       <dt>■ 新人選秀</dt>
       <dd>球季結束、有球員退休（39 歲以上）時，會展開<b>新人選秀</b>：依例行賽戰績由差到佳決定指名順序，輪到你的球團時可從 4 名候補中指名 1 人補強，其他球團會自動挑選。選進的新人會成為下一季的戰力。</dd>
       <dt>■ 季後賽</dt>
