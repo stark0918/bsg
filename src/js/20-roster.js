@@ -11,12 +11,15 @@ function genRoster(team){
   const arnd=mulberry32(hashStr("gk-arch-v1-"+team.id));
   const mrnd=mulberry32(hashStr("gk-ment-v1-"+team.id));   // 膽識獨立亂數流（beta D3c，不影響其他能力）
   const used=new Set();
-  const pos=["C","1B","2B","3B","SS","LF","CF","RF","DH"];
+  const pos=["C","1B","2B","3B","SS","LF","CF","RF"];   // 8 個守備位置：沒有「DH 守位」了
   const benchPos=["C","SS","CF","1B"];   // 板凳球員守位（僅供顯示／換人對照，不影響能力加成）
   const arch=["contact","power","speed","eye","balanced"];
   const batters=[];
+  /* 第 9 位先發原本是「DH 守位」，現在 DH 改由打線上的棒次決定（任何球員都能當），
+     所以他改拿一個外野位置；用球隊 id 決定左／右外野，各隊看起來才不會一樣。 */
+  const ninthOF=(hashStr("gk-pos9-"+team.id)%2)?"LF":"RF";
   for(let i=0;i<13;i++){
-    const p=i<9?pos[i]:null;
+    const p=i<8?pos[i]:(i===8?ninthOF:null);
     const bp=i>=9?benchPos[i-9]:null;
     const a=rpick(arnd,arch);
     let meet=nrm(rnd,52,10),power=nrm(rnd,50,13),eye=nrm(rnd,50,11),speed=nrm(rnd,52,12),def=nrm(rnd,52,11);
