@@ -150,6 +150,16 @@ table.grid.boxscore td.name{text-align:left;width:30%}
 table.grid td.name{text-align:left;white-space:nowrap}
 table.grid td.num{font-family:Consolas,monospace;color:#cfe3f5}
 table.grid tr:hover td{background:rgba(87,200,230,.06)}
+/* 欄位多的表（逐季成績）可以左右捲動，不用為了美觀砍掉資料 */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:4px 0}
+.tablewrap>table.grid{min-width:max-content}
+.tablewrap>table.grid th{white-space:nowrap}
+/* 逐季成績表：欄位很多，用緊湊排版讓常見螢幕不用捲動就能看完整；捲不完時再左右捲 */
+table.grid.seastable{font-size:11.5px;min-width:0}
+table.grid.seastable th,table.grid.seastable td{padding:3px 4px}
+table.grid.seastable th{white-space:nowrap}
+table.grid.seastable td.awcell{white-space:normal;line-height:1.3;min-width:74px;max-width:150px}
+table.grid.seastable td.sealab{white-space:nowrap}
 .rank1{color:var(--gold);font-weight:900}
 
 /* 打線表 */
@@ -2467,7 +2477,8 @@ const CAREER_BAT_REC=[
   ["生涯全壘打",s=>s.hr||0,Number,CAREER_MIN_AB,true],
   ["生涯打點",s=>s.rbi||0,Number,CAREER_MIN_AB,true],
   ["生涯安打",s=>s.h||0,Number,CAREER_MIN_AB,true],
-  ["生涯盜壘",s=>s.sb||0,Number,CAREER_MIN_AB,true]
+  ["生涯盜壘",s=>s.sb||0,Number,CAREER_MIN_AB,true],
+  ["生涯得分",s=>s.r||0,Number,CAREER_MIN_AB,true]
 ];
 const CAREER_PIT_REC=[
   ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),CAREER_MIN_ERA_OUTS,false],
@@ -4397,45 +4408,55 @@ function viewPlayer(){
     const arr=awBySeason[no]||[];
     const main=arr.filter(x=>x.kind==="main").map(x=>x.short||x.label);
     const kings=arr.filter(x=>x.kind==="king").length;
-    if(!main.length&&!kings)return `<td class="muted">－</td>`;
+    if(!main.length&&!kings)return `<td class="muted awcell">－</td>`;
     const t=main.join("・")+(kings?`・王座×${kings}`:"");
-    return `<td class="muted" style="font-size:11px">🏆 ${esc(t)}</td>`;
+    return `<td class="muted awcell" style="font-size:11px">🏆 ${esc(t)}</td>`;
   };
   let seasonTable;
+  const seasonLabel=r=>`<td class="num sealab">${r.no}季${r.cur?'<span class="muted">*</span>':""}</td>`;
   if(isPit){
     const rows=seasonRows.map(r=>{
       const s=r.s;
-      return `<tr class="${r.cur?"me":""}"><td class="num">第 ${r.no} 季${r.cur?"（進行中）":""}</td>
+      return `<tr class="${r.cur?"me":""}">${seasonLabel(r)}
         <td class="num">${s.g||0}</td><td class="num">${fmtIP(s.outs||0)}</td><td class="num">${s.outs?fmtERA(s.er||0,s.outs):"-.-"}</td>
-        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td><td class="num">${s.k||0}</td>${awCell(r.no)}</tr>`;
+        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td>
+        <td class="num">${s.h||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td>${awCell(r.no)}</tr>`;
     }).join("");
     const t=careerMerged().pit[pid];
-    const tot=t?`<tr class="me"><td class="name">生涯累計</td>
+    const tot=t?`<tr class="me"><td class="name sealab">生涯</td>
         <td class="num">${t.g||0}</td><td class="num">${fmtIP(t.outs||0)}</td><td class="num">${t.outs?fmtERA(t.er||0,t.outs):"-.-"}</td>
-        <td class="num">${t.w||0}</td><td class="num">${t.l||0}</td><td class="num">${t.sv||0}</td><td class="num">${t.k||0}</td>
-        <td class="muted" style="font-size:11px">${awList.length?`🏆 共 ${awList.length} 項`:"－"}</td></tr>`:"";
-    seasonTable=seasonRows.length||t?`<table class="grid"><tr><th>球季</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>三振</th><th>獲獎</th></tr>${rows}${tot}</table>`
+        <td class="num">${t.w||0}</td><td class="num">${t.l||0}</td><td class="num">${t.sv||0}</td>
+        <td class="num">${t.h||0}</td><td class="num">${t.bb||0}</td><td class="num">${t.k||0}</td>
+        <td class="muted awcell" style="font-size:11px">${awList.length?`🏆 共 ${awList.length} 項`:"－"}</td></tr>`:"";
+    seasonTable=seasonRows.length||t?`<div class="tablewrap"><table class="grid seastable"><tr><th>球季</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th><th>獲獎</th></tr>${rows}${tot}</table></div>`
       :`<p class="muted">尚無生涯累計（本季目前也還沒有出賽紀錄）。</p>`;
   }else{
     const rows=seasonRows.map(r=>{
       const s=r.s,ab=s.ab||0,h=s.h||0;
-      return `<tr class="${r.cur?"me":""}"><td class="num">第 ${r.no} 季${r.cur?"（進行中）":""}</td>
+      return `<tr class="${r.cur?"me":""}">${seasonLabel(r)}
         <td class="num">${s.g||0}</td><td class="num">${ab}</td><td class="num">${h}</td><td class="num">${fmtAvg(ab?h/ab:0)}</td>
-        <td class="num">${s.hr||0}</td><td class="num">${s.rbi||0}</td><td class="num">${s.sb||0}</td>${awCell(r.no)}</tr>`;
+        <td class="num">${s.hr||0}</td><td class="num">${s.rbi||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td>
+        <td class="num">${s.r||0}</td><td class="num">${s.sb||0}</td>${awCell(r.no)}</tr>`;
     }).join("");
     const t=careerMerged().bat[pid];
-    const tot=t?`<tr class="me"><td class="name">生涯累計</td>
+    const tot=t?`<tr class="me"><td class="name sealab">生涯</td>
         <td class="num">${t.g||0}</td><td class="num">${t.ab||0}</td><td class="num">${t.h||0}</td><td class="num">${fmtAvg(t.ab?t.h/t.ab:0)}</td>
-        <td class="num">${t.hr||0}</td><td class="num">${t.rbi||0}</td><td class="num">${t.sb||0}</td>
-        <td class="muted" style="font-size:11px">${awList.length?`🏆 共 ${awList.length} 項`:"－"}</td></tr>`:"";
-    seasonTable=seasonRows.length||t?`<table class="grid"><tr><th>球季</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>盜壘</th><th>獲獎</th></tr>${rows}${tot}</table>`
+        <td class="num">${t.hr||0}</td><td class="num">${t.rbi||0}</td><td class="num">${t.bb||0}</td><td class="num">${t.k||0}</td>
+        <td class="num">${t.r||0}</td><td class="num">${t.sb||0}</td>
+        <td class="muted awcell" style="font-size:11px">${awList.length?`🏆 共 ${awList.length} 項`:"－"}</td></tr>`:"";
+    seasonTable=seasonRows.length||t?`<div class="tablewrap"><table class="grid seastable"><tr><th>球季</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th><th>獲獎</th></tr>${rows}${tot}</table></div>`
       :`<p class="muted">尚無生涯累計（本季目前也還沒有出賽紀錄）。</p>`;
   }
   const best=playerBestGame(pid,isPit);
   const bestHTML=best?`<p>${best.text}</p>
     <button class="btn sm" data-act="gameDetail" data-arg="${best.d},${best.gi}">查看該場明細 ▸</button>`
     :`<p class="muted">本季尚無出賽紀錄。</p>`;
-  const awardHTML=awList.length?`<table class="grid"><tr><th>球季</th><th>獎項</th><th>成績</th></tr>
+  // 獲獎各項總計（例如：🏆 MVP × 2　👑 打擊王 × 3）
+  const awCount={};
+  awList.forEach(x=>{const k=(x.kind==="king"?"👑 ":"🏆 ")+x.label;awCount[k]=(awCount[k]||0)+1;});
+  const awTotal=Object.keys(awCount).map(k=>`${k} × ${awCount[k]}`).join("　");
+  const awardHTML=awList.length?`<p class="muted" style="font-size:12px">合計　${esc(awTotal)}</p>
+      <table class="grid"><tr><th>球季</th><th>獎項</th><th>成績</th></tr>
       ${awList.map(x=>`<tr><td class="num">第 ${x.no} 季</td><td class="name">${x.kind==="king"?"👑":x.kind==="main"?"🏆":"　"}${esc(x.label)}</td>
         <td class="muted" style="font-size:11px">${esc(x.val||"")}</td></tr>`).join("")}</table>`
     :`<p class="muted">尚無獲獎紀錄。</p>`;
@@ -4454,6 +4475,7 @@ function viewPlayer(){
     </div>
     <h3>本季成績（第 ${CAREER.seasons+1} 季）</h3>${statsTable}
     <h3>逐季成績（跨季）</h3>${seasonTable}
+    <p class="muted" style="font-size:11px;margin:2px 0 0">＊ 本季進行中。欄位多時可左右滑動。</p>
     <h3>本季亮眼</h3>${bestHTML}
     <h3>生涯里程碑</h3>${milestoneSummary}${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}

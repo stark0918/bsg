@@ -216,7 +216,8 @@ const CAREER_BAT_REC=[
   ["生涯全壘打",s=>s.hr||0,Number,CAREER_MIN_AB,true],
   ["生涯打點",s=>s.rbi||0,Number,CAREER_MIN_AB,true],
   ["生涯安打",s=>s.h||0,Number,CAREER_MIN_AB,true],
-  ["生涯盜壘",s=>s.sb||0,Number,CAREER_MIN_AB,true]
+  ["生涯盜壘",s=>s.sb||0,Number,CAREER_MIN_AB,true],
+  ["生涯得分",s=>s.r||0,Number,CAREER_MIN_AB,true]
 ];
 const CAREER_PIT_REC=[
   ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),CAREER_MIN_ERA_OUTS,false],
