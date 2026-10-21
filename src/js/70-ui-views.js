@@ -141,6 +141,8 @@ function viewHub(){
     }
     // 顯示完畢，清除標記，避免整季都顯示
     s.draftJustCompleted=false;
+    // 立刻存檔：否則存檔裡仍是 true，回到總部（或重整頁面／繼續球季）時面板又會冒出來
+    saveGame();
   }
   main=`<div class="panel">
     <h2>第 ${seasonNo()} 季　第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
@@ -217,9 +219,7 @@ function startersPanel(){
   const myCond=condBadge(myEff.cond),oppCond=condBadge(oppEff.cond);
   const myFatigue=fatigueBadge(myEff),oppFatigue=fatigueBadge(oppEff);
   const myCarry=carryTxt(myP.carryPP),oppCarry=carryTxt(oppP.carryPP);
-  // 打者當日手感（D3a）
-  const formBadge=f=>FORM_LABEL[f]||FORM_LABEL.normal;
-  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)} ${formBadge(rollForm())}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
+  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
   return `<div class="panel">
     <h2>今日先發</h2>
     <div class="two">
