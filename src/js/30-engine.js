@@ -423,7 +423,7 @@ function endHalf(m){
 function aiOffense(m){
   const batter=currentBatter(m);
   const defSide=defenseSide(m);
-  const eff=pitcherEffective(m.pitchers[defSide].obj,m.pitchers[defSide].pitches);
+  const eff=effOf(m,defSide);   // 含調子＋連投疲勞，AI 的戰術判斷要跟實際投球一致
   const r1=!!m.bases[0],r2=!!m.bases[1],r3=!!m.bases[2];
   if(m.outs<2&&!r3&&(r1||r2)&&batter.power<58&&chance(0.32))return "bunt";
   if(r1&&batter.speed>72&&m.outs<2&&chance(0.14))return "hitrun";
@@ -458,7 +458,7 @@ function doSteal(m){
   if(m.bases[0]){from=0;to=1;runner=m.bases[0];}
   else if(m.bases[1]){from=1;to=2;runner=m.bases[1];}
   if(!runner){m.log.push({t:"　沒有可盜壘的跑者。",c:"sys"});return;}
-  const defSide=defenseSide(m),eff=pitcherEffective(m.pitchers[defSide].obj,m.pitchers[defSide].pitches);
+  const defSide=defenseSide(m),eff=effOf(m,defSide);   // 疲勞／調子會影響球速，盜壘成功率要一起算
   const p=clamp(0.60+(runner.speed-60)/160-(eff.velocity-60)/400,0.35,0.88);
   if(chance(p)){
     m.bases[from]=null;m.bases[to]=runner;
