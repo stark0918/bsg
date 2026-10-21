@@ -1080,14 +1080,17 @@ function viewStandings(){
 }
 
 /* ----- 球員排行 ----- */
-/* 入榜門檻：依本季已賽場數動態調整，避免小樣本刷榜 */
+/* 入榜門檻：依本季已賽場數動態調整，避免小樣本刷榜。
+   所有門檻都以「已賽場數 gp」等比換算，球季長度一改（例：14 天 → 21 天）門檻會自動跟著放大。 */
 function leadersQualify(){
   const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
   return {
     gp,
-    bat: Math.max(3,Math.ceil(gp*0.8)),          // 野手：須達到約 80% 出賽場次
-    pit: Math.max(3,gp>=10?5:3),                 // 投手：明顯提升門檻，避免打沒幾場就領獎
-    eraOuts: Math.min(30,Math.max(12,gp*2))      // 防禦率：完整球季約 28 出局（先發 100+、終結者 30+ 可進榜，雜役投手排除）
+    bat: Math.max(3,Math.ceil(gp*0.8)),              // 野手：須達到約 80% 出賽場次
+    pit: Math.max(3,Math.round(gp*0.35)),            // 投手：出賽場次門檻（14 天→5 場、21 天→7 場）
+    eraOuts: Math.min(60,Math.max(12,gp*2)),         // 防禦率榜：先發 100+、終結者 30+ 出局可進榜
+    cyOuts: Math.max(45,Math.round(gp*3.2)),         // 最佳投手：先發至少要投滿的局數（14 天→45、21 天→67）
+    sawOuts: Math.max(90,Math.round(gp*6.4))        // 澤村賞：實質先發（完整承擔）的局數（14 天→90、21 天→134）
   };
 }
 function leadersList(kind){
