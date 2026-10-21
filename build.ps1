@@ -9,6 +9,7 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $order = @(
   "00-tools.js",
   "05-sound.js",
+  "09-config.js",
   "10-data.js",
   "20-roster.js",
   "30-engine.js",

@@ -23,6 +23,7 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
-  dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards,
+  dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards, careerGateMin,
+  get CFG(){ return CFG; }, cfg, saveConfig, resetConfig, CONFIG_DEF, CFG_LIMITS,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };

@@ -81,7 +81,8 @@ function careerGateMin(std,floor){
   const gp=se?Math.min(se.day||0,total):0;
   const cur=total?gp/total:0;                            // 本季進度 0~1
   const prog=Math.min(1,(done+cur)/CAREER_GATE_SEASONS);
-  return Math.max(floor,Math.round(std*prog));
+  const std2=std===CAREER_MIN_AB?cfg('careerAb'):std;    // 打席門檻可由管理者調整
+  return Math.max(floor,Math.round(std2*prog));
 }
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){

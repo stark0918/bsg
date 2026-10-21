@@ -254,6 +254,7 @@ function viewAwards(){
 const AS_POS=["C","1B","2B","3B","SS","LF","CF","RF"];
 function asReady(){
   const se=S.season;if(!se)return false;
+  if(cfg('allStar')===0)return false;   // 管理者設定不辦明星賽
   return (se.day||0)>=Math.floor(((se.schedule||[]).length)/2);
 }
 /* 本季表現分：打者 0~100，投手 0~100 */

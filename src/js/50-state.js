@@ -87,9 +87,10 @@ function newSeason(playerTeam){
     statSchema:2,
     started:Date.now()
   };
-  // 保留未完成的選秀到新球季
+  // 保留未完成的選秀到新球季（draftLog 也要一起帶過去，否則之後指名時 S.season.draftLog.push 會爆）
   if(oldDraft && !oldDraft.done && oldDraft.idx < oldDraft.picks.length){
     S.season.draft = oldDraft;
+    S.season.draftLog = S.season.draftLog || [];
   }
   // 保留選秀記錄（用於顯示選秀結果）
   if(oldDraftLog && oldDraftLog.length){

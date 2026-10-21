@@ -17,23 +17,28 @@ function genRoster(team){
   /* 第 9 位先發原本是「DH 守位」，現在 DH 改由打線上的棒次決定（任何球員都能當），
      所以他改拿一個外野位置；用球隊 id 決定左／右外野，各隊看起來才不會一樣。 */
   const ninthOF=(hashStr("gk-pos9-"+team.id)%2)?"LF":"RF";
-  for(let i=0;i<13;i++){
+  const benchN=Math.max(0,Math.min(8,Number(cfg('benchBatters'))||4));   // 板凳打者人數（管理者可調）
+  const totalBat=9+benchN;
+  const usePos=cfg('posBoost')!==0;   // 守位能力加成開關
+  for(let i=0;i<totalBat;i++){
     const p=i<8?pos[i]:(i===8?ninthOF:null);
-    const bp=i>=9?benchPos[i-9]:null;
+    const bp=i>=9?benchPos[(i-9)%benchPos.length]:null;
     const a=rpick(arnd,arch);
     let meet=nrm(rnd,52,10),power=nrm(rnd,50,13),eye=nrm(rnd,50,11),speed=nrm(rnd,52,12),def=nrm(rnd,52,11);
     if(a==="contact"){meet+=9;eye+=3;power-=4;}
     if(a==="power"){power+=14;meet-=5;speed-=6;}
     if(a==="speed"){speed+=16;def+=4;power-=7;meet+=1;}
     if(a==="eye"){eye+=14;meet+=2;power+=2;speed-=6;}
-    if(p==="C"){def+=12;speed-=8;meet+=2;}
-    if(p==="1B"){power+=8;def-=3;speed-=4;}
-    if(p==="2B"){def+=8;speed+=4;power-=6;}
-    if(p==="3B"){power+=6;def+=3;}
-    if(p==="SS"){def+=12;speed+=6;power-=4;}
-    if(p==="CF"){def+=8;speed+=8;power-=2;}
-    if(p==="LF"||p==="RF"){power+=3;def-=2;}
-    const s=team.str;
+    if(usePos){
+      if(p==="C"){def+=12;speed-=8;meet+=2;}
+      if(p==="1B"){power+=8;def-=3;speed-=4;}
+      if(p==="2B"){def+=8;speed+=4;power-=6;}
+      if(p==="3B"){power+=6;def+=3;}
+      if(p==="SS"){def+=12;speed+=6;power-=4;}
+      if(p==="CF"){def+=8;speed+=8;power-=2;}
+      if(p==="LF"||p==="RF"){power+=3;def-=2;}
+    }
+    const s=teamStr(team.id);
     batters.push({
       id:team.id+"b"+i, name:mkName(nrnd,used),
       pos:p||(bp||("B"+i)), posLabel:p?POS_ZH[p]:(bp?POS_ZH[bp]:"替補"), bench:i>=9,
@@ -43,14 +48,15 @@ function genRoster(team){
     });
   }
   const pitchers=[];
+  const ps2=teamStr(team.id);
   for(let i=0;i<6;i++){
     const sp=i<3;
     let velocity=nrm(rnd,sp?62:71,8),control=nrm(rnd,sp?64:60,9),breaking=nrm(rnd,sp?62:68,9),stamina=nrm(rnd,sp?74:42,sp?7:8);
     pitchers.push({
       id:team.id+"p"+i, name:mkName(nrnd,used), role:sp?"先發":"後援", starter:sp,
-      velocity:Math.round(clamp(velocity+team.str,25,97)),
-      control:Math.round(clamp(control+team.str,25,97)),
-      breaking:Math.round(clamp(breaking+team.str,25,97)),
+      velocity:Math.round(clamp(velocity+ps2,25,97)),
+      control:Math.round(clamp(control+ps2,25,97)),
+      breaking:Math.round(clamp(breaking+ps2,25,97)),
       stamina:Math.round(clamp(stamina,25,95))
     });
   }
