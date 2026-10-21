@@ -67,6 +67,10 @@ function finalizeSeason(){
   const sd=CAREER.seasonDetails[CAREER.seasonDetails.length-1];
   for(const pid in ps.bat){const s=ps.bat[pid];const tid=teamOfPlayer({id:pid});if(tid===me)sd.teamStats.bat[pid]={...s};}
   for(const pid in ps.pit){const s=ps.pit[pid];const tid=teamOfPlayer({id:pid});if(tid===me)sd.teamStats.pit[pid]={...s};}
+  // 逐季球員成績（全聯盟，用精簡陣列省空間）：供球員資料頁的「逐季成績」表使用
+  sd.playerStats={bat:{},pit:{}};
+  for(const pid in ps.bat)sd.playerStats.bat[pid]=BAT.map(k=>ps.bat[pid][k]||0);
+  for(const pid in ps.pit)sd.playerStats.pit[pid]=PIT.map(k=>ps.pit[pid][k]||0);
 
   /* 歷屆獎項：綁定選手百科與紀錄殿堂 */
   CAREER.awards=CAREER.awards||[];

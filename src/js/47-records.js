@@ -224,6 +224,29 @@ const CAREER_PIT_REC=[
   ["生涯三振",s=>s.k||0,Number,CAREER_MIN_COUNT_OUTS,true],
   ["生涯救援",s=>s.sv||0,Number,CAREER_MIN_COUNT_OUTS,true]
 ];
+/* 逐季球員成績（跨季）：每季一筆，供球員資料頁的「逐季成績」表。
+   已結束的球季從 seasonDetails.playerStats 取；本季進行中的直接從 playerStats 取。 */
+const SEASON_BAT_KEYS=["g","ab","h","hr","rbi","bb","k","r","sb"];
+const SEASON_PIT_KEYS=["g","outs","h","r","er","bb","k","pp","w","l","sv"];
+function playerSeasonStats(pid,isPit){
+  const rows=[];
+  const key=isPit?"pit":"bat";
+  const keys=isPit?SEASON_PIT_KEYS:SEASON_BAT_KEYS;
+  (CAREER.seasonDetails||[]).forEach(sd=>{
+    const arr=sd.playerStats&&sd.playerStats[key]&&sd.playerStats[key][pid];
+    if(!arr)return;
+    const s={};keys.forEach((k,i)=>s[k]=arr[i]||0);
+    rows.push({no:sd.no,team:sd.team,s});
+  });
+  // 本季（進行中、尚未結算）
+  const se=S.season;
+  if(se&&!se.finalized){
+    const ps=se.playerStats||{};
+    const s=(isPit?ps.pit:ps.bat)||{};
+    if(s[pid])rows.push({no:(CAREER.seasons||0)+1,team:se.playerTeam,s:Object.assign({},s[pid]),cur:true});
+  }
+  return rows;
+}
 function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   const arr=[];
   // 在役球員 pid（如 azureb3）／已引退球員 rid（如 R12）都收
