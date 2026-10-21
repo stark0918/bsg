@@ -63,7 +63,7 @@ const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
      所以打擊榜一律要 200 打席，與「生涯打擊率榜」「打擊率里程碑」同一個門檻。
    ・出局數：防禦率同樣是「率」，門檻要比累加型數字高得多（只投 16 局就排 0.00 ERA 太離譜），
      所以防禦率榜要 200 出局（約 66 局），勝投／三振／救援等累加型榜則放寬到 100 出局。 */
-const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席）
+const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席；管理者可調）
 const CAREER_MIN_ERA_OUTS=200;    // 生涯防禦率榜門檻（200 出局）
 const CAREER_MIN_COUNT_OUTS=100;  // 生涯勝投／三振／救援榜門檻（100 出局）
 /* 生涯榜門檻「前期放寬」：前幾季大家的打席／出局數都還不夠，硬套標準門檻會讓榜單長期是空的。
@@ -81,7 +81,8 @@ function careerGateMin(std,floor){
   const gp=se?Math.min(se.day||0,total):0;
   const cur=total?gp/total:0;                            // 本季進度 0~1
   const prog=Math.min(1,(done+cur)/CAREER_GATE_SEASONS);
-  return Math.max(floor,Math.round(std*prog));
+  const std2=std===CAREER_MIN_AB?cfg('careerAb'):std;    // 打席門檻可由管理者調整
+  return Math.max(floor,Math.round(std2*prog));
 }
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){

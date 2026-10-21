@@ -165,6 +165,35 @@ const ACT={
     if(S.season){S.season.recs=newRecBook();saveGame();}
     S.confirm=null;flash("已清除本季單場紀錄");render();
   },
+  /* 遊戲設定（管理者專用） */
+  cfgSet(arg){
+    const [k,d]=String(arg||"").split(",");
+    const step=Number(d);
+    if(!k||!step||!(k in CONFIG_DEF))return;
+    let v=Number(CFG[k])||0;
+    // 各參數有自己的合理範圍，避免調到離譜的值
+    const lim=CFG_LIMITS[k]||[cfgMin(k),cfgMax(k)];
+    CFG[k]=Math.round(Math.max(lim[0],Math.min(lim[1],v+step))*1000)/1000;
+    saveConfig();
+    // 名單是快取的：清掉才會用新設定重新產生（亂數種子固定，產生的人還是同一批）
+    for(const ck in teamCache)delete teamCache[ck];
+    flash(`設定已更新：${k} → ${CFG[k]}`);
+    render();
+  },
+  cfgTog(k){
+    if(!(k in CONFIG_DEF))return;
+    CFG[k]=CFG[k]?0:1;
+    saveConfig();
+    for(const ck in teamCache)delete teamCache[ck];
+    flash(`設定已切換：${k} → ${CFG[k]?"開":"關"}`);
+    render();
+  },
+  cfgReset(){
+    resetConfig();
+    for(const ck in teamCache)delete teamCache[ck];
+    flash("已還原所有設定為預設值");
+    render();
+  },
   /* 快速模擬到季中/季末 */
   simToMid(){
     const se=S.season;

@@ -160,6 +160,12 @@ table.grid.seastable th,table.grid.seastable td{padding:3px 4px}
 table.grid.seastable th{white-space:nowrap}
 table.grid.seastable td.awcell{white-space:normal;line-height:1.3;min-width:74px;max-width:150px}
 table.grid.seastable td.sealab{white-space:nowrap}
+/* 管理者專用：遊戲設定列（標籤較長，用獨立版面不要塞進 lurow 的窄欄） */
+.cfgrow{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px dotted var(--line)}
+.cfgrow:last-child{border-bottom:none}
+.cfglabel{flex:1 1 auto;font-size:13px;line-height:1.35}
+.cfgval{flex:0 0 auto;font-family:Consolas,monospace;color:#cfe3f5;font-weight:700;min-width:84px;text-align:right;white-space:nowrap}
+.cfgbtns{flex:0 0 auto;display:flex;gap:4px}
 .rank1{color:var(--gold);font-weight:900}
 
 /* 打線表 */
@@ -410,6 +416,63 @@ function playSnd(m){
   if(m.walkoff)setTimeout(()=>SFX.cheer(),220);
 }
 document.addEventListener("click",sndInit);
+/* ===================== 09-config.js ===================== */
+/* ---------- 遊戲設定（管理者可調，存於瀏覽器） ----------
+   所有可調參數集中在這裡，管理者面板直接改這個物件；
+   遊戲各處透過 CFG.xxx 讀取，改完存檔即生效。
+   設定存於 localStorage，與遊戲存檔（生涯）分開，不會被刪除進度影響。 */
+const CONFIG_KEY="clubstory_config_v1";
+const CONFIG_DEF={
+  /* ── 賽制 ── */
+  seasonRounds:3,        // 每隊對戰幾輪：2=14天、3=21天、4=28天
+  allStar:1,             // 明星賽：1=舉辦、0=不辦
+  playoff:1,             // 季後賽：1=舉辦、0=直接由聯盟龍頭封王
+  /* ── 評比門檻 ── */
+  qBat:0.8,              // 野手入榜所需出賽場次（占本季場次比例）
+  qPit:0.35,             // 投手入榜所需出賽場次（占本季場次比例）
+  qEraOuts:2,            // 防禦率榜所需出局數（每場場次換算）
+  qCyOuts:3.2,           // 最佳投手：先發至少要投滿的局數（每場場次換算）
+  qSawOuts:6.4,          // 澤村賞：實質先發（完整承擔）局數（每場場次換算）
+  careerAb:200,          // 生涯榜（跨季累計）打席門檻
+  /* ── 球員生成 ── */
+  strScale:1,            // 球隊強弱差距倍率：0=全聯盟一樣強、1=原本、2=強弱差加倍
+  strShift:0,            // 全聯盟整體強度偏移（-5 ~ +5）
+  benchBatters:4,        // 板凳打者人數（先發 9 人之外）
+  posBoost:1,            // 守位能力加成：1=開、0=關
+  /* ── 比賽數值 ── */
+  runExp:4.3,            // 每隊每場得分期望值
+  hitRatio:1.15,         // 安打數 ÷ 得分的係數
+  pitOutsMin:15,         // 先發投手單場最少局數
+  pitOutsMax:25          // 先發投手單場最多局數
+};
+let CFG=loadConfig();
+function loadConfig(){
+  try{
+    const raw=localStorage.getItem(CONFIG_KEY);
+    if(raw){const o=JSON.parse(raw);if(o&&typeof o==="object")return Object.assign({},CONFIG_DEF,o);}
+  }catch(e){}
+  return Object.assign({},CONFIG_DEF);
+}
+function saveConfig(){try{localStorage.setItem(CONFIG_KEY,JSON.stringify(CFG));}catch(e){}}
+function resetConfig(){CFG=Object.assign({},CONFIG_DEF);saveConfig();}
+/* 讀設定（帶預設值，舊存檔缺欄位也不會壞） */
+function cfg(key){const v=CFG[key];return v==null?CONFIG_DEF[key]:v;}
+/* 各參數的合理範圍（管理者面板調整時會被夾住，避免調到離譜的值） */
+const CFG_LIMITS={
+  seasonRounds:[1,6], allStar:[0,1], playoff:[0,1],
+  qBat:[0.3,1], qPit:[0.05,1], qEraOuts:[0.5,6], qCyOuts:[0.5,8], qSawOuts:[1,12],
+  careerAb:[0,1000],
+  strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], posBoost:[0,1],
+  runExp:[1,10], hitRatio:[0.5,3], pitOutsMin:[3,27], pitOutsMax:[4,27]
+};
+function cfgMin(k){const l=CFG_LIMITS[k];return l?l[0]:0;}
+function cfgMax(k){const l=CFG_LIMITS[k];return l?l[1]:999;}
+/* 球隊強弱值：差距倍率 × 全體偏移（管理者可調） */
+function teamStr(id){
+  const def=TEAM_DEFS.find(t=>t.id===id);
+  const base=def?def.str:0;
+  return base*cfg('strScale')+cfg('strShift');
+}
 /* ===================== 10-data.js ===================== */
 /* ---------- 名稱池 ---------- */
 const SU=["王","李","林","陳","張","黃","劉","蔡","楊","吳","許","鄭","謝","郭","洪","曾","廖","賴","徐","周","葉","蘇","莊","江","呂","何","羅","高","蕭","潘","彭","沈","柯","游","溫","盧","侯","石","詹","連","宋","曹","方","田","杜","韓","傅","鍾","涂","范",
@@ -476,7 +539,7 @@ const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
      所以打擊榜一律要 200 打席，與「生涯打擊率榜」「打擊率里程碑」同一個門檻。
    ・出局數：防禦率同樣是「率」，門檻要比累加型數字高得多（只投 16 局就排 0.00 ERA 太離譜），
      所以防禦率榜要 200 出局（約 66 局），勝投／三振／救援等累加型榜則放寬到 100 出局。 */
-const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席）
+const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席；管理者可調）
 const CAREER_MIN_ERA_OUTS=200;    // 生涯防禦率榜門檻（200 出局）
 const CAREER_MIN_COUNT_OUTS=100;  // 生涯勝投／三振／救援榜門檻（100 出局）
 /* 生涯榜門檻「前期放寬」：前幾季大家的打席／出局數都還不夠，硬套標準門檻會讓榜單長期是空的。
@@ -494,7 +557,8 @@ function careerGateMin(std,floor){
   const gp=se?Math.min(se.day||0,total):0;
   const cur=total?gp/total:0;                            // 本季進度 0~1
   const prog=Math.min(1,(done+cur)/CAREER_GATE_SEASONS);
-  return Math.max(floor,Math.round(std*prog));
+  const std2=std===CAREER_MIN_AB?cfg('careerAb'):std;    // 打席門檻可由管理者調整
+  return Math.max(floor,Math.round(std2*prog));
 }
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){
@@ -671,23 +735,28 @@ function genRoster(team){
   /* 第 9 位先發原本是「DH 守位」，現在 DH 改由打線上的棒次決定（任何球員都能當），
      所以他改拿一個外野位置；用球隊 id 決定左／右外野，各隊看起來才不會一樣。 */
   const ninthOF=(hashStr("gk-pos9-"+team.id)%2)?"LF":"RF";
-  for(let i=0;i<13;i++){
+  const benchN=Math.max(0,Math.min(8,Number(cfg('benchBatters'))||4));   // 板凳打者人數（管理者可調）
+  const totalBat=9+benchN;
+  const usePos=cfg('posBoost')!==0;   // 守位能力加成開關
+  for(let i=0;i<totalBat;i++){
     const p=i<8?pos[i]:(i===8?ninthOF:null);
-    const bp=i>=9?benchPos[i-9]:null;
+    const bp=i>=9?benchPos[(i-9)%benchPos.length]:null;
     const a=rpick(arnd,arch);
     let meet=nrm(rnd,52,10),power=nrm(rnd,50,13),eye=nrm(rnd,50,11),speed=nrm(rnd,52,12),def=nrm(rnd,52,11);
     if(a==="contact"){meet+=9;eye+=3;power-=4;}
     if(a==="power"){power+=14;meet-=5;speed-=6;}
     if(a==="speed"){speed+=16;def+=4;power-=7;meet+=1;}
     if(a==="eye"){eye+=14;meet+=2;power+=2;speed-=6;}
-    if(p==="C"){def+=12;speed-=8;meet+=2;}
-    if(p==="1B"){power+=8;def-=3;speed-=4;}
-    if(p==="2B"){def+=8;speed+=4;power-=6;}
-    if(p==="3B"){power+=6;def+=3;}
-    if(p==="SS"){def+=12;speed+=6;power-=4;}
-    if(p==="CF"){def+=8;speed+=8;power-=2;}
-    if(p==="LF"||p==="RF"){power+=3;def-=2;}
-    const s=team.str;
+    if(usePos){
+      if(p==="C"){def+=12;speed-=8;meet+=2;}
+      if(p==="1B"){power+=8;def-=3;speed-=4;}
+      if(p==="2B"){def+=8;speed+=4;power-=6;}
+      if(p==="3B"){power+=6;def+=3;}
+      if(p==="SS"){def+=12;speed+=6;power-=4;}
+      if(p==="CF"){def+=8;speed+=8;power-=2;}
+      if(p==="LF"||p==="RF"){power+=3;def-=2;}
+    }
+    const s=teamStr(team.id);
     batters.push({
       id:team.id+"b"+i, name:mkName(nrnd,used),
       pos:p||(bp||("B"+i)), posLabel:p?POS_ZH[p]:(bp?POS_ZH[bp]:"替補"), bench:i>=9,
@@ -698,14 +767,15 @@ function genRoster(team){
     });
   }
   const pitchers=[];
+  const ps2=teamStr(team.id);
   for(let i=0;i<6;i++){
     const sp=i<3;
     let velocity=nrm(rnd,sp?62:71,8),control=nrm(rnd,sp?64:60,9),breaking=nrm(rnd,sp?62:68,9),stamina=nrm(rnd,sp?74:42,sp?7:8);
     pitchers.push({
       id:team.id+"p"+i, name:mkName(nrnd,used), role:sp?"先發":"後援", starter:sp,
-      velocity:Math.round(clamp(velocity+team.str,25,97)),
-      control:Math.round(clamp(control+team.str,25,97)),
-      breaking:Math.round(clamp(breaking+team.str,25,97)),
+      velocity:Math.round(clamp(velocity+ps2,25,97)),
+      control:Math.round(clamp(control+ps2,25,97)),
+      breaking:Math.round(clamp(breaking+ps2,25,97)),
       stamina:Math.round(clamp(stamina,25,95))
     });
   }
@@ -1350,13 +1420,15 @@ function roundRobin(ids){
   return rounds;
 }
 /* 球季長度：每隊對戰幾輪（8 隊主客場各一輪 = 7 天，×3 = 21 天）
-   輪次越多，樣本越大，評比（獎項／排行榜／王座）才不會被小樣本噪音左右。 */
+   輪次越多，樣本越大，評比（獎項／排行榜／王座）才不會被小樣本噪音左右。
+   管理者可在「管理者專用」調整輪數（2=14天、3=21天、4=28天）。 */
 const SEASON_ROUNDS=3;
 function makeSchedule(){
   const ids=TEAM_DEFS.map(t=>t.id);
   const first=roundRobin(ids);
   const days=[];
-  for(let pass=0;pass<SEASON_ROUNDS;pass++){
+  const rounds=Math.max(1,Number(cfg('seasonRounds'))||SEASON_ROUNDS);
+  for(let pass=0;pass<rounds;pass++){
     first.forEach((round,r)=>{
       // 每輪把主客對調，讓同一組對戰在多輪之間主場次數接近（3 輪時為 2:1）
       const swap=((pass+r)%2===1);
@@ -1373,8 +1445,9 @@ function teamStrength(id){
 }
 function quickSim(aId,bId){
   const a=teamStrength(aId),b=teamStrength(bId);
-  const lamA=clamp(4.3*Math.pow(a.off/b.def,0.6)*rf(0.8,1.2),0.6,12);
-  const lamB=clamp(4.3*Math.pow(b.off/a.def,0.6)*rf(0.8,1.2),0.6,12);
+  const exp=cfg('runExp');
+  const lamA=clamp(exp*Math.pow(a.off/b.def,0.6)*rf(0.8,1.2),0.6,12);
+  const lamB=clamp(exp*Math.pow(b.off/a.def,0.6)*rf(0.8,1.2),0.6,12);
   let sa=poisson(lamA),sb=poisson(lamB),x=0;
   while(sa===sb&&x<6){if(chance(0.5))sa++;else sb++;x++;}
   return {a:sa,b:sb};
@@ -1399,7 +1472,7 @@ function synthBatting(teamId,runs){
   for(let i=0;i<subN&&bench.length;i++)roster.push(bench.splice(ri(0,bench.length-1),1)[0]);
   const ps=roster.map(p=>({pid:p.id,ab:p.bench?ri(1,2):ri(3,5),h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
   const totalAB=ps.reduce((a,x)=>a+x.ab,0);
-  const H=clamp(Math.round((runs*1.15+4.6+rf(-1.5,1.5))*fm),runs,Math.min(15,totalAB));
+  const H=clamp(Math.round((runs*cfg('hitRatio')+4.6+rf(-1.5,1.5))*fm),runs,Math.min(15,totalAB));
   const powW=roster.map(p=>Math.pow(Math.max(1,p.power-30),2));
   let hr=clamp(Math.round(runs*rf(0.12,0.45)),0,runs);
   hr=Math.min(hr,H);
@@ -1429,7 +1502,7 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   const t=getTeam(teamId);
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
   const starter=sp[ri(0,sp.length-1)];
-  const outs=Math.min(27,ri(15,25));
+  const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
   const rest=27-outs;
   const starterLine={pid:starter.id,outs:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:outs*ri(3,4),w:0,l:0,sv:0};
   const list=[starterLine];
@@ -1587,8 +1660,10 @@ function processGameEnd(m){
   leagueNews(m.dayIndex);
   if(S.season.day>=Math.floor(S.season.schedule.length/2)&&!S.season.asNotified){
     S.season.asNotified=true;
-    if(!S.flash)S.flash="★ 明星賽週到了！紅藍名單已自動生成";
-    ensureAllstarRoster();  // 自動生成明星賽名單
+    if(cfg('allStar')!==0){
+      if(!S.flash)S.flash="★ 明星賽週到了！紅藍名單已自動生成";
+      ensureAllstarRoster();  // 自動生成明星賽名單
+    }
   }
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表
   saveGame();
@@ -1635,6 +1710,11 @@ function ensurePlayoff(){
   // 安全網：若明星賽名單已產生卻從未開打（例如整季用快進跳過），在此自動補打，確保歷屆明星賽不缺季
   if(se.allstar&&!se.allstar.played){ try{ simAllstar(); }catch(e){} }
   const st=standingsList();
+  if(cfg('playoff')===0){
+    // 管理者設定不辦季後賽：例行賽龍頭直接封王（後續流程照常走）
+    se.playoff={seeds:[],semi:[],final:null,stage:"done",champion:st[0]?st[0].id:null,noPlayoff:true};
+    return;
+  }
   const seeds=st.slice(0,4).map(x=>x.id);
   se.playoff={
     seeds:seeds,
@@ -3207,6 +3287,7 @@ function viewAwards(){
 const AS_POS=["C","1B","2B","3B","SS","LF","CF","RF"];
 function asReady(){
   const se=S.season;if(!se)return false;
+  if(cfg('allStar')===0)return false;   // 管理者設定不辦明星賽
   return (se.day||0)>=Math.floor(((se.schedule||[]).length)/2);
 }
 /* 本季表現分：打者 0~100，投手 0~100 */
@@ -3450,9 +3531,10 @@ function newSeason(playerTeam){
     statSchema:2,
     started:Date.now()
   };
-  // 保留未完成的選秀到新球季
+  // 保留未完成的選秀到新球季（draftLog 也要一起帶過去，否則之後指名時 S.season.draftLog.push 會爆）
   if(oldDraft && !oldDraft.done && oldDraft.idx < oldDraft.picks.length){
     S.season.draft = oldDraft;
+    S.season.draftLog = S.season.draftLog || [];
   }
   // 保留選秀記錄（用於顯示選秀結果）
   if(oldDraftLog && oldDraftLog.length){
@@ -3924,6 +4006,60 @@ function startersPanel(){
   </div>`;
 }
 
+/* ---------- 管理者專用：遊戲設定 ---------- */
+/* 設定項目：key / 說明 / 單位 / 格式 / 步幅 */
+const CFG_UI=[
+  ["賽制",[
+    ["seasonRounds","球季長度（每隊對戰輪數）","輪",v=>v,v=>v===2?"14 天":v===3?"21 天":v===4?"28 天":v+" 輪",1],
+    ["allStar","明星賽","",null,v=>v?"舉辦":"不辦",null,null],
+    ["playoff","季後賽","",null,v=>v?"舉辦":"不辦（例行賽龍頭封王）",null,null]
+  ]],
+  ["評比門檻",[
+    ["qBat","野手入榜場次比例","%",v=>Math.round(v*100),v=>Math.round(v*100)+"%",0.05],
+    ["qPit","投手入榜場次比例","%",v=>Math.round(v*100),v=>Math.round(v*100)+"%",0.05],
+    ["qEraOuts","防禦率榜所需出局數（每場換算）","局",v=>v,v=>v,1],
+    ["qCyOuts","最佳投手：先發至少投滿局數（每場換算）","局",v=>v,v=>v,1],
+    ["qSawOuts","澤村賞：實質先發局數（每場換算）","局",v=>v,v=>v,2],
+    ["careerAb","生涯榜打席門檻","打席",v=>v,v=>v,25]
+  ]],
+  ["球員生成",[
+    ["strScale","球隊強弱差距倍率","倍",v=>v,v=>v===0?"全聯盟一樣強":v===1?"原本":v+" 倍",0.25],
+    ["strShift","全聯盟整體強度偏移","",v=>v,v=>v,1],
+    ["benchBatters","板凳打者人數","人",v=>v,v=>v,1],
+    ["posBoost","守位能力加成","",null,v=>v?"開啟":"關閉",null,null]
+  ]],
+  ["比賽數值",[
+    ["runExp","每隊每場得分期望","分",v=>v,v=>v,0.1],
+    ["hitRatio","安打數 ÷ 得分係數","",v=>v,v=>v,0.05],
+    ["pitOutsMin","先發投手單場最少局數","局",v=>v,v=>v,1],
+    ["pitOutsMax","先發投手單場最多局數","局",v=>v,v=>v,1]
+  ]]
+];
+function cfgRows(list){
+  return list.map(([key,label,unit,fmt,disp,step])=>{
+    const v=cfg(key);
+    if(step==null){
+      return `<div class="cfgrow"><span class="cfglabel">${esc(label)}</span>
+        <span class="cfgval">${esc(disp(v))}</span>
+        <span class="cfgbtns"><button class="btn sm gold" data-act="cfgTog" data-arg="${key}">切換</button></span></div>`;
+    }
+    return `<div class="cfgrow"><span class="cfglabel">${esc(label)}</span>
+      <span class="cfgval">${esc(disp(v))}${unit?` <span class="muted" style="font-size:11px">${esc(unit)}</span>`:""}</span>
+      <span class="cfgbtns">
+        <button class="btn sm" data-act="cfgSet" data-arg="${key},${-step}">−</button>
+        <button class="btn sm" data-act="cfgSet" data-arg="${key},${step}">＋</button>
+      </span></div>`;
+  }).join("");
+}
+function configPanel(){
+  const body=CFG_UI.map(([cat,rows])=>`<div class="hr"></div><h3>${esc(cat)}</h3>${cfgRows(rows)}`).join("");
+  return `<div class="hr"></div><h3>⚙️ 遊戲設定</h3>
+    <p class="muted" style="font-size:12px">調整後立刻生效並保存（與遊戲存檔分開，不會被刪除進度影響）。<b>球季長度與球員生成的設定會在新球季開始時套用</b>；評比門檻與比賽數值立刻生效。</p>
+    ${body}
+    <div class="hr"></div>
+    <button class="btn gold blk" data-act="cfgReset">↺ 還原所有設定為預設值</button>`;
+}
+
 /* ----- 管理者專用 ----- */
 function viewAdmin(){
   const se=S.season;
@@ -3954,6 +4090,7 @@ function viewAdmin(){
     <div class="hr"></div><h3>球隊</h3><div class="actions">${teamBtns}</div>
     <div class="hr"></div><h3>${teamBadge(tid)} 名單</h3><div class="actions">${listBtns}</div>
     <div class="hr"></div>${editor}
+    ${configPanel()}
     <div class="hr"></div><h3>危險區</h3>
     <button class="btn red blk" data-act="ask" data-arg="adminWipeRecs">清除本季單場紀錄</button>
     <div class="hr"></div>
@@ -4774,11 +4911,11 @@ function leadersQualify(){
   const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
   return {
     gp,
-    bat: Math.max(3,Math.ceil(gp*0.8)),              // 野手：須達到約 80% 出賽場次
-    pit: Math.max(3,Math.round(gp*0.35)),            // 投手：出賽場次門檻（14 天→5 場、21 天→7 場）
-    eraOuts: Math.min(60,Math.max(12,gp*2)),         // 防禦率榜：先發 100+、終結者 30+ 出局可進榜
-    cyOuts: Math.max(45,Math.round(gp*3.2)),         // 最佳投手：先發至少要投滿的局數（14 天→45、21 天→67）
-    sawOuts: Math.max(90,Math.round(gp*6.4))        // 澤村賞：實質先發（完整承擔）的局數（14 天→90、21 天→134）
+    bat: Math.max(3,Math.ceil(gp*cfg('qBat'))),              // 野手：須達到約 80% 出賽場次
+    pit: Math.max(3,Math.round(gp*cfg('qPit'))),             // 投手：出賽場次門檻（14 天→5 場、21 天→7 場）
+    eraOuts: Math.min(60,Math.max(12,Math.round(gp*cfg('qEraOuts')))),  // 防禦率榜：先發 100+、終結者 30+ 出局可進榜
+    cyOuts: Math.max(45,Math.round(gp*cfg('qCyOuts'))),      // 最佳投手：先發至少要投滿的局數（14 天→45、21 天→67）
+    sawOuts: Math.max(90,Math.round(gp*cfg('qSawOuts')))     // 澤村賞：實質先發（完整承擔）的局數（14 天→90、21 天→134）
   };
 }
 function leadersList(kind){
@@ -5044,6 +5181,35 @@ const ACT={
     if(S.season){S.season.recs=newRecBook();saveGame();}
     S.confirm=null;flash("已清除本季單場紀錄");render();
   },
+  /* 遊戲設定（管理者專用） */
+  cfgSet(arg){
+    const [k,d]=String(arg||"").split(",");
+    const step=Number(d);
+    if(!k||!step||!(k in CONFIG_DEF))return;
+    let v=Number(CFG[k])||0;
+    // 各參數有自己的合理範圍，避免調到離譜的值
+    const lim=CFG_LIMITS[k]||[cfgMin(k),cfgMax(k)];
+    CFG[k]=Math.round(Math.max(lim[0],Math.min(lim[1],v+step))*1000)/1000;
+    saveConfig();
+    // 名單是快取的：清掉才會用新設定重新產生（亂數種子固定，產生的人還是同一批）
+    for(const ck in teamCache)delete teamCache[ck];
+    flash(`設定已更新：${k} → ${CFG[k]}`);
+    render();
+  },
+  cfgTog(k){
+    if(!(k in CONFIG_DEF))return;
+    CFG[k]=CFG[k]?0:1;
+    saveConfig();
+    for(const ck in teamCache)delete teamCache[ck];
+    flash(`設定已切換：${k} → ${CFG[k]?"開":"關"}`);
+    render();
+  },
+  cfgReset(){
+    resetConfig();
+    for(const ck in teamCache)delete teamCache[ck];
+    flash("已還原所有設定為預設值");
+    render();
+  },
   /* 快速模擬到季中/季末 */
   simToMid(){
     const se=S.season;
@@ -5257,6 +5423,7 @@ window.GK = {
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
   rollCond, effOf, rollForm, batterEffective, formOf, momOf, momStat, pushMom, momBand, leverageOf, applyClutch,
   dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards, careerGateMin,
+  get CFG(){ return CFG; }, cfg, saveConfig, resetConfig, CONFIG_DEF, CFG_LIMITS,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };
 })();

@@ -160,6 +160,12 @@ table.grid.seastable th,table.grid.seastable td{padding:3px 4px}
 table.grid.seastable th{white-space:nowrap}
 table.grid.seastable td.awcell{white-space:normal;line-height:1.3;min-width:74px;max-width:150px}
 table.grid.seastable td.sealab{white-space:nowrap}
+/* 管理者專用：遊戲設定列（標籤較長，用獨立版面不要塞進 lurow 的窄欄） */
+.cfgrow{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px dotted var(--line)}
+.cfgrow:last-child{border-bottom:none}
+.cfglabel{flex:1 1 auto;font-size:13px;line-height:1.35}
+.cfgval{flex:0 0 auto;font-family:Consolas,monospace;color:#cfe3f5;font-weight:700;min-width:84px;text-align:right;white-space:nowrap}
+.cfgbtns{flex:0 0 auto;display:flex;gap:4px}
 .rank1{color:var(--gold);font-weight:900}
 
 /* 打線表 */

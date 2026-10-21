@@ -14,6 +14,11 @@ function ensurePlayoff(){
   // 安全網：若明星賽名單已產生卻從未開打（例如整季用快進跳過），在此自動補打，確保歷屆明星賽不缺季
   if(se.allstar&&!se.allstar.played){ try{ simAllstar(); }catch(e){} }
   const st=standingsList();
+  if(cfg('playoff')===0){
+    // 管理者設定不辦季後賽：例行賽龍頭直接封王（後續流程照常走）
+    se.playoff={seeds:[],semi:[],final:null,stage:"done",champion:st[0]?st[0].id:null,noPlayoff:true};
+    return;
+  }
   const seeds=st.slice(0,4).map(x=>x.id);
   se.playoff={
     seeds:seeds,

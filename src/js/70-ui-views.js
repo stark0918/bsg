@@ -236,6 +236,60 @@ function startersPanel(){
   </div>`;
 }
 
+/* ---------- 管理者專用：遊戲設定 ---------- */
+/* 設定項目：key / 說明 / 單位 / 格式 / 步幅 */
+const CFG_UI=[
+  ["賽制",[
+    ["seasonRounds","球季長度（每隊對戰輪數）","輪",v=>v,v=>v===2?"14 天":v===3?"21 天":v===4?"28 天":v+" 輪",1],
+    ["allStar","明星賽","",null,v=>v?"舉辦":"不辦",null,null],
+    ["playoff","季後賽","",null,v=>v?"舉辦":"不辦（例行賽龍頭封王）",null,null]
+  ]],
+  ["評比門檻",[
+    ["qBat","野手入榜場次比例","%",v=>Math.round(v*100),v=>Math.round(v*100)+"%",0.05],
+    ["qPit","投手入榜場次比例","%",v=>Math.round(v*100),v=>Math.round(v*100)+"%",0.05],
+    ["qEraOuts","防禦率榜所需出局數（每場換算）","局",v=>v,v=>v,1],
+    ["qCyOuts","最佳投手：先發至少投滿局數（每場換算）","局",v=>v,v=>v,1],
+    ["qSawOuts","澤村賞：實質先發局數（每場換算）","局",v=>v,v=>v,2],
+    ["careerAb","生涯榜打席門檻","打席",v=>v,v=>v,25]
+  ]],
+  ["球員生成",[
+    ["strScale","球隊強弱差距倍率","倍",v=>v,v=>v===0?"全聯盟一樣強":v===1?"原本":v+" 倍",0.25],
+    ["strShift","全聯盟整體強度偏移","",v=>v,v=>v,1],
+    ["benchBatters","板凳打者人數","人",v=>v,v=>v,1],
+    ["posBoost","守位能力加成","",null,v=>v?"開啟":"關閉",null,null]
+  ]],
+  ["比賽數值",[
+    ["runExp","每隊每場得分期望","分",v=>v,v=>v,0.1],
+    ["hitRatio","安打數 ÷ 得分係數","",v=>v,v=>v,0.05],
+    ["pitOutsMin","先發投手單場最少局數","局",v=>v,v=>v,1],
+    ["pitOutsMax","先發投手單場最多局數","局",v=>v,v=>v,1]
+  ]]
+];
+function cfgRows(list){
+  return list.map(([key,label,unit,fmt,disp,step])=>{
+    const v=cfg(key);
+    if(step==null){
+      return `<div class="cfgrow"><span class="cfglabel">${esc(label)}</span>
+        <span class="cfgval">${esc(disp(v))}</span>
+        <span class="cfgbtns"><button class="btn sm gold" data-act="cfgTog" data-arg="${key}">切換</button></span></div>`;
+    }
+    return `<div class="cfgrow"><span class="cfglabel">${esc(label)}</span>
+      <span class="cfgval">${esc(disp(v))}${unit?` <span class="muted" style="font-size:11px">${esc(unit)}</span>`:""}</span>
+      <span class="cfgbtns">
+        <button class="btn sm" data-act="cfgSet" data-arg="${key},${-step}">−</button>
+        <button class="btn sm" data-act="cfgSet" data-arg="${key},${step}">＋</button>
+      </span></div>`;
+  }).join("");
+}
+function configPanel(){
+  const body=CFG_UI.map(([cat,rows])=>`<div class="hr"></div><h3>${esc(cat)}</h3>${cfgRows(rows)}`).join("");
+  return `<div class="hr"></div><h3>⚙️ 遊戲設定</h3>
+    <p class="muted" style="font-size:12px">調整後立刻生效並保存（與遊戲存檔分開，不會被刪除進度影響）。<b>球季長度與球員生成的設定會在新球季開始時套用</b>；評比門檻與比賽數值立刻生效。</p>
+    ${body}
+    <div class="hr"></div>
+    <button class="btn gold blk" data-act="cfgReset">↺ 還原所有設定為預設值</button>`;
+}
+
 /* ----- 管理者專用 ----- */
 function viewAdmin(){
   const se=S.season;
@@ -266,6 +320,7 @@ function viewAdmin(){
     <div class="hr"></div><h3>球隊</h3><div class="actions">${teamBtns}</div>
     <div class="hr"></div><h3>${teamBadge(tid)} 名單</h3><div class="actions">${listBtns}</div>
     <div class="hr"></div>${editor}
+    ${configPanel()}
     <div class="hr"></div><h3>危險區</h3>
     <button class="btn red blk" data-act="ask" data-arg="adminWipeRecs">清除本季單場紀錄</button>
     <div class="hr"></div>
@@ -1086,11 +1141,11 @@ function leadersQualify(){
   const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
   return {
     gp,
-    bat: Math.max(3,Math.ceil(gp*0.8)),              // 野手：須達到約 80% 出賽場次
-    pit: Math.max(3,Math.round(gp*0.35)),            // 投手：出賽場次門檻（14 天→5 場、21 天→7 場）
-    eraOuts: Math.min(60,Math.max(12,gp*2)),         // 防禦率榜：先發 100+、終結者 30+ 出局可進榜
-    cyOuts: Math.max(45,Math.round(gp*3.2)),         // 最佳投手：先發至少要投滿的局數（14 天→45、21 天→67）
-    sawOuts: Math.max(90,Math.round(gp*6.4))        // 澤村賞：實質先發（完整承擔）的局數（14 天→90、21 天→134）
+    bat: Math.max(3,Math.ceil(gp*cfg('qBat'))),              // 野手：須達到約 80% 出賽場次
+    pit: Math.max(3,Math.round(gp*cfg('qPit'))),             // 投手：出賽場次門檻（14 天→5 場、21 天→7 場）
+    eraOuts: Math.min(60,Math.max(12,Math.round(gp*cfg('qEraOuts')))),  // 防禦率榜：先發 100+、終結者 30+ 出局可進榜
+    cyOuts: Math.max(45,Math.round(gp*cfg('qCyOuts'))),      // 最佳投手：先發至少要投滿的局數（14 天→45、21 天→67）
+    sawOuts: Math.max(90,Math.round(gp*cfg('qSawOuts')))     // 澤村賞：實質先發（完整承擔）的局數（14 天→90、21 天→134）
   };
 }
 function leadersList(kind){

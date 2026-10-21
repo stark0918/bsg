@@ -11,13 +11,15 @@ function roundRobin(ids){
   return rounds;
 }
 /* 球季長度：每隊對戰幾輪（8 隊主客場各一輪 = 7 天，×3 = 21 天）
-   輪次越多，樣本越大，評比（獎項／排行榜／王座）才不會被小樣本噪音左右。 */
+   輪次越多，樣本越大，評比（獎項／排行榜／王座）才不會被小樣本噪音左右。
+   管理者可在「管理者專用」調整輪數（2=14天、3=21天、4=28天）。 */
 const SEASON_ROUNDS=3;
 function makeSchedule(){
   const ids=TEAM_DEFS.map(t=>t.id);
   const first=roundRobin(ids);
   const days=[];
-  for(let pass=0;pass<SEASON_ROUNDS;pass++){
+  const rounds=Math.max(1,Number(cfg('seasonRounds'))||SEASON_ROUNDS);
+  for(let pass=0;pass<rounds;pass++){
     first.forEach((round,r)=>{
       // 每輪把主客對調，讓同一組對戰在多輪之間主場次數接近（3 輪時為 2:1）
       const swap=((pass+r)%2===1);
@@ -34,8 +36,9 @@ function teamStrength(id){
 }
 function quickSim(aId,bId){
   const a=teamStrength(aId),b=teamStrength(bId);
-  const lamA=clamp(4.3*Math.pow(a.off/b.def,0.6)*rf(0.8,1.2),0.6,12);
-  const lamB=clamp(4.3*Math.pow(b.off/a.def,0.6)*rf(0.8,1.2),0.6,12);
+  const exp=cfg('runExp');
+  const lamA=clamp(exp*Math.pow(a.off/b.def,0.6)*rf(0.8,1.2),0.6,12);
+  const lamB=clamp(exp*Math.pow(b.off/a.def,0.6)*rf(0.8,1.2),0.6,12);
   let sa=poisson(lamA),sb=poisson(lamB),x=0;
   while(sa===sb&&x<6){if(chance(0.5))sa++;else sb++;x++;}
   return {a:sa,b:sb};
@@ -60,7 +63,7 @@ function synthBatting(teamId,runs){
   for(let i=0;i<subN&&bench.length;i++)roster.push(bench.splice(ri(0,bench.length-1),1)[0]);
   const ps=roster.map(p=>({pid:p.id,ab:p.bench?ri(1,2):ri(3,5),h:0,hr:0,rbi:0,bb:0,k:0,r:0,sb:0}));
   const totalAB=ps.reduce((a,x)=>a+x.ab,0);
-  const H=clamp(Math.round((runs*1.15+4.6+rf(-1.5,1.5))*fm),runs,Math.min(15,totalAB));
+  const H=clamp(Math.round((runs*cfg('hitRatio')+4.6+rf(-1.5,1.5))*fm),runs,Math.min(15,totalAB));
   const powW=roster.map(p=>Math.pow(Math.max(1,p.power-30),2));
   let hr=clamp(Math.round(runs*rf(0.12,0.45)),0,runs);
   hr=Math.min(hr,H);
@@ -90,7 +93,7 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   const t=getTeam(teamId);
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
   const starter=sp[ri(0,sp.length-1)];
-  const outs=Math.min(27,ri(15,25));
+  const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
   const rest=27-outs;
   const starterLine={pid:starter.id,outs:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:outs*ri(3,4),w:0,l:0,sv:0};
   const list=[starterLine];
@@ -248,8 +251,10 @@ function processGameEnd(m){
   leagueNews(m.dayIndex);
   if(S.season.day>=Math.floor(S.season.schedule.length/2)&&!S.season.asNotified){
     S.season.asNotified=true;
-    if(!S.flash)S.flash="★ 明星賽週到了！紅藍名單已自動生成";
-    ensureAllstarRoster();  // 自動生成明星賽名單
+    if(cfg('allStar')!==0){
+      if(!S.flash)S.flash="★ 明星賽週到了！紅藍名單已自動生成";
+      ensureAllstarRoster();  // 自動生成明星賽名單
+    }
   }
   if(S.season.day>=S.season.schedule.length)ensurePlayoff();  // 例行賽結束 → 建立季後賽籤表
   saveGame();

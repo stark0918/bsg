@@ -25,5 +25,6 @@ window.GK = {
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
   rollCond, effOf, rollForm, batterEffective, formOf, momOf, momStat, pushMom, momBand, leverageOf, applyClutch,
   dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards, careerGateMin,
+  get CFG(){ return CFG; }, cfg, saveConfig, resetConfig, CONFIG_DEF, CFG_LIMITS,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };
