@@ -469,6 +469,23 @@ const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
 const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席）
 const CAREER_MIN_ERA_OUTS=200;    // 生涯防禦率榜門檻（200 出局）
 const CAREER_MIN_COUNT_OUTS=100;  // 生涯勝投／三振／救援榜門檻（100 出局）
+/* 生涯榜門檻「前期放寬」：前幾季大家的打席／出局數都還不夠，硬套標準門檻會讓榜單長期是空的。
+   所以門檻 = 標準門檻 × 進度，進度＝(已完成的球季數 ＋ 本季已打進度) ÷ 需要的季數；
+   累積到 CAREER_GATE_SEASONS 季後就自動回到標準門檻。
+   進度 0% → 只有地板門檻；100% → 標準門檻。 */
+const CAREER_GATE_SEASONS=4;      // 累積幾個球季後門檻回到標準
+const CAREER_GATE_FLOOR_AB=20;    // 打擊榜地板門檻（20 打席）
+const CAREER_GATE_FLOOR_OUTS=60;  // 投手榜地板門檻（60 出局，避免 0.00 ERA 霸榜）
+/* 目前生效的門檻（render 時即時算） */
+function careerGateMin(std,floor){
+  const se=S.season;
+  const done=CAREER.seasons||0;                          // 已完成的球季數
+  const total=se?(se.schedule||[]).length:0;
+  const gp=se?Math.min(se.day||0,total):0;
+  const cur=total?gp/total:0;                            // 本季進度 0~1
+  const prog=Math.min(1,(done+cur)/CAREER_GATE_SEASONS);
+  return Math.max(floor,Math.round(std*prog));
+}
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
@@ -1957,8 +1974,9 @@ function histMilePanel(){
   const isPit=["k","w","sv"].indexOf(cat)>=0;
   const src=isPit?(c.pit||{}):(c.bat||{});
   const arr=[];
+  const minAB=careerGateMin(CAREER_MIN_AB,CAREER_GATE_FLOOR_AB);
   if(cat==="avg"){
-    for(const pid in src){const s=src[pid];if((s.ab||0)>=HIST_MIN_AB)arr.push({pid,v:s.h/s.ab});}
+    for(const pid in src){const s=src[pid];if((s.ab||0)>=minAB)arr.push({pid,v:s.h/s.ab});}
   }else{
     for(const pid in src){const v=src[pid][cat]||0;if(v>0)arr.push({pid,v});}
   }
@@ -1972,7 +1990,7 @@ function histMilePanel(){
   const tabs=HIST_CATS.map(k=>`<button class="btn sm ${k[0]===cat?"gold":""}" data-act="histCat" data-arg="${k[0]}">${k[1]}</button>`).join("");
   const title=(HIST_CATS.find(k=>k[0]===cat)||["",""])[1];
   return `<div class="panel"><h2>生涯里程碑</h2>
-    <p class="muted">生涯數據排行榜（前 10 名，含本季目前成績）。${cat==="avg"?`打擊率需滿 ${HIST_MIN_AB} 打席。`:""}</p>
+    <p class="muted">生涯數據排行榜（前 10 名，含本季目前成績）。${cat==="avg"?`打擊率需滿 ${minAB} 打席（標準 ${HIST_MIN_AB} 打席，生涯累積夠會自動收緊）。`:""}</p>
     <div class="actions">${tabs}</div>
     <table class="grid"><tr><th>#</th><th>球員</th><th>現屬球隊</th><th>生涯${title}</th></tr>${rows}</table></div>`;
 }
@@ -2098,10 +2116,15 @@ function histRetirePanel(){
 }
 function histBoardsPanel(){
   const m=careerMerged(true);   // 含已引退球員的終身成績
-  const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],r[3],false,r[4])).join("");
-  const pitP=CAREER_PIT_REC.map(r=>careLeaderTable(m.pit,r[0],r[1],r[2],r[3],true,r[4])).join("");
+  // 門檻會隨生涯累積進度自動放寬→收緊（前期先讓人上榜，累積夠了就用標準門檻）
+  const batMin=careerGateMin(CAREER_MIN_AB,CAREER_GATE_FLOOR_AB);
+  const eraMin=careerGateMin(CAREER_MIN_ERA_OUTS,CAREER_GATE_FLOOR_OUTS);
+  const cntMin=careerGateMin(CAREER_MIN_COUNT_OUTS,CAREER_GATE_FLOOR_OUTS);
+  const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],batMin,false,r[4])).join("");
+  const pitP=CAREER_PIT_REC.map((r,i)=>careLeaderTable(m.pit,r[0],r[1],r[2],i===0?eraMin:cntMin,true,r[4])).join("");
+  const relax=(cur,std,unit)=>cur<std?`目前需 ${cur} ${unit}（標準 ${std}，生涯累積夠會自動收緊）`:`需 ${std} ${unit}`;
   return `<div class="panel"><h2>生涯榜（跨季累計）</h2>
-    <p class="muted">打擊榜需 ${CAREER_MIN_AB} 打席以上；防禦率榜需 ${CAREER_MIN_ERA_OUTS} 出局數以上，勝投／三振／救援榜需 ${CAREER_MIN_COUNT_OUTS} 出局數以上。<b>含已引退球員的終身成績</b>（點名字可看他的完整生涯）。</p>
+    <p class="muted">打擊榜${relax(batMin,CAREER_MIN_AB,"打席")}；防禦率榜${relax(eraMin,CAREER_MIN_ERA_OUTS,"出局數")}，勝投／三振／救援榜${relax(cntMin,CAREER_MIN_COUNT_OUTS,"出局數")}。<b>含已引退球員的終身成績</b>（點名字可看他的完整生涯）。</p>
     <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
 }
 function histPlayerCareerPanel(){
