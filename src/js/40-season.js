@@ -97,7 +97,14 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
     list.push(relLine);
   }
   const last=list[list.length-1];
-  if(won){ last.w=1; if(close&&list.length>1&&last.outs>=3&&last.outs<9)last.sv=1; }
+  /* 勝投：先發投滿 5 局（15 出局）且球隊贏球時，勝投記在先發身上（真實棒球規則）；
+     沒投滿 5 局才記給最後一位投手。
+     舊版一律記給後援，導致 AI 球隊的先發投手整季拿不到勝投，勝場加權的獎項（最佳投手）失真。 */
+  if(won){
+    if(starterLine.outs>=15) starterLine.w=1;
+    else last.w=1;
+    if(close&&relLine&&relLine.outs>=3&&relLine.outs<9) relLine.sv=1;
+  }
   else starterLine.l=1;
   return list;
 }
