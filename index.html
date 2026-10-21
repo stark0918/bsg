@@ -784,12 +784,7 @@ function applyClutch(B,mnt,lv){
 }
 const m_=(v,ref,k)=>Math.exp((v-ref)*k);
 const inv=(v,ref,k)=>1/m_(v,ref,k);
-/* ---------- 打者當日手感（D3a） ---------- */
-/* 開賽前為兩隊每名打者各擲一次當日手感：好打 22%／普通 56%／不振 22% */
-function rollForm(){const r=Math.random();return r<0.22?"good":r<0.78?"normal":"bad";}
-const FORM_LABEL={good:'<b style="color:#4fd39a">▲好打</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不振</b>'};
-/* 取打者當日手感（舊存檔的中途比賽沒有記錄時現場補一次） */
-function formOf(m,b){const F=m.batterForm||(m.batterForm={});if(!F[b.id])F[b.id]=rollForm();return F[b.id];}
+
 function paOutcome(batter,eff,offT,defT){
   const om=OFF_MODS[offT]||OFF_MODS.normal, dm=DEF_MODS[defT]||DEF_MODS.control;
   const kAb=eff.velocity*0.45+eff.breaking*0.55;
@@ -807,6 +802,7 @@ function paOutcome(batter,eff,offT,defT){
   const pOut=1-sum;
   return weightedPick([["K",pK],["BB",pBB],["HBP",pHBP],["HR",pHR],["3B",p3B],["2B",p2B],["1B",p1B],["OUT",pOut]]);
 }
+
 
 /* ---------- 壘上推進 ---------- */
 function hitAdvance(bases,batter,kind,hitrun){
@@ -3649,6 +3645,8 @@ function viewHub(){
     }
     // 顯示完畢，清除標記，避免整季都顯示
     s.draftJustCompleted=false;
+    // 立刻存檔：否則存檔裡仍是 true，回到總部（或重整頁面／繼續球季）時面板又會冒出來
+    saveGame();
   }
   main=`<div class="panel">
     <h2>第 ${seasonNo()} 季　第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>

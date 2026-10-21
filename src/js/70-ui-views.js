@@ -141,6 +141,8 @@ function viewHub(){
     }
     // 顯示完畢，清除標記，避免整季都顯示
     s.draftJustCompleted=false;
+    // 立刻存檔：否則存檔裡仍是 true，回到總部（或重整頁面／繼續球季）時面板又會冒出來
+    saveGame();
   }
   main=`<div class="panel">
     <h2>第 ${seasonNo()} 季　第 ${s.day+1} 日 / 共 ${s.schedule.length} 日</h2>
