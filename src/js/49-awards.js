@@ -39,7 +39,7 @@ function computeAwards(){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||(s.g||0)<qf.pit)continue;
     if(p.starter){
-      if((s.outs||0)<45)continue;   // 先發需一定局數
+      if((s.outs||0)<(qf.cyOuts||45))continue;   // 先發需一定局數（門檻隨球季長度縮放）
       starters.push({pid,p,s,pts:starterPts(s)});
     }else{
       if((s.outs||0)<15)continue;   // 後援需一定出賽量
@@ -77,7 +77,7 @@ function pickBest9(ps,qf,bestDH){
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||!p.starter)continue;   // 最佳九人投手席取先發最佳
-    if((s.g||0)<qf.pit||(s.outs||0)<45)continue;
+    if((s.g||0)<qf.pit||(s.outs||0)<(qf.cyOuts||45))continue;
     const pts=starterPts(s);
     if(!bestP||pts>bestP.pts)bestP={pos:"P",name:p.name,pid,team:pid.replace(/[bp]\d+$/,""),pts,s};
   }
@@ -123,7 +123,7 @@ function pickSawamura(ps,qf){
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||!p.starter)continue;
-    if((s.g||0)<qf.pit||(s.outs||0)<90)continue;
+    if((s.g||0)<qf.pit||(s.outs||0)<(qf.sawOuts||90))continue;
     const outs=Math.max(1,s.outs||0);
     const era=(s.er||0)/outs*27;
     const kRate=(s.k||0)/outs;            // 每局三振

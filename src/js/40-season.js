@@ -10,16 +10,20 @@ function roundRobin(ids){
   }
   return rounds;
 }
+/* 球季長度：每隊對戰幾輪（8 隊主客場各一輪 = 7 天，×3 = 21 天）
+   輪次越多，樣本越大，評比（獎項／排行榜／王座）才不會被小樣本噪音左右。 */
+const SEASON_ROUNDS=3;
 function makeSchedule(){
   const ids=TEAM_DEFS.map(t=>t.id);
   const first=roundRobin(ids);
   const days=[];
-  first.forEach((round,r)=>{
-    days.push(round.map((p,i)=>r%2===0?{away:p[0],home:p[1],played:false,score:null}:{away:p[1],home:p[0],played:false,score:null}));
-  });
-  first.forEach((round,r)=>{
-    days.push(round.map((p,i)=>r%2===0?{away:p[1],home:p[0],played:false,score:null}:{away:p[0],home:p[1],played:false,score:null}));
-  });
+  for(let pass=0;pass<SEASON_ROUNDS;pass++){
+    first.forEach((round,r)=>{
+      // 每輪把主客對調，讓同一組對戰在多輪之間主場次數接近（3 輪時為 2:1）
+      const swap=((pass+r)%2===1);
+      days.push(round.map(p=>swap?{away:p[0],home:p[1],played:false,score:null}:{away:p[1],home:p[0],played:false,score:null}));
+    });
+  }
   return days;
 }
 function teamStrength(id){

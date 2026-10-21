@@ -177,7 +177,8 @@ const ACT={
       return;
     }
     let guard=0;
-    while(se.day < mid && guard++<30){
+    // guard 只防死迴圈，不當球季長度用（球季加長時這裡也要跟著放大）
+    while(se.day < mid && guard++<300){
       startMatch();   // 每輪開新比賽（舊 match 已結算，不可重用）
       if(!S.match) break;
       if(!S.match.over){ autoGame(S.match); }
@@ -192,7 +193,7 @@ const ACT={
     const se=S.season;
     if(!se)return;
     let guard=0;
-    while(se.day < (se.schedule||[]).length && guard++<30){
+    while(se.day < (se.schedule||[]).length && guard++<300){
       startMatch();   // 每輪開新比賽（舊 match 已結算，不可重用）
       if(!S.match) break;
       if(!S.match.over){ autoGame(S.match); }
