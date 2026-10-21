@@ -158,7 +158,7 @@ function histSeasonsPanel(){
     <table class="grid"><tr><th>球季</th><th>你的球隊</th><th>例行賽戰績</th><th>名次</th><th>總冠軍</th></tr>${rows}</table></div>`;
 }
 const HIST_CATS=[["hr","全壘打"],["h","安打"],["rbi","打點"],["sb","盜壘"],["r","得分"],["avg","打擊率"],["k","三振"],["w","勝投"],["sv","救援"]];
-const HIST_MIN_AB=200;   // 生涯打擊率榜規定打席（與里程碑同門檻）
+const HIST_MIN_AB=CAREER_MIN_AB;   // 生涯打擊率榜規定打席（與「生涯榜」、打擊率里程碑同門檻）
 function histMilePanel(){
   const c=careerMerged(true);   // 含本季進行中、以及已引退球員的成績
   if(!c||((!c.bat||!Object.keys(c.bat).length)&&(!c.pit||!Object.keys(c.pit).length)))
@@ -311,7 +311,7 @@ function histBoardsPanel(){
   const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],r[3],false,r[4])).join("");
   const pitP=CAREER_PIT_REC.map(r=>careLeaderTable(m.pit,r[0],r[1],r[2],r[3],true,r[4])).join("");
   return `<div class="panel"><h2>生涯榜（跨季累計）</h2>
-    <p class="muted">打擊榜需 120 打席以上，投手榜需 50 出局數以上。<b>含已引退球員的終身成績</b>（點名字可看他的完整生涯）。</p>
+    <p class="muted">打擊榜需 ${CAREER_MIN_AB} 打席以上；防禦率榜需 ${CAREER_MIN_ERA_OUTS} 出局數以上，勝投／三振／救援榜需 ${CAREER_MIN_COUNT_OUTS} 出局數以上。<b>含已引退球員的終身成績</b>（點名字可看他的完整生涯）。</p>
     <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
 }
 function histPlayerCareerPanel(){

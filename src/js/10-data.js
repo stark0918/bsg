@@ -58,6 +58,14 @@ const TEAM_DEFS=[
 
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
 const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
+/* 生涯榜（跨季累計）共用門檻 —— 集中在這裡，避免各榜單各寫各的、彼此不一致。
+   ・打席數：打擊率是「率」，小樣本會亂跳（120 打席的標準誤約 ±0.041，200 打席約 ±0.032），
+     所以打擊榜一律要 200 打席，與「生涯打擊率榜」「打擊率里程碑」同一個門檻。
+   ・出局數：防禦率同樣是「率」，門檻要比累加型數字高得多（只投 16 局就排 0.00 ERA 太離譜），
+     所以防禦率榜要 200 出局（約 66 局），勝投／三振／救援等累加型榜則放寬到 100 出局。 */
+const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席）
+const CAREER_MIN_ERA_OUTS=200;    // 生涯防禦率榜門檻（200 出局）
+const CAREER_MIN_COUNT_OUTS=100;  // 生涯勝投／三振／救援榜門檻（100 出局）
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
