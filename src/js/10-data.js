@@ -66,6 +66,7 @@ function normalizeCareer(d){
   c.streakBest=c.streakBest||{};
   c.retirements=c.retirements||[];
   c.debut=c.debut||{};   // pid → 初登場球季（新人王資格用；沒有紀錄＝還沒在完成的球季出賽過）
+  c.dhSlot=c.dhSlot||{};   // 球隊 id → DH 棒次（0~8）；未設定＝自動挑（自己球隊第 9 棒）
   c.namePool=c.namePool||0;   // 已綁定的姓名清單版本（0=尚未綁定）
   return c;
 }

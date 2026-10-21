@@ -47,7 +47,10 @@ function computeAwards(){
     }
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(starters),reliever:pick3(relievers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
+  const cy=pick3(starters);
+  // 澤村賞排除最佳投手得主：兩個獎項不重複頒給同一人
+  const sawamura=pickSawamura(ps,qf,cy.length?cy[0].pid:null);
+  S.season.awards={kings,mvp:pick3(batters),cy,reliever:pick3(relievers),rookie:pick3(rookies),sawamura,best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
 }
 /* 最佳九人：按守位選最佳打者＋最佳投手 */
 function pickBest9(ps,qf){
@@ -75,48 +78,77 @@ function pickBest9(ps,qf){
   if(bestP)out.push(bestP);
   return out;
 }
-/* 最佳指定打擊：DH 守位最佳打者（前三名） */
+/* 最佳指定打擊：以「實際以 DH 身份上場過」為資格，不看球員守位。
+   DH 是某一棒的專職打者位置，內野手／外野手都可能擔任，所以不能只看 roster 的 pos。
+   評分只看 DH 期間的表現（DH 打率、OBP、全壘打、打點）＋ DH 出賽量。 */
 function pickBestDH(ps,qf){
   const arr=[];
+  const minDH=Math.max(4,Math.ceil((qf.bat||6)*0.5));   // DH 出賽門檻
   for(const pid in ps.bat){
     const s=ps.bat[pid],p=playerById(pid);
-    if(!p||p.pos!=="DH")continue;
-    if((s.g||0)<qf.bat)continue;
-    arr.push({pid,p,s,pts:awardPts(s,false)});
+    if(!p)continue;
+    const pa=s.dh||0;
+    if(pa<minDH)continue;
+    const ab=s.dhAb||0,h=s.dhH||0,hr=s.dhHr||0,rbi=s.dhRbi||0,bb=s.dhBb||0;
+    const avg=ab>0?h/ab:0;
+    const obp=(ab+bb)>0?(h+bb)/(ab+bb):0;
+    // 樣本太小會讓打率亂噴：把率值往聯盟平均收斂（打數滿 15 才完全採信）
+    const w=Math.min(1,ab/15);
+    const avgS=avg*w+0.250*(1-w);
+    const obpS=obp*w+0.320*(1-w);
+    const pts=Math.round(obpS*100+avgS*60+hr*2.5+rbi*1.2+pa*0.6);
+    arr.push({pid,p,s,pts,dhPA:pa,dhAB:ab,dhH:h,dhHR:hr,dhRBI:rbi,dhBB:bb,avg,obp});
   }
-  arr.sort((a,b)=>b.pts-a.pts);
-  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
+  arr.sort((a,b)=>b.pts-a.pts||b.dhPA-a.dhPA);
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s,
+    dhPA:x.dhPA,dhAB:x.dhAB,dhH:x.dhH,dhHR:x.dhHR,dhRBI:x.dhRBI,dhBB:x.dhBB,avg:x.avg,obp:x.obp}));
 }
-/* 澤村賞：先發投手限定，勝場＋防禦率＋三振＋局數綜合評選 */
-function pickSawamura(ps,qf){
+/* 澤村賞：頒給「最完整的先發投手」——和最佳投手（勝場加權）刻意用不同算法。
+   評分＝勝場×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10，
+   強調「整季的壓制力與完投量」而不是單看勝場；並須投滿 120 局（40 局）以上才算實質先發。
+   另外最佳投手得主不重複入選，避免兩個獎項都頒給同一個人。 */
+function pickSawamura(ps,qf,cyPid){
   const arr=[];
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||!p.starter)continue;
-    if((s.g||0)<qf.pit||(s.outs||0)<60)continue;
-    const era=s.outs?(s.er/s.outs)*27:99;
-    const pts=Math.round((s.w||0)*12+(s.k||0)*0.25+(s.outs||0)*0.08-era*8);
-    arr.push({pid,p,s,pts,era});
+    if((s.g||0)<qf.pit||(s.outs||0)<120)continue;
+    if(cyPid&&pid===cyPid)continue;      // 最佳投手得主已拿另一獎，澤村賞不重複
+    const outs=Math.max(1,s.outs||0);
+    const era=(s.er||0)/outs*27;
+    const kRate=(s.k||0)/outs;            // 每局三振
+    const bbRate=(s.bb||0)/outs;          // 每局保送
+    const pts=Math.round((s.w||0)*8+(s.outs||0)*0.12+kRate*400-bbRate*300-era*10);
+    arr.push({pid,p,s,pts,era,kRate,bbRate});
   }
   arr.sort((a,b)=>b.pts-a.pts);
-  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s,
+    era:x.era,kRate:x.kRate,bbRate:x.bbRate}));
 }
-function awardPodium(list,label,emoji,isPit,emptyMsg){
+/* awardPodium：statFn 可自訂每列的關鍵數據文字與表頭（DH 獎用 DH 專屬數據） */
+function awardPodium(list,label,emoji,isPit,emptyMsg,statFn){
   const row=a=>{
     const p = playerById(a.pid);
     const age = p ? p.age : (a.s?.age||"");
     const s=a.s||{};
-    const stats=isPit
+    const stats=statFn
+      ? statFn(a)
+      : (isPit
       ? `防禦率 ${s.er!=null&&s.outs?fmtERA(s.er,s.outs):"-.--"}　勝投 ${s.w||0}　三振 ${s.k||0}　救援 ${s.sv||0}　局數 ${s.outs?fmtIP(s.outs):"0.0"}`
-      : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`;
+      : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`);
     return `<tr class="${a.rank===1?"me":""}"><td class="num">${a.rank<=3?`<span class="medal g${a.rank}">${a.rank}</span>`:a.rank}</td>
       <td class="name">${pidLink(a.pid,a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
       <td class="num">${a.pts} 分</td><td class="muted" style="font-size:11px">${esc(stats)}</td></tr>`;
   };
-  const statHeader=isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘";
+  const statHeader=statFn?"DH 出賽／DH 打率／OBP／全壘打／打點":(isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘");
   if(!list||!list.length)
     return `<h3>${emoji||""} ${label}</h3><table class="grid"><tr><td class="muted">${esc(emptyMsg||"本季無符合資格的球員。")}</td></tr></table>`;
   return `<h3>${emoji||""} ${label}</h3><table class="grid"><tr><th>#</th><th>球員</th><th>球隊</th><th>評分</th><th>關鍵數據（${statHeader}）</th></tr>${list.map(row).join("")}</table>`;
+}
+/* 最佳指定打擊的數據列：只算 DH 期間的表現 */
+function dhStatLine(a){
+  const pa=a.dhPA||0,ab=a.dhAB||0,h=a.dhH||0;
+  return `DH 出賽 ${pa}　DH 打率 ${ab?fmtAvg(h/ab):".000"}　OBP ${a.obp>0?fmtAvg(a.obp):".000"}　全壘打 ${a.dhHR||0}　打點 ${a.dhRBI||0}`;
 }
 function awardKingGrid(title,list,a){
   const rows=list.map(k=>{
@@ -184,7 +216,7 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 球團年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH以「實際以 DH 身份上場」為資格，不限守位；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、本季初登場）","🌟",false,"本季沒有符合資格的新人（22 歲以下、且這一季才首次在正式球季出賽），不頒獎。")}</div>`);
@@ -193,7 +225,8 @@ function viewAwards(){
   if(step>=6&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=7&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
   if(step>=8&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=9&&a.bestDH&&a.bestDH.length)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false)}</div>`);
+  if(step>=9)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false,
+    "本季沒有符合資格的指定打擊（DH 出賽數不足，或沒有球員被排入 DH 棒次）。",dhStatLine)}</div>`);
   if(step>=10)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
   if(step>=11)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX

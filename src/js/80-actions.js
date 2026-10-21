@@ -101,8 +101,30 @@ const ACT={
     flash("已把 "+recName(pid)+" 排入第 "+(i+1)+" 棒");render();
   },
   luReset(){
-    if(S.season){if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];saveCareer();}
+    if(S.season){
+      if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];
+      if(CAREER.dhSlot)delete CAREER.dhSlot[S.season.playerTeam];   // DH 棒次一併回復自動
+      saveCareer();
+    }
     S.luSel=null;flash("已回復預設打線");render();
+  },
+  /* 指定打擊（DH）棒次：任何球員都能當 DH，不限守位 */
+  luDH(i){
+    if(!S.season)return;
+    i=+i;
+    const lu=buildLineup(getTeam(S.season.playerTeam));
+    if(i<0||i>=lu.length)return;
+    setDHSlot(S.season.playerTeam,i);
+    flash("已指定 "+recName(lu[i].id)+" 擔任指定打擊（DH）");
+    render();
+  },
+  luDHAuto(){
+    if(!S.season)return;
+    setDHSlot(S.season.playerTeam,null);
+    const lu=buildLineup(getTeam(S.season.playerTeam));
+    const idx=dhSlotOf(S.season.playerTeam);
+    flash("DH 改為自動挑選："+(lu[idx]?recName(lu[idx].id):"－")+"（守備能力最差者）");
+    render();
   },
   luAuto(){
     const team=getTeam(S.season.playerTeam);

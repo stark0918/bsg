@@ -23,5 +23,6 @@ window.GK = {
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
+  dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };
