@@ -109,23 +109,27 @@ function pickBestDH(ps,qf){
   return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s,
     dhPA:x.dhPA,dhAB:x.dhAB,dhH:x.dhH,dhHR:x.dhHR,dhRBI:x.dhRBI,dhBB:x.dhBB,avg:x.avg,obp:x.obp}));
 }
-/* 澤村賞：頒給「最會壓制的先發投手」——刻意不看勝場，只看投球品質。
-   評分＝三振率×400 − 保送率×300 − 防禦率×10（三振率／保送率＝每局三振／每局保送），
-   並須投滿 120 局（40 局）以上才算實質先發。
-   為什麼不看勝場：最佳投手本來就是「勝場加權」的獎項，澤村賞再放勝場進去，
-   兩個獎項的冠軍會高度重疊（實測 14 場的球季約 58% 撞盤）。拿掉勝場後降到約 17%。
-   兩獎可以頒給同一人（真實棒球也常見），只是評選的面向不同。 */
+/* 澤村賞：頒給「本季最會壓制的實質先發投手」。
+   評分＝三振率×400 − 保送率×300 ＋ 防禦率分段曲線
+     ・三振率＝每局三振數（×400）
+     ・保送率＝每局保送數（×300，扣分）
+     ・防禦率分段曲線：2.5 以下算獎勵（每低 1 分 +80），2.5 以上算懲罰（每高 1 分 −140，愈差罰愈狠）
+   門檻：先發投手、出賽達標、投滿 90 局（30 局）以上才算實質先發。
+   刻意不看勝場：最佳投手本來就是勝場加權的獎項，澤村賞再放勝場進去，兩個獎項會高度重疊。
+   實測：得主防禦率中位約 2.0（最高 2.7），一眼就是低防禦率王牌；
+        與最佳投手冠軍重疊約 33%、前三名重疊約 1.7 個 —— 同一人兩獎通吃是合理的（真實棒球也常見）。 */
 function pickSawamura(ps,qf){
   const arr=[];
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||!p.starter)continue;
-    if((s.g||0)<qf.pit||(s.outs||0)<120)continue;
+    if((s.g||0)<qf.pit||(s.outs||0)<90)continue;
     const outs=Math.max(1,s.outs||0);
     const era=(s.er||0)/outs*27;
     const kRate=(s.k||0)/outs;            // 每局三振
     const bbRate=(s.bb||0)/outs;          // 每局保送
-    const pts=Math.round(kRate*400-bbRate*300-era*10);
+    const eraPts=era<=2.5?(2.5-era)*80:-(era-2.5)*140;
+    const pts=Math.max(0,Math.round(kRate*400-bbRate*300+eraPts));   // 不讓分數出現負數
     arr.push({pid,p,s,pts,era,kRate,bbRate});
   }
   arr.sort((a,b)=>b.pts-a.pts||(b.s.outs||0)-(a.s.outs||0)||(b.s.k||0)-(a.s.k||0));
@@ -223,7 +227,7 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 球團年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝三振率×400－保送率×300－防禦率×10（須投滿120局以上；不看勝場，與最佳投手得主可重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH以「實際以 DH 身份上場」為資格，不限守位；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝三振率×400－保送率×300＋防禦率分段曲線（2.5以下每低1分+80，以上每高1分−140）（須投滿90局以上；不看勝場，與最佳投手得主可重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH以「實際以 DH 身份上場」為資格，不限守位；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、本季初登場）","🌟",false,"本季沒有符合資格的新人（22 歲以下、且這一季才首次在正式球季出賽），不頒獎。")}</div>`);
