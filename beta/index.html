@@ -461,6 +461,14 @@ const TEAM_DEFS=[
 
 /* ---------- 生涯（年齡與成長，跨球季保存在瀏覽器） ---------- */
 const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
+/* 生涯榜（跨季累計）共用門檻 —— 集中在這裡，避免各榜單各寫各的、彼此不一致。
+   ・打席數：打擊率是「率」，小樣本會亂跳（120 打席的標準誤約 ±0.041，200 打席約 ±0.032），
+     所以打擊榜一律要 200 打席，與「生涯打擊率榜」「打擊率里程碑」同一個門檻。
+   ・出局數：防禦率同樣是「率」，門檻要比累加型數字高得多（只投 16 局就排 0.00 ERA 太離譜），
+     所以防禦率榜要 200 出局（約 66 局），勝投／三振／救援等累加型榜則放寬到 100 出局。 */
+const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席）
+const CAREER_MIN_ERA_OUTS=200;    // 生涯防禦率榜門檻（200 出局）
+const CAREER_MIN_COUNT_OUTS=100;  // 生涯勝投／三振／救援榜門檻（100 出局）
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
@@ -2017,7 +2025,7 @@ function histSeasonsPanel(){
     <table class="grid"><tr><th>球季</th><th>你的球隊</th><th>例行賽戰績</th><th>名次</th><th>總冠軍</th></tr>${rows}</table></div>`;
 }
 const HIST_CATS=[["hr","全壘打"],["h","安打"],["rbi","打點"],["sb","盜壘"],["r","得分"],["avg","打擊率"],["k","三振"],["w","勝投"],["sv","救援"]];
-const HIST_MIN_AB=200;   // 生涯打擊率榜規定打席（與里程碑同門檻）
+const HIST_MIN_AB=CAREER_MIN_AB;   // 生涯打擊率榜規定打席（與「生涯榜」、打擊率里程碑同門檻）
 function histMilePanel(){
   const c=careerMerged(true);   // 含本季進行中、以及已引退球員的成績
   if(!c||((!c.bat||!Object.keys(c.bat).length)&&(!c.pit||!Object.keys(c.pit).length)))
@@ -2170,7 +2178,7 @@ function histBoardsPanel(){
   const batP=CAREER_BAT_REC.map(r=>careLeaderTable(m.bat,r[0],r[1],r[2],r[3],false,r[4])).join("");
   const pitP=CAREER_PIT_REC.map(r=>careLeaderTable(m.pit,r[0],r[1],r[2],r[3],true,r[4])).join("");
   return `<div class="panel"><h2>生涯榜（跨季累計）</h2>
-    <p class="muted">打擊榜需 120 打席以上，投手榜需 50 出局數以上。<b>含已引退球員的終身成績</b>（點名字可看他的完整生涯）。</p>
+    <p class="muted">打擊榜需 ${CAREER_MIN_AB} 打席以上；防禦率榜需 ${CAREER_MIN_ERA_OUTS} 出局數以上，勝投／三振／救援榜需 ${CAREER_MIN_COUNT_OUTS} 出局數以上。<b>含已引退球員的終身成績</b>（點名字可看他的完整生涯）。</p>
     <div class="two"><div>${batP}</div><div>${pitP}</div></div></div>`;
 }
 function histPlayerCareerPanel(){
@@ -2426,18 +2434,19 @@ function careerMerged(includeRetired){
   }
   return {bat:cb,pit:cp};
 }
+/* 生涯榜門檻統一用 10-data.js 的共用常數（不要在這裡寫死數字，否則會跟里程碑榜不一致） */
 const CAREER_BAT_REC=[
-  ["生涯打擊率",s=>s.ab?s.h/s.ab:null,fmtAvg,120,true],
-  ["生涯全壘打",s=>s.hr||0,Number,120,true],
-  ["生涯打點",s=>s.rbi||0,Number,120,true],
-  ["生涯安打",s=>s.h||0,Number,120,true],
-  ["生涯盜壘",s=>s.sb||0,Number,120,true]
+  ["生涯打擊率",s=>s.ab?s.h/s.ab:null,fmtAvg,CAREER_MIN_AB,true],
+  ["生涯全壘打",s=>s.hr||0,Number,CAREER_MIN_AB,true],
+  ["生涯打點",s=>s.rbi||0,Number,CAREER_MIN_AB,true],
+  ["生涯安打",s=>s.h||0,Number,CAREER_MIN_AB,true],
+  ["生涯盜壘",s=>s.sb||0,Number,CAREER_MIN_AB,true]
 ];
 const CAREER_PIT_REC=[
-  ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),50,false],
-  ["生涯勝投",s=>s.w||0,Number,50,true],
-  ["生涯三振",s=>s.k||0,Number,50,true],
-  ["生涯救援",s=>s.sv||0,Number,50,true]
+  ["生涯防禦率",s=>s.outs?(s.er/s.outs)*27:null,v=>v.toFixed(2),CAREER_MIN_ERA_OUTS,false],
+  ["生涯勝投",s=>s.w||0,Number,CAREER_MIN_COUNT_OUTS,true],
+  ["生涯三振",s=>s.k||0,Number,CAREER_MIN_COUNT_OUTS,true],
+  ["生涯救援",s=>s.sv||0,Number,CAREER_MIN_COUNT_OUTS,true]
 ];
 function careLeaderTable(pool,title,valFn,fmt,min,isPit,desc){
   const arr=[];
