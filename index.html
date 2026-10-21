@@ -469,6 +469,7 @@ function normalizeCareer(d){
   c.streakBest=c.streakBest||{};
   c.retirements=c.retirements||[];
   c.debut=c.debut||{};   // pid → 初登場球季（新人王資格用；沒有紀錄＝還沒在完成的球季出賽過）
+  c.dhSlot=c.dhSlot||{};   // 球隊 id → DH 棒次（0~8）；未設定＝自動挑守備最差的球員擔任 DH
   c.namePool=c.namePool||0;   // 已綁定的姓名清單版本（0=尚未綁定）
   return c;
 }
@@ -911,6 +912,40 @@ function setPlayerLineup(ids){
   CAREER.lineups[S.season.playerTeam]=ids.slice();
   saveCareer();
 }
+/* ---------- 指定打擊（DH） ---------- */
+/* DH 是「某一棒由專職打者代打」，不限制守位——內野手、外野手都可能擔任 DH。
+   棒次可由總教練手動指定（打線編輯畫面）；沒指定時：
+     · 自己的球隊 → 固定由第 9 棒擔任（傳統的 DH 棒次，穩定好掌握）
+     · 其他球隊   → 每場依打擊能力加權抽一位（打得好的人常被排去 DH，位置會變動） */
+function dhSlotOf(teamId){
+  const lu=buildLineup(getTeam(teamId));
+  if(!lu.length)return 8;
+  const saved=(CAREER.dhSlot||{})[teamId];
+  if(saved!=null&&saved>=0&&saved<lu.length)return saved;
+  const isMe=!!(S.season&&S.season.playerTeam===teamId);
+  if(isMe)return lu.length-1;              // 自己的球隊：預設第 9 棒
+  // 對手球隊：加權隨機（打擊能力越高越可能被排去 DH）
+  const w=lu.map(b=>Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4));
+  return weightedIndex(w);
+}
+/* 指定 DH 棒次；傳 null 或 -1 表示改回自動。 */
+function setDHSlot(teamId,idx){
+  CAREER.dhSlot=CAREER.dhSlot||{};
+  if(idx==null||idx<0||idx>8)delete CAREER.dhSlot[teamId];
+  else CAREER.dhSlot[teamId]=idx;
+  saveCareer();
+}
+/* DH 專屬統計：只有「以 DH 身份」上場時才累加 */
+function dhStatOf(d){
+  const o={};
+  if(d.ab)o.dhAb=1;
+  if(d.h)o.dhH=1;
+  if(d.hr)o.dhHr=1;
+  if(d.rbi)o.dhRbi=1;
+  if(d.bb)o.dhBb=1;
+  if(d.k)o.dhK=1;
+  return o;
+}
 function starterOf(team,day){const sp=team.pitchers.filter(p=>p.starter);return sp[(day+hashStr(team.id))%sp.length];}
 
 function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
@@ -926,6 +961,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
+    dhSlot:{away:dhSlotOf(awayId),home:dhSlotOf(homeId)},   // 兩隊的 DH 棒次（0~8）
     pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond(),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:rollCond(),carryPP:carryFor(homeStarter.id,dayIndex)}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
@@ -952,6 +988,12 @@ function playPA(m,offT,defT){
   const momBefore=momBand(momStat0);
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
+  /* 指定打擊：DH 棒次的打者，這一席會另外累計「DH 出賽／DH 打數／DH 安打…」
+     （DH 資格看的是「實際以 DH 身份上場」，不是球員的守位，所以內野手也能拿最佳指定打擊） */
+  const dhSlotIdx=(m.dhSlot&&m.dhSlot[offSide]!=null)?m.dhSlot[offSide]:-1;
+  const isDH=dhSlotIdx>=0&&(m.batterIdx[offSide]%m.lineups[offSide].length)===dhSlotIdx;
+  if(isDH)batAdd(m,batter.id,{dh:1});
+  const batAddB=(d)=>{batAdd(m,batter.id,d);if(isDH){const o=dhStatOf(d);if(Object.keys(o).length)batAdd(m,batter.id,o);}};
 
   const runnerOn1=!!m.bases[0],runnerOn2=!!m.bases[1],runnerOn3=!!m.bases[2];
   const anyRunner=runnerOn1||runnerOn2||runnerOn3;
@@ -976,7 +1018,7 @@ function playPA(m,offT,defT){
 
   let runs=0,desc="",cls="out";
   if(ev==="K"){m.outs++;
-    batAdd(m,batter.id,{ab:1,k:1});pitAdd(m,P.obj.id,{k:1,outs:1});
+    batAddB({ab:1,k:1});pitAdd(m,P.obj.id,{k:1,outs:1});
     desc=`三振！${batter.name}揮棒落空，黯然退回休息區。`;cls="out";
     if(offT==="hitrun"&&runnerOn1&&m.outs<2&&chance(0.42)){
       m.bases[0]=null;m.outs++;desc+=`（打帶跑走壘失敗，一壘跑者被封殺！）`;
@@ -984,7 +1026,7 @@ function playPA(m,offT,defT){
   }
   else if(ev==="OUT"){const r=resolveOut(m.bases,batter,m.outs,DEF_MODS[defT]&&DEF_MODS[defT].ground);
     runs=r.runs;m.outs+=r.outsAdded;m.bases=r.bases;
-    batAdd(m,batter.id,{ab:1});pitAdd(m,P.obj.id,{outs:r.outsAdded});
+    batAddB({ab:1});pitAdd(m,P.obj.id,{outs:r.outsAdded});
     desc=r.desc+"。";cls="out";
   }
   else if(ev==="SAC"){const nb=[m.bases[0],m.bases[1],m.bases[2]];let rr=0;
@@ -992,24 +1034,24 @@ function playPA(m,offT,defT){
     if(m.bases[1]){nb[2]=m.bases[1];nb[1]=null;}
     if(m.bases[0]){nb[1]=m.bases[0];nb[0]=null;}
     runs=rr;m.bases=nb;m.outs++;
-    batAdd(m,batter.id,{ab:0});pitAdd(m,P.obj.id,{outs:1});
+    batAddB({ab:0});pitAdd(m,P.obj.id,{outs:1});
     desc=`漂亮的犧牲短打！${batter.name} 成功護送跑者${rr?"並送回一分":""}。`;cls="out";
   }
-  else if(ev==="BUNTOUT"){m.outs++;batAdd(m,batter.id,{ab:1});pitAdd(m,P.obj.id,{outs:1});desc=`短打失敗，${batter.name} 點成小飛球被接殺。`;cls="out";}
+  else if(ev==="BUNTOUT"){m.outs++;batAddB({ab:1});pitAdd(m,P.obj.id,{outs:1});desc=`短打失敗，${batter.name} 點成小飛球被接殺。`;cls="out";}
   else if(ev==="BUNTHIT"){const nb=[batter,m.bases[0],m.bases[1]];let rr=0;
     if(m.bases[2]){rr++;nb[2]=m.bases[1];nb[1]=m.bases[0];nb[0]=batter;}
     else if(m.bases[1]){nb[2]=m.bases[1];nb[1]=m.bases[0];nb[0]=batter;}
     runs=rr;m.bases=nb;m.hits[offSide]++;
-    batAdd(m,batter.id,{ab:1,h:1});pitAdd(m,P.obj.id,{h:1});
+    batAddB({ab:1,h:1});pitAdd(m,P.obj.id,{h:1});
     desc=`出其不意！${batter.name} 偷點形成內野安打！`;cls="hit";
   }
   else if(ev==="BB"){const r=advanceOnWalk(m.bases,batter);runs=r.runs;m.bases=r.bases;
-    batAdd(m,batter.id,{ab:0,bb:1});pitAdd(m,P.obj.id,{bb:1});
+    batAddB({ab:0,bb:1});pitAdd(m,P.obj.id,{bb:1});
     r.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
     desc=`四壞球保送，${batter.name}選球上壘。`;cls="hit";
   }
   else if(ev==="HBP"){const r=advanceOnWalk(m.bases,batter);runs=r.runs;m.bases=r.bases;
-    batAdd(m,batter.id,{ab:0,bb:1});
+    batAddB({ab:0,bb:1});
     r.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
     desc=`觸身球！${batter.name}挨了一記，保送上壘。`;cls="hit";
   }
@@ -1017,8 +1059,8 @@ function playPA(m,offT,defT){
     const h=hitAdvance(m.bases,batter,ev,offT==="hitrun");
     runs=h.runs;m.bases=h.bases;m.hits[offSide]++;
     pitAdd(m,P.obj.id,{h:1});
-    batAdd(m,batter.id,{ab:1,h:1});
-    if(ev==="HR")batAdd(m,batter.id,{hr:1});
+    batAddB({ab:1,h:1});
+    if(ev==="HR")batAddB({hr:1});
     h.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
     const word={"HR":"全壘打","3B":"三壘安打","2B":"二壘安打","1B":"一壘安打"}[ev];
     if(ev==="HR"){desc=`全壘打～～！！ ${batter.name} 的${runs>1?runs+"分":"陽春"}彈！`;cls="big";}
@@ -1030,7 +1072,7 @@ function playPA(m,offT,defT){
   // 得分
   if(runs>0){
     addRuns(m,offSide,runs);
-    batAdd(m,batter.id,{rbi:runs});
+    batAddB({rbi:runs});
     pitAdd(m,P.obj.id,{r:runs,er:runs});
     push(`　★ ${sideName(m,offSide)} 拿下 ${runs} 分！`, "run");
   }
@@ -1332,6 +1374,13 @@ function synthBatting(teamId,runs){
   const bbT=ri(1,5);for(let i=0;i<bbT;i++)ps[weightedIndex(roster.map(p=>p.eye))].bb++;
   const kT=ri(4,11);for(let i=0;i<kT;i++)ps[weightedIndex(roster.map(p=>Math.max(1,110-p.meet)))].k++;
   const sbT=ri(0,3);for(let i=0;i<sbT;i++)ps[weightedIndex(roster.map(p=>Math.max(1,p.speed-48)))].sb++;
+  /* 指定打擊：DH 不守備，整場都留在打線上，所以這一場的數字就是他的 DH 數字 */
+  const dhIdx=dhSlotOf(teamId);
+  if(dhIdx>=0&&dhIdx<ps.length){
+    const x=ps[dhIdx];
+    x.dh=(x.ab||0)+(x.bb||0);
+    x.dhAb=x.ab||0;x.dhH=x.h||0;x.dhHr=x.hr||0;x.dhRbi=x.rbi||0;x.dhBb=x.bb||0;
+  }
   return ps;
 }
 function synthPitching(teamId,runsAllowed,oppHits,won,close){
@@ -1879,7 +1928,11 @@ function finalizeSeason(){
       mvp:top1(aw.mvp), cy:top1(aw.cy), reliever:top1(aw.reliever), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
       best9:(aw.best9||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team,pts:x.pts,s:x.s||null})),
       gloves:(aw.gloves||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team})),
-      bestDH:top1(aw.bestDH),
+      bestDH:(function(){
+        const t=top1(aw.bestDH);if(!t||!aw.bestDH||!aw.bestDH[0])return null;
+        const a=aw.bestDH[0];
+        return {...t,dhPA:a.dhPA,dhAB:a.dhAB,dhH:a.dhH,dhHR:a.dhHR,dhRBI:a.dhRBI,dhBB:a.dhBB,avg:a.avg,obp:a.obp};
+      })(),
       kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
     });
   }
@@ -2031,15 +2084,17 @@ function histSeasonDetailPanel(){
       else if(po.stage==="final") poText="冠軍戰出局";
       else if(po.stage==="semi") poText="準決賽出局";
     }
-    const prizeStat=(e,isPit)=>{
+    const prizeStat=(e,isPit,statFn)=>{
       if(!e||!e.name)return "<span class=\"muted\">－</span>";
       const s=e.s||{};
-      const stats=isPit
+      const stats=statFn?statFn(e):(isPit
         ? `防禦率 ${s.outs?fmtERA(s.er||0,s.outs):"-.--"}　${s.w||0}勝 ${s.k||0}K ${s.sv||0}SV`
-        : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`;
+        : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`);
       return `${e.team?teamBadge(e.team):""} ${e.pid?pidLink(e.pid,e.name):esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
-    const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
+    const prize=(label,e,isPit,statFn)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit,statFn)}</div></div>`;
+    /* 最佳指定打擊：顯示 DH 期間的數據 */
+    const dhStat=e=>`DH 出賽 ${e.dhPA||0}　DH 打率 ${e.dhAB?fmtAvg((e.dhH||0)/e.dhAB):".000"}　OBP ${e.obp>0?fmtAvg(e.obp):".000"}　${e.dhHR||0}轟 ${e.dhRBI||0}打點${e.pts!=null?`（${e.pts}分）`:""}`;
     const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=(pick("bestDH")||[])[0];
     const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${k.pid?pidLink(k.pid,k.name):esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
@@ -2056,7 +2111,7 @@ function histSeasonDetailPanel(){
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
       <div class="roster"><h4>個人獎項</h4>
-        <div class="prizegrid">${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div></div>
+        <div class="prizegrid">${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false,dhStat)}</div></div>
       <div class="two"><div class="roster"><h4>本季王座</h4>
         ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div>
         <div class="roster"><h4>最佳九人</h4>
@@ -2065,7 +2120,7 @@ function histSeasonDetailPanel(){
   }).join("");
   return `<div class="panel"><h2>球季詳細回顧</h2>
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
-    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。各獎取對應組別最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p>
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。各獎取對應組別最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p>
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){
@@ -2861,7 +2916,10 @@ function computeAwards(){
     }
   }
   const pick3=arr=>arr.sort((a,b)=>b.pts-a.pts).slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
-  S.season.awards={kings,mvp:pick3(batters),cy:pick3(starters),reliever:pick3(relievers),rookie:pick3(rookies),sawamura:pickSawamura(ps,qf),best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
+  const cy=pick3(starters);
+  // 澤村賞排除最佳投手得主：兩個獎項不重複頒給同一人
+  const sawamura=pickSawamura(ps,qf,cy.length?cy[0].pid:null);
+  S.season.awards={kings,mvp:pick3(batters),cy,reliever:pick3(relievers),rookie:pick3(rookies),sawamura,best9:pickBest9(ps,qf),gloves:pickGloves(ps,qf),bestDH:pickBestDH(ps,qf),gp:q.gp};
 }
 /* 最佳九人：按守位選最佳打者＋最佳投手 */
 function pickBest9(ps,qf){
@@ -2889,48 +2947,77 @@ function pickBest9(ps,qf){
   if(bestP)out.push(bestP);
   return out;
 }
-/* 最佳指定打擊：DH 守位最佳打者（前三名） */
+/* 最佳指定打擊：以「實際以 DH 身份上場過」為資格，不看球員守位。
+   DH 是某一棒的專職打者位置，內野手／外野手都可能擔任，所以不能只看 roster 的 pos。
+   評分只看 DH 期間的表現（DH 打率、OBP、全壘打、打點）＋ DH 出賽量。 */
 function pickBestDH(ps,qf){
   const arr=[];
+  const minDH=Math.max(4,Math.ceil((qf.bat||6)*0.5));   // DH 出賽門檻
   for(const pid in ps.bat){
     const s=ps.bat[pid],p=playerById(pid);
-    if(!p||p.pos!=="DH")continue;
-    if((s.g||0)<qf.bat)continue;
-    arr.push({pid,p,s,pts:awardPts(s,false)});
+    if(!p)continue;
+    const pa=s.dh||0;
+    if(pa<minDH)continue;
+    const ab=s.dhAb||0,h=s.dhH||0,hr=s.dhHr||0,rbi=s.dhRbi||0,bb=s.dhBb||0;
+    const avg=ab>0?h/ab:0;
+    const obp=(ab+bb)>0?(h+bb)/(ab+bb):0;
+    // 樣本太小會讓打率亂噴：把率值往聯盟平均收斂（打數滿 15 才完全採信）
+    const w=Math.min(1,ab/15);
+    const avgS=avg*w+0.250*(1-w);
+    const obpS=obp*w+0.320*(1-w);
+    const pts=Math.round(obpS*100+avgS*60+hr*2.5+rbi*1.2+pa*0.6);
+    arr.push({pid,p,s,pts,dhPA:pa,dhAB:ab,dhH:h,dhHR:hr,dhRBI:rbi,dhBB:bb,avg,obp});
   }
-  arr.sort((a,b)=>b.pts-a.pts);
-  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
+  arr.sort((a,b)=>b.pts-a.pts||b.dhPA-a.dhPA);
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s,
+    dhPA:x.dhPA,dhAB:x.dhAB,dhH:x.dhH,dhHR:x.dhHR,dhRBI:x.dhRBI,dhBB:x.dhBB,avg:x.avg,obp:x.obp}));
 }
-/* 澤村賞：先發投手限定，勝場＋防禦率＋三振＋局數綜合評選 */
-function pickSawamura(ps,qf){
+/* 澤村賞：頒給「最完整的先發投手」——和最佳投手（勝場加權）刻意用不同算法。
+   評分＝勝場×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10，
+   強調「整季的壓制力與完投量」而不是單看勝場；並須投滿 120 局（40 局）以上才算實質先發。
+   另外最佳投手得主不重複入選，避免兩個獎項都頒給同一個人。 */
+function pickSawamura(ps,qf,cyPid){
   const arr=[];
   for(const pid in ps.pit){
     const s=ps.pit[pid],p=playerById(pid);
     if(!p||!p.starter)continue;
-    if((s.g||0)<qf.pit||(s.outs||0)<60)continue;
-    const era=s.outs?(s.er/s.outs)*27:99;
-    const pts=Math.round((s.w||0)*12+(s.k||0)*0.25+(s.outs||0)*0.08-era*8);
-    arr.push({pid,p,s,pts,era});
+    if((s.g||0)<qf.pit||(s.outs||0)<120)continue;
+    if(cyPid&&pid===cyPid)continue;      // 最佳投手得主已拿另一獎，澤村賞不重複
+    const outs=Math.max(1,s.outs||0);
+    const era=(s.er||0)/outs*27;
+    const kRate=(s.k||0)/outs;            // 每局三振
+    const bbRate=(s.bb||0)/outs;          // 每局保送
+    const pts=Math.round((s.w||0)*8+(s.outs||0)*0.12+kRate*400-bbRate*300-era*10);
+    arr.push({pid,p,s,pts,era,kRate,bbRate});
   }
   arr.sort((a,b)=>b.pts-a.pts);
-  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s}));
+  return arr.slice(0,3).map((x,i)=>({rank:i+1,name:x.p.name,pid:x.pid,team:x.pid.replace(/[bp]\d+$/,""),pts:x.pts,s:x.s,
+    era:x.era,kRate:x.kRate,bbRate:x.bbRate}));
 }
-function awardPodium(list,label,emoji,isPit,emptyMsg){
+/* awardPodium：statFn 可自訂每列的關鍵數據文字與表頭（DH 獎用 DH 專屬數據） */
+function awardPodium(list,label,emoji,isPit,emptyMsg,statFn){
   const row=a=>{
     const p = playerById(a.pid);
     const age = p ? p.age : (a.s?.age||"");
     const s=a.s||{};
-    const stats=isPit
+    const stats=statFn
+      ? statFn(a)
+      : (isPit
       ? `防禦率 ${s.er!=null&&s.outs?fmtERA(s.er,s.outs):"-.--"}　勝投 ${s.w||0}　三振 ${s.k||0}　救援 ${s.sv||0}　局數 ${s.outs?fmtIP(s.outs):"0.0"}`
-      : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`;
+      : `打擊率 ${s.ab?fmtAvg(s.h/s.ab):".000"}　全壘打 ${s.hr||0}　打點 ${s.rbi||0}　得分 ${s.r||0}　盜壘 ${s.sb||0}`);
     return `<tr class="${a.rank===1?"me":""}"><td class="num">${a.rank<=3?`<span class="medal g${a.rank}">${a.rank}</span>`:a.rank}</td>
       <td class="name">${pidLink(a.pid,a.name)}${age?` <span class="muted">（${age}歲）</span>`:""}${a.rank===1?" 🏆":""}</td><td class="name">${teamBadge(a.team)}</td>
       <td class="num">${a.pts} 分</td><td class="muted" style="font-size:11px">${esc(stats)}</td></tr>`;
   };
-  const statHeader=isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘";
+  const statHeader=statFn?"DH 出賽／DH 打率／OBP／全壘打／打點":(isPit?"防禦率／勝投／三振／救援／局數":"打擊率／全壘打／打點／得分／盜壘");
   if(!list||!list.length)
     return `<h3>${emoji||""} ${label}</h3><table class="grid"><tr><td class="muted">${esc(emptyMsg||"本季無符合資格的球員。")}</td></tr></table>`;
   return `<h3>${emoji||""} ${label}</h3><table class="grid"><tr><th>#</th><th>球員</th><th>球隊</th><th>評分</th><th>關鍵數據（${statHeader}）</th></tr>${list.map(row).join("")}</table>`;
+}
+/* 最佳指定打擊的數據列：只算 DH 期間的表現 */
+function dhStatLine(a){
+  const pa=a.dhPA||0,ab=a.dhAB||0,h=a.dhH||0;
+  return `DH 出賽 ${pa}　DH 打率 ${ab?fmtAvg(h/ab):".000"}　OBP ${a.obp>0?fmtAvg(a.obp):".000"}　全壘打 ${a.dhHR||0}　打點 ${a.dhRBI||0}`;
 }
 function awardKingGrid(title,list,a){
   const rows=list.map(k=>{
@@ -2998,7 +3085,7 @@ function viewAwards(){
   const parts=[];
   parts.push(`<div class="panel party center"><h2>🏆 球團年度頒獎典禮</h2>
     <p class="muted">本季例行賽 ${a.gp} 場的成績，年度獎項就此揭曉。（季後賽成績獨立計算，不列入）</p>
-    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH取DH最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。MVP取野手最高分；最佳投手取先發最高分；最佳後援取後援最高分；新人王取22歲以下、本季初登場（前一季起未在任何正式球季出賽過）的野手最高分；最佳九人取各守位野手最高分（投手席取先發最佳）；最佳DH以「實際以 DH 身份上場」為資格，不限守位；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p></div>`);
   if(step>=1)parts.push(`<div class="panel ceremony">${awardKingGrid("打擊部門王座",batKings,a)}</div>`);
   if(step>=2)parts.push(`<div class="panel ceremony">${awardKingGrid("投手部門王座",pitKings,a)}</div>`);
   if(step>=3)parts.push(`<div class="panel ceremony">${awardPodium(a.rookie,"新人王（22 歲以下、本季初登場）","🌟",false,"本季沒有符合資格的新人（22 歲以下、且這一季才首次在正式球季出賽），不頒獎。")}</div>`);
@@ -3007,7 +3094,8 @@ function viewAwards(){
   if(step>=6&&a.sawamura&&a.sawamura.length)parts.push(`<div class="panel ceremony">${awardPodium(a.sawamura,"澤村賞（先發投手）","⚾",true)}</div>`);
   if(step>=7&&a.best9&&a.best9.length)parts.push(`<div class="panel ceremony">${awardBest9(a.best9)}</div>`);
   if(step>=8&&a.gloves&&a.gloves.length)parts.push(`<div class="panel ceremony">${awardGloves(a.gloves)}</div>`);
-  if(step>=9&&a.bestDH&&a.bestDH.length)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false)}</div>`);
+  if(step>=9)parts.push(`<div class="panel ceremony">${awardPodium(a.bestDH,"最佳指定打擊","🎯",false,
+    "本季沒有符合資格的指定打擊（DH 出賽數不足，或沒有球員被排入 DH 棒次）。",dhStatLine)}</div>`);
   if(step>=10)parts.push(`<div class="panel ceremony">${awardPodium(a.mvp,"最有價值球員 MVP","👑",false)}</div>`);
   if(step>=11)parts.push(champPanel(champ));
   const nav=step>=AWARD_MAX
@@ -3823,14 +3911,25 @@ function viewLineup(){
   const se=S.season,team=getTeam(se.playerTeam);
   const lu=buildLineup(team),bench=buildBench(team);
   const sel=S.luSel==null?-1:S.luSel;
+  // 指定打擊（DH）棒次：未手動指定時由引擎自動挑「守備最差」的那位
+  const dhIdx=dhSlotOf(se.playerTeam);
+  const dhManual=(CAREER.dhSlot||{})[se.playerTeam]!=null;
+  const dhPlayer=lu[dhIdx];
+  const dhNote=`<div class="hr"></div><h3>🎯 指定打擊（DH）</h3>
+    <p class="muted" style="font-size:12px">目前由 <b>${dhPlayer?esc(dhPlayer.name):"－"}</b>（第 ${dhIdx+1} 棒）擔任 DH，${dhManual?"（手動指定）":"（未指定：預設由第 9 棒擔任）"}。DH 是專職打擊位置，<b>不限制守位</b>，內野手或外野手都可以排進來。點打線上的 🎯 即可指定 DH 棒次。</p>
+    <div class="two">
+      <button class="btn blk" data-act="luDHAuto">🤖 改回自動挑人</button>
+      <button class="btn blk" data-act="backHub">← 回球季總部</button>
+    </div>`;
   const rows=lu.map((b,i)=>`<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
       <span class="luord">${i+1}</span>
       <div class="lumain">
-        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}</div>
+        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}${i===dhIdx?' <span class="pill on">🎯 DH</span>':""}</div>
         ${luStatLine(b)}
       </div>
       <span class="lups">${esc(b.posLabel||"")}</span>
       <span class="lubtns">
+        <button class="btn sm ${i===dhIdx?'gold':''}" data-act="luDH" data-arg="${i}" title="指定這一位擔任指定打擊（DH）">🎯</button>
         <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
         <button class="btn sm" data-act="luDown" data-arg="${i}" ${i===lu.length-1?"disabled":""}>▼</button>
       </span>
@@ -3845,12 +3944,13 @@ function viewLineup(){
       <button class="btn sm gold" data-act="luSwap" data-arg="${b.id}">⇄ 換入${sel>=0?"第 "+(sel+1)+" 棒":""}</button>
     </div>`).join(""):`<p class="muted">沒有可替換的球員。</p>`;
   return `<div class="panel"><h2>🧢 打線／守位編輯</h2>
-    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
+    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。每棒旁的 🎯 可指定<b>指定打擊（DH）</b>棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
     <p class="muted" style="font-size:11px">數值：<b>打</b>＝打擊　<b>力</b>＝力量　<b>選</b>＝選球　<b>走</b>＝速度　<b>守</b>＝守備；後方為本季打率（安打／打數）。</p>
     <div class="hr"></div><h3>先發打線</h3>
     <div class="lulist">${rows}</div>
     <div class="hr"></div><h3>板凳</h3>
     <div class="lulist">${brows}</div>
+    ${dhNote}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="luAuto">🤖 自動排序打線</button>
@@ -4011,6 +4111,7 @@ function lineupBox(m,side){
   const onBase=new Set();m.bases.forEach(x=>{if(x)onBase.add(x.id);});
   const orig=(m.originals&&m.originals[side])||[];
   const tid=side==="away"?m.awayId:m.homeId;   // side 是 away/home，m.awayId/m.homeId 才是球隊 id（原本比錯對象，兩邊都顯示主隊）
+  const dhIdx=(m.dhSlot&&m.dhSlot[side]!=null)?m.dhSlot[side]:-1;
   const rows=lu.map((b,i)=>{
     const cls=[];
     if(onBase.has(b.id))cls.push("onbase");
@@ -4019,7 +4120,8 @@ function lineupBox(m,side){
     const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
     const mark=onBase.has(b.id)?' <span class="pill on">壘</span>':"";
     const fmark=formPill((m.batterForm||{})[b.id]);   // beta D3a：當日手感
-    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${fmark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
+    const dhMark=(i===dhIdx)?' <span class="pill on">🎯 DH</span>':"";
+    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${fmark}${dhMark}${subNote}</td><td>${i===dhIdx?"指定打擊":esc(b.posLabel)}</td></tr>`;
   }).join("");
   const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>${formPill((m.batterForm||{})[b.id])}`).join("、");
   const bp=m.bullpen[side].map(p=>`${esc(p.name)}<span class="muted">（${esc(p.role)}）</span>`).join("、");
@@ -4042,11 +4144,13 @@ function boxScore(m){
   const mk=(id,key)=>{
     const lu=m.lineups[key];
     const orig=(m.originals&&m.originals[key])||[];
+    const dhIdx=(m.dhSlot&&m.dhSlot[key]!=null)?m.dhSlot[key]:-1;
     let rows=lu.map((b,i)=>{
       const s=m.stats[b.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};
       const o=orig[i];
       const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
-      return `<tr><td class="name">${esc(b.name)}${subNote}</td><td>${esc(b.posLabel)}</td>
+      const dhNote=(i===dhIdx)?` <span class="pill on">🎯 DH</span>`:"";
+      return `<tr><td class="name">${esc(b.name)}${dhNote}${subNote}</td><td>${i===dhIdx?"指定打擊":esc(b.posLabel)}</td>
         <td class="num">${s.ab}</td><td class="num">${s.h}</td><td class="num">${s.hr}</td>
         <td class="num">${s.rbi}</td><td class="num">${s.bb}</td><td class="num">${s.k}</td></tr>`;
     }).join("");
@@ -4611,7 +4715,8 @@ function viewHelp(){
       <dt>■ 遊戲紀錄</dt>
       <dd>從標題畫面或球季總部的「📜 遊戲紀錄」可回顧三種紀錄：<b>逐場賽果</b>（本季每場比賽的對戰與比數）、<b>跨季生涯</b>（每一季的戰績、名次與總冠軍）與<b>生涯里程碑</b>（跨季累計的全壘打、安打、三振、勝投等前 10 名）。</dd>
       <dt>■ 個人獎項</dt>
-      <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、本季初登場的新人，一生只能拿一次）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。</dd>
+      <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、本季初登場的新人，一生只能拿一次）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。</dd>
+      <dd><b>指定打擊（DH）</b>：打線中有<b>一棒</b>由指定打擊擔任，任何球員都可以排進那個位置（不限制守位，內野手也能當 DH）。在「🧢 打線／守位編輯」點打線上的 🎯 就能指定 DH 棒次；沒指定時預設由第 9 棒擔任。年度的「🎯 最佳指定打擊」是看<b>實際以 DH 身份上場過</b>的球員（不是看名單上的守位），只計 DH 期間的表現。</dd>
       <dt>■ 新人選秀</dt>
       <dd>球季結束、有球員退休（39 歲以上）時，會展開<b>新人選秀</b>：依例行賽戰績由差到佳決定指名順序，輪到你的球團時可從 4 名候補中指名 1 人補強，其他球團會自動挑選。選進的新人會成為下一季的戰力。</dd>
       <dt>■ 季後賽</dt>
@@ -4727,8 +4832,30 @@ const ACT={
     flash("已把 "+recName(pid)+" 排入第 "+(i+1)+" 棒");render();
   },
   luReset(){
-    if(S.season){if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];saveCareer();}
+    if(S.season){
+      if(CAREER.lineups)delete CAREER.lineups[S.season.playerTeam];
+      if(CAREER.dhSlot)delete CAREER.dhSlot[S.season.playerTeam];   // DH 棒次一併回復自動
+      saveCareer();
+    }
     S.luSel=null;flash("已回復預設打線");render();
+  },
+  /* 指定打擊（DH）棒次：任何球員都能當 DH，不限守位 */
+  luDH(i){
+    if(!S.season)return;
+    i=+i;
+    const lu=buildLineup(getTeam(S.season.playerTeam));
+    if(i<0||i>=lu.length)return;
+    setDHSlot(S.season.playerTeam,i);
+    flash("已指定 "+recName(lu[i].id)+" 擔任指定打擊（DH）");
+    render();
+  },
+  luDHAuto(){
+    if(!S.season)return;
+    setDHSlot(S.season.playerTeam,null);
+    const lu=buildLineup(getTeam(S.season.playerTeam));
+    const idx=dhSlotOf(S.season.playerTeam);
+    flash("DH 改為自動挑選："+(lu[idx]?recName(lu[idx].id):"－")+"（守備能力最差者）");
+    render();
   },
   luAuto(){
     const team=getTeam(S.season.playerTeam);
@@ -4980,6 +5107,7 @@ window.GK = {
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
   rollCond, effOf, rollForm, batterEffective, formOf, momOf, momStat, pushMom, momBand, leverageOf, applyClutch,
+  dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards,
   seasonNo, viewSeasonInfo, lastTeamId, prepareDraft, histGamesPanel
 };
 })();

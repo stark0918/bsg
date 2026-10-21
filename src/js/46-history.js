@@ -79,7 +79,11 @@ function finalizeSeason(){
       mvp:top1(aw.mvp), cy:top1(aw.cy), reliever:top1(aw.reliever), rookie:top1(aw.rookie), sawamura:top1(aw.sawamura),
       best9:(aw.best9||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team,pts:x.pts,s:x.s||null})),
       gloves:(aw.gloves||[]).map(x=>({pos:x.pos,name:x.name,pid:x.pid,team:x.team})),
-      bestDH:top1(aw.bestDH),
+      bestDH:(function(){
+        const t=top1(aw.bestDH);if(!t||!aw.bestDH||!aw.bestDH[0])return null;
+        const a=aw.bestDH[0];
+        return {...t,dhPA:a.dhPA,dhAB:a.dhAB,dhH:a.dhH,dhHR:a.dhHR,dhRBI:a.dhRBI,dhBB:a.dhBB,avg:a.avg,obp:a.obp};
+      })(),
       kings:(aw.kings||[]).filter(k=>k.name).map(k=>({kind:k.kind,title:k.title,name:k.name,pid:k.pid||"",team:k.team,val:k.val}))
     });
   }
@@ -231,15 +235,17 @@ function histSeasonDetailPanel(){
       else if(po.stage==="final") poText="冠軍戰出局";
       else if(po.stage==="semi") poText="準決賽出局";
     }
-    const prizeStat=(e,isPit)=>{
+    const prizeStat=(e,isPit,statFn)=>{
       if(!e||!e.name)return "<span class=\"muted\">－</span>";
       const s=e.s||{};
-      const stats=isPit
+      const stats=statFn?statFn(e):(isPit
         ? `防禦率 ${s.outs?fmtERA(s.er||0,s.outs):"-.--"}　${s.w||0}勝 ${s.k||0}K ${s.sv||0}SV`
-        : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`;
+        : `打擊率 ${s.ab?fmtAvg((s.h||0)/s.ab):".000"}　${s.hr||0}轟 ${s.rbi||0}打點 ${e.pts!=null?`（${e.pts}分）`:""}`);
       return `${e.team?teamBadge(e.team):""} ${e.pid?pidLink(e.pid,e.name):esc(e.name)}<br><span class="muted" style="font-size:11px">${stats}</span>`;
     };
-    const prize=(label,e,isPit)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit)}</div></div>`;
+    const prize=(label,e,isPit,statFn)=>`<div class="slotinfo"><div class="nm">${label}</div><div class="meta">${prizeStat(e,isPit,statFn)}</div></div>`;
+    /* 最佳指定打擊：顯示 DH 期間的數據 */
+    const dhStat=e=>`DH 出賽 ${e.dhPA||0}　DH 打率 ${e.dhAB?fmtAvg((e.dhH||0)/e.dhAB):".000"}　OBP ${e.obp>0?fmtAvg(e.obp):".000"}　${e.dhHR||0}轟 ${e.dhRBI||0}打點${e.pts!=null?`（${e.pts}分）`:""}`;
     const mvp=(pick("mvp")||[])[0],cy=(pick("cy")||[])[0],rel=(pick("reliever")||[])[0],rook=(pick("rookie")||[])[0],sawa=(pick("sawamura")||[])[0],bdh=(pick("bestDH")||[])[0];
     const kings=((pick("kings")||[]).filter(k=>k.name)).map(k=>`<tr><td class="name">${esc(k.title)}</td><td class="name">${k.team?teamBadge(k.team):""} ${k.pid?pidLink(k.pid,k.name):esc(k.name)}</td><td class="num"><b>${k.val!=null?esc(String(k.val)):""}</b></td></tr>`).join("");
     const posName={C:"捕手","1B":"一壘手","2B":"二壘手","3B":"三壘手",SS:"游擊手",LF:"左外野",CF:"中外野",RF:"右外野",DH:"指定打擊",P:"投手"};
@@ -256,7 +262,7 @@ function histSeasonDetailPanel(){
         <span class="name">得失 ${sd.rs||0}:${sd.ra||0}</span>
         <span class="name">${poText}${isChamp?" 🏆":""}</span></div>
       <div class="roster"><h4>個人獎項</h4>
-        <div class="prizegrid">${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false)}</div></div>
+        <div class="prizegrid">${prize("👑 最有價值球員",mvp,false)}${prize("🔥 最佳投手（先發）",cy,true)}${prize("🧱 最佳後援",rel,true)}${prize("⚾ 澤村賞（先發）",sawa,true)}${prize("🌟 新人王",rook,false)}${prize("🎯 最佳指定打擊",bdh,false,dhStat)}</div></div>
       <div class="two"><div class="roster"><h4>本季王座</h4>
         ${kings?`<table class="grid"><tr><th>獎項</th><th>得主</th><th>成績</th></tr>${kings}</table>`:'<p class="muted">－</p>'}</div>
         <div class="roster"><h4>最佳九人</h4>
@@ -265,7 +271,7 @@ function histSeasonDetailPanel(){
   }).join("");
   return `<div class="panel"><h2>球季詳細回顧</h2>
     <p class="muted">每個球季的完整數據：戰績、排名、得分失分、季後賽、個人獎項、王座項目。</p>
-    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。各獎取對應組別最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p>
+    <p class="muted" style="font-size:11px">評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。各獎取對應組別最高分；九王座取單項第一。（MVP・新人王的投打統一評分研究中）</p>
     <div class="cards">${cards}</div></div>`;
 }
 function histRetirePanel(){

@@ -319,14 +319,25 @@ function viewLineup(){
   const se=S.season,team=getTeam(se.playerTeam);
   const lu=buildLineup(team),bench=buildBench(team);
   const sel=S.luSel==null?-1:S.luSel;
+  // 指定打擊（DH）棒次：未手動指定時由引擎自動挑「守備最差」的那位
+  const dhIdx=dhSlotOf(se.playerTeam);
+  const dhManual=(CAREER.dhSlot||{})[se.playerTeam]!=null;
+  const dhPlayer=lu[dhIdx];
+  const dhNote=`<div class="hr"></div><h3>🎯 指定打擊（DH）</h3>
+    <p class="muted" style="font-size:12px">目前由 <b>${dhPlayer?esc(dhPlayer.name):"－"}</b>（第 ${dhIdx+1} 棒）擔任 DH，${dhManual?"（手動指定）":"（未指定：預設由第 9 棒擔任）"}。DH 是專職打擊位置，<b>不限制守位</b>，內野手或外野手都可以排進來。點打線上的 🎯 即可指定 DH 棒次。</p>
+    <div class="two">
+      <button class="btn blk" data-act="luDHAuto">🤖 改回自動挑人</button>
+      <button class="btn blk" data-act="backHub">← 回球季總部</button>
+    </div>`;
   const rows=lu.map((b,i)=>`<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
       <span class="luord">${i+1}</span>
       <div class="lumain">
-        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}</div>
+        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}${i===dhIdx?' <span class="pill on">🎯 DH</span>':""}</div>
         ${luStatLine(b)}
       </div>
       <span class="lups">${esc(b.posLabel||"")}</span>
       <span class="lubtns">
+        <button class="btn sm ${i===dhIdx?'gold':''}" data-act="luDH" data-arg="${i}" title="指定這一位擔任指定打擊（DH）">🎯</button>
         <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
         <button class="btn sm" data-act="luDown" data-arg="${i}" ${i===lu.length-1?"disabled":""}>▼</button>
       </span>
@@ -341,12 +352,13 @@ function viewLineup(){
       <button class="btn sm gold" data-act="luSwap" data-arg="${b.id}">⇄ 換入${sel>=0?"第 "+(sel+1)+" 棒":""}</button>
     </div>`).join(""):`<p class="muted">沒有可替換的球員。</p>`;
   return `<div class="panel"><h2>🧢 打線／守位編輯</h2>
-    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
+    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。每棒旁的 🎯 可指定<b>指定打擊（DH）</b>棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
     <p class="muted" style="font-size:11px">數值：<b>打</b>＝打擊　<b>力</b>＝力量　<b>選</b>＝選球　<b>走</b>＝速度　<b>守</b>＝守備；後方為本季打率（安打／打數）。</p>
     <div class="hr"></div><h3>先發打線</h3>
     <div class="lulist">${rows}</div>
     <div class="hr"></div><h3>板凳</h3>
     <div class="lulist">${brows}</div>
+    ${dhNote}
     <div class="hr"></div>
     <div class="two">
       <button class="btn blk" data-act="luAuto">🤖 自動排序打線</button>
@@ -507,6 +519,7 @@ function lineupBox(m,side){
   const onBase=new Set();m.bases.forEach(x=>{if(x)onBase.add(x.id);});
   const orig=(m.originals&&m.originals[side])||[];
   const tid=side==="away"?m.awayId:m.homeId;   // side 是 away/home，m.awayId/m.homeId 才是球隊 id（原本比錯對象，兩邊都顯示主隊）
+  const dhIdx=(m.dhSlot&&m.dhSlot[side]!=null)?m.dhSlot[side]:-1;
   const rows=lu.map((b,i)=>{
     const cls=[];
     if(onBase.has(b.id))cls.push("onbase");
@@ -515,7 +528,8 @@ function lineupBox(m,side){
     const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
     const mark=onBase.has(b.id)?' <span class="pill on">壘</span>':"";
     const fmark=formPill((m.batterForm||{})[b.id]);   // beta D3a：當日手感
-    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${fmark}${subNote}</td><td>${esc(b.posLabel)}</td></tr>`;
+    const dhMark=(i===dhIdx)?' <span class="pill on">🎯 DH</span>':"";
+    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${fmark}${dhMark}${subNote}</td><td>${i===dhIdx?"指定打擊":esc(b.posLabel)}</td></tr>`;
   }).join("");
   const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>${formPill((m.batterForm||{})[b.id])}`).join("、");
   const bp=m.bullpen[side].map(p=>`${esc(p.name)}<span class="muted">（${esc(p.role)}）</span>`).join("、");
@@ -538,11 +552,13 @@ function boxScore(m){
   const mk=(id,key)=>{
     const lu=m.lineups[key];
     const orig=(m.originals&&m.originals[key])||[];
+    const dhIdx=(m.dhSlot&&m.dhSlot[key]!=null)?m.dhSlot[key]:-1;
     let rows=lu.map((b,i)=>{
       const s=m.stats[b.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};
       const o=orig[i];
       const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
-      return `<tr><td class="name">${esc(b.name)}${subNote}</td><td>${esc(b.posLabel)}</td>
+      const dhNote=(i===dhIdx)?` <span class="pill on">🎯 DH</span>`:"";
+      return `<tr><td class="name">${esc(b.name)}${dhNote}${subNote}</td><td>${i===dhIdx?"指定打擊":esc(b.posLabel)}</td>
         <td class="num">${s.ab}</td><td class="num">${s.h}</td><td class="num">${s.hr}</td>
         <td class="num">${s.rbi}</td><td class="num">${s.bb}</td><td class="num">${s.k}</td></tr>`;
     }).join("");
@@ -1107,7 +1123,8 @@ function viewHelp(){
       <dt>■ 遊戲紀錄</dt>
       <dd>從標題畫面或球季總部的「📜 遊戲紀錄」可回顧三種紀錄：<b>逐場賽果</b>（本季每場比賽的對戰與比數）、<b>跨季生涯</b>（每一季的戰績、名次與總冠軍）與<b>生涯里程碑</b>（跨季累計的全壘打、安打、三振、勝投等前 10 名）。</dd>
       <dt>■ 個人獎項</dt>
-      <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、本季初登場的新人，一生只能拿一次）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×12＋三振×0.25＋出局數×0.08－防禦率×8（另需60出局以上）；金手套＝守備×10＋出賽。</dd>
+      <dd>例行賽結束、季後賽打完後舉行<b>頒獎典禮</b>（季後賽成績獨立計算，不列入獎項）：MVP（野手）、最佳投手（先發）、最佳後援、澤村賞（先發）、新人王（22歲以下、本季初登場的新人，一生只能拿一次）、最佳九人、最佳指定打擊、金手套，以及打擊六王座／投手四王座。可從總部開啟「🏆 頒獎典禮」查看。各獎評分公式（3 出局＝1 局）：野手＝安打×0.8＋全壘打×2.5＋打點×1＋盜壘×0.5＋得分×0.8＋打擊率×110；先發＝勝×10＋三振×0.25＋出局數×0.07－防禦率×7；後援＝救援×6＋勝×4＋三振×0.2－防禦率×5；澤村賞＝勝×8＋局數×0.12＋三振率×400－保送率×300－防禦率×10（須投滿120局以上，且不與最佳投手得主重複）；金手套＝守備×10＋出賽；最佳指定打擊＝DH 期間 OBP×100＋打率×60＋全壘打×2.5＋打點×1.2＋DH 出賽×0.6。</dd>
+      <dd><b>指定打擊（DH）</b>：打線中有<b>一棒</b>由指定打擊擔任，任何球員都可以排進那個位置（不限制守位，內野手也能當 DH）。在「🧢 打線／守位編輯」點打線上的 🎯 就能指定 DH 棒次；沒指定時預設由第 9 棒擔任。年度的「🎯 最佳指定打擊」是看<b>實際以 DH 身份上場過</b>的球員（不是看名單上的守位），只計 DH 期間的表現。</dd>
       <dt>■ 新人選秀</dt>
       <dd>球季結束、有球員退休（39 歲以上）時，會展開<b>新人選秀</b>：依例行賽戰績由差到佳決定指名順序，輪到你的球團時可從 4 名候補中指名 1 人補強，其他球團會自動挑選。選進的新人會成為下一季的戰力。</dd>
       <dt>■ 季後賽</dt>

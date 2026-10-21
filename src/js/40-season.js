@@ -73,6 +73,13 @@ function synthBatting(teamId,runs){
   const bbT=ri(1,5);for(let i=0;i<bbT;i++)ps[weightedIndex(roster.map(p=>p.eye))].bb++;
   const kT=ri(4,11);for(let i=0;i<kT;i++)ps[weightedIndex(roster.map(p=>Math.max(1,110-p.meet)))].k++;
   const sbT=ri(0,3);for(let i=0;i<sbT;i++)ps[weightedIndex(roster.map(p=>Math.max(1,p.speed-48)))].sb++;
+  /* 指定打擊：DH 不守備，整場都留在打線上，所以這一場的數字就是他的 DH 數字 */
+  const dhIdx=dhSlotOf(teamId);
+  if(dhIdx>=0&&dhIdx<ps.length){
+    const x=ps[dhIdx];
+    x.dh=(x.ab||0)+(x.bb||0);
+    x.dhAb=x.ab||0;x.dhH=x.h||0;x.dhHr=x.hr||0;x.dhRbi=x.rbi||0;x.dhBb=x.bb||0;
+  }
   return ps;
 }
 function synthPitching(teamId,runsAllowed,oppHits,won,close){

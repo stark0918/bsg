@@ -225,6 +225,40 @@ function setPlayerLineup(ids){
   CAREER.lineups[S.season.playerTeam]=ids.slice();
   saveCareer();
 }
+/* ---------- 指定打擊（DH） ---------- */
+/* DH 是「某一棒由專職打者代打」，不限制守位——內野手、外野手都可能擔任 DH。
+   棒次可由總教練手動指定（打線編輯畫面）；沒指定時：
+     · 自己的球隊 → 固定由第 9 棒擔任（傳統的 DH 棒次，穩定好掌握）
+     · 其他球隊   → 每場依打擊能力加權抽一位（打得好的人常被排去 DH，位置會變動） */
+function dhSlotOf(teamId){
+  const lu=buildLineup(getTeam(teamId));
+  if(!lu.length)return 8;
+  const saved=(CAREER.dhSlot||{})[teamId];
+  if(saved!=null&&saved>=0&&saved<lu.length)return saved;
+  const isMe=!!(S.season&&S.season.playerTeam===teamId);
+  if(isMe)return lu.length-1;              // 自己的球隊：預設第 9 棒
+  // 對手球隊：加權隨機（打擊能力越高越可能被排去 DH）
+  const w=lu.map(b=>Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4));
+  return weightedIndex(w);
+}
+/* 指定 DH 棒次；傳 null 或 -1 表示改回自動。 */
+function setDHSlot(teamId,idx){
+  CAREER.dhSlot=CAREER.dhSlot||{};
+  if(idx==null||idx<0||idx>8)delete CAREER.dhSlot[teamId];
+  else CAREER.dhSlot[teamId]=idx;
+  saveCareer();
+}
+/* DH 專屬統計：只有「以 DH 身份」上場時才累加 */
+function dhStatOf(d){
+  const o={};
+  if(d.ab)o.dhAb=1;
+  if(d.h)o.dhH=1;
+  if(d.hr)o.dhHr=1;
+  if(d.rbi)o.dhRbi=1;
+  if(d.bb)o.dhBb=1;
+  if(d.k)o.dhK=1;
+  return o;
+}
 function starterOf(team,day){const sp=team.pitchers.filter(p=>p.starter);return sp[(day+hashStr(team.id))%sp.length];}
 
 function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
@@ -240,6 +274,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     bullpen:{away:away.pitchers.filter(p=>!p.starter),home:home.pitchers.filter(p=>!p.starter)},
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
+    dhSlot:{away:dhSlotOf(awayId),home:dhSlotOf(homeId)},   // 兩隊的 DH 棒次（0~8）
     pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond(),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:rollCond(),carryPP:carryFor(homeStarter.id,dayIndex)}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
@@ -266,6 +301,12 @@ function playPA(m,offT,defT){
   const momBefore=momBand(momStat0);
   const L=[];
   const push=(s,cls)=>{L.push(s);m.log.push(cls?{t:s,c:cls}:s);};
+  /* 指定打擊：DH 棒次的打者，這一席會另外累計「DH 出賽／DH 打數／DH 安打…」
+     （DH 資格看的是「實際以 DH 身份上場」，不是球員的守位，所以內野手也能拿最佳指定打擊） */
+  const dhSlotIdx=(m.dhSlot&&m.dhSlot[offSide]!=null)?m.dhSlot[offSide]:-1;
+  const isDH=dhSlotIdx>=0&&(m.batterIdx[offSide]%m.lineups[offSide].length)===dhSlotIdx;
+  if(isDH)batAdd(m,batter.id,{dh:1});
+  const batAddB=(d)=>{batAdd(m,batter.id,d);if(isDH){const o=dhStatOf(d);if(Object.keys(o).length)batAdd(m,batter.id,o);}};
 
   const runnerOn1=!!m.bases[0],runnerOn2=!!m.bases[1],runnerOn3=!!m.bases[2];
   const anyRunner=runnerOn1||runnerOn2||runnerOn3;
@@ -290,7 +331,7 @@ function playPA(m,offT,defT){
 
   let runs=0,desc="",cls="out";
   if(ev==="K"){m.outs++;
-    batAdd(m,batter.id,{ab:1,k:1});pitAdd(m,P.obj.id,{k:1,outs:1});
+    batAddB({ab:1,k:1});pitAdd(m,P.obj.id,{k:1,outs:1});
     desc=`三振！${batter.name}揮棒落空，黯然退回休息區。`;cls="out";
     if(offT==="hitrun"&&runnerOn1&&m.outs<2&&chance(0.42)){
       m.bases[0]=null;m.outs++;desc+=`（打帶跑走壘失敗，一壘跑者被封殺！）`;
@@ -298,7 +339,7 @@ function playPA(m,offT,defT){
   }
   else if(ev==="OUT"){const r=resolveOut(m.bases,batter,m.outs,DEF_MODS[defT]&&DEF_MODS[defT].ground);
     runs=r.runs;m.outs+=r.outsAdded;m.bases=r.bases;
-    batAdd(m,batter.id,{ab:1});pitAdd(m,P.obj.id,{outs:r.outsAdded});
+    batAddB({ab:1});pitAdd(m,P.obj.id,{outs:r.outsAdded});
     desc=r.desc+"。";cls="out";
   }
   else if(ev==="SAC"){const nb=[m.bases[0],m.bases[1],m.bases[2]];let rr=0;
@@ -306,24 +347,24 @@ function playPA(m,offT,defT){
     if(m.bases[1]){nb[2]=m.bases[1];nb[1]=null;}
     if(m.bases[0]){nb[1]=m.bases[0];nb[0]=null;}
     runs=rr;m.bases=nb;m.outs++;
-    batAdd(m,batter.id,{ab:0});pitAdd(m,P.obj.id,{outs:1});
+    batAddB({ab:0});pitAdd(m,P.obj.id,{outs:1});
     desc=`漂亮的犧牲短打！${batter.name} 成功護送跑者${rr?"並送回一分":""}。`;cls="out";
   }
-  else if(ev==="BUNTOUT"){m.outs++;batAdd(m,batter.id,{ab:1});pitAdd(m,P.obj.id,{outs:1});desc=`短打失敗，${batter.name} 點成小飛球被接殺。`;cls="out";}
+  else if(ev==="BUNTOUT"){m.outs++;batAddB({ab:1});pitAdd(m,P.obj.id,{outs:1});desc=`短打失敗，${batter.name} 點成小飛球被接殺。`;cls="out";}
   else if(ev==="BUNTHIT"){const nb=[batter,m.bases[0],m.bases[1]];let rr=0;
     if(m.bases[2]){rr++;nb[2]=m.bases[1];nb[1]=m.bases[0];nb[0]=batter;}
     else if(m.bases[1]){nb[2]=m.bases[1];nb[1]=m.bases[0];nb[0]=batter;}
     runs=rr;m.bases=nb;m.hits[offSide]++;
-    batAdd(m,batter.id,{ab:1,h:1});pitAdd(m,P.obj.id,{h:1});
+    batAddB({ab:1,h:1});pitAdd(m,P.obj.id,{h:1});
     desc=`出其不意！${batter.name} 偷點形成內野安打！`;cls="hit";
   }
   else if(ev==="BB"){const r=advanceOnWalk(m.bases,batter);runs=r.runs;m.bases=r.bases;
-    batAdd(m,batter.id,{ab:0,bb:1});pitAdd(m,P.obj.id,{bb:1});
+    batAddB({ab:0,bb:1});pitAdd(m,P.obj.id,{bb:1});
     r.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
     desc=`四壞球保送，${batter.name}選球上壘。`;cls="hit";
   }
   else if(ev==="HBP"){const r=advanceOnWalk(m.bases,batter);runs=r.runs;m.bases=r.bases;
-    batAdd(m,batter.id,{ab:0,bb:1});
+    batAddB({ab:0,bb:1});
     r.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
     desc=`觸身球！${batter.name}挨了一記，保送上壘。`;cls="hit";
   }
@@ -331,8 +372,8 @@ function playPA(m,offT,defT){
     const h=hitAdvance(m.bases,batter,ev,offT==="hitrun");
     runs=h.runs;m.bases=h.bases;m.hits[offSide]++;
     pitAdd(m,P.obj.id,{h:1});
-    batAdd(m,batter.id,{ab:1,h:1});
-    if(ev==="HR")batAdd(m,batter.id,{hr:1});
+    batAddB({ab:1,h:1});
+    if(ev==="HR")batAddB({hr:1});
     h.scored.forEach(x=>{if(x)batAdd(m,x.id,{r:1});});
     const word={"HR":"全壘打","3B":"三壘安打","2B":"二壘安打","1B":"一壘安打"}[ev];
     if(ev==="HR"){desc=`全壘打～～！！ ${batter.name} 的${runs>1?runs+"分":"陽春"}彈！`;cls="big";}
@@ -344,7 +385,7 @@ function playPA(m,offT,defT){
   // 得分
   if(runs>0){
     addRuns(m,offSide,runs);
-    batAdd(m,batter.id,{rbi:runs});
+    batAddB({rbi:runs});
     pitAdd(m,P.obj.id,{r:runs,er:runs});
     push(`　★ ${sideName(m,offSide)} 拿下 ${runs} 分！`, "run");
   }
