@@ -66,6 +66,23 @@ const CAREERKEY="clubstory_career_v1",OLD_CAREERKEY="gekikuukan_career_v1";
 const CAREER_MIN_AB=200;          // 打擊榜門檻（200 打席）
 const CAREER_MIN_ERA_OUTS=200;    // 生涯防禦率榜門檻（200 出局）
 const CAREER_MIN_COUNT_OUTS=100;  // 生涯勝投／三振／救援榜門檻（100 出局）
+/* 生涯榜門檻「前期放寬」：前幾季大家的打席／出局數都還不夠，硬套標準門檻會讓榜單長期是空的。
+   所以門檻 = 標準門檻 × 進度，進度＝(已完成的球季數 ＋ 本季已打進度) ÷ 需要的季數；
+   累積到 CAREER_GATE_SEASONS 季後就自動回到標準門檻。
+   進度 0% → 只有地板門檻；100% → 標準門檻。 */
+const CAREER_GATE_SEASONS=4;      // 累積幾個球季後門檻回到標準
+const CAREER_GATE_FLOOR_AB=20;    // 打擊榜地板門檻（20 打席）
+const CAREER_GATE_FLOOR_OUTS=60;  // 投手榜地板門檻（60 出局，避免 0.00 ERA 霸榜）
+/* 目前生效的門檻（render 時即時算） */
+function careerGateMin(std,floor){
+  const se=S.season;
+  const done=CAREER.seasons||0;                          // 已完成的球季數
+  const total=se?(se.schedule||[]).length:0;
+  const gp=se?Math.min(se.day||0,total):0;
+  const cur=total?gp/total:0;                            // 本季進度 0~1
+  const prog=Math.min(1,(done+cur)/CAREER_GATE_SEASONS);
+  return Math.max(floor,Math.round(std*prog));
+}
 let CAREER=normalizeCareer(null);   // 全新玩家（無舊存檔）也要有 career/history/awards 等欄位
 function normalizeCareer(d){
   const c=Object.assign({seasons:0,pending:false,ov:{},records:{}},d||{});
