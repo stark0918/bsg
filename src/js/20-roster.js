@@ -51,8 +51,10 @@ function genRoster(team){
   }
   const pitchers=[];
   const ps2=teamStr(team.id);
-  for(let i=0;i<6;i++){
-    const sp=i<3;
+  const nSt=Math.max(1,Math.min(5,Number(cfg('starterPitchers'))||3));
+  const nRl=Math.max(0,Math.min(6,Number(cfg('reliefPitchers'))||3));
+  for(let i=0;i<nSt+nRl;i++){
+    const sp=i<nSt;
     let velocity=nrm(rnd,sp?62:71,8),control=nrm(rnd,sp?64:60,9),breaking=nrm(rnd,sp?62:68,9),stamina=nrm(rnd,sp?74:42,sp?7:8);
     pitchers.push({
       id:team.id+"p"+i, name:mkName(nrnd,used), role:sp?"先發":"後援", starter:sp,

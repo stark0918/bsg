@@ -19,7 +19,14 @@ const CONFIG_DEF={
   strScale:1,            // 球隊強弱差距倍率：0=全聯盟一樣強、1=原本、2=強弱差加倍
   strShift:0,            // 全聯盟整體強度偏移（-5 ~ +5）
   benchBatters:4,        // 板凳打者人數（先發 9 人之外）
+  starterPitchers:3,     // 先發投手人數
+  reliefPitchers:3,      // 後援投手人數
   posBoost:1,            // 守位能力加成：1=開、0=關
+  /* ── 後援上場 ── */
+  autoPitcher:1,         // 自動換投：1=開、0=關（先發打到上限或後段守成時自動換牛棚）
+  autoPitPitch:85,       // 先發投到多少球就換後援
+  autoPitInn:8,          // 第幾局起可以派守成型後援
+  autoPitLead:3,         // 守成換投時的最大分差（領先 1~3 分）
   /* ── 比賽數值 ── */
   runExp:4.3,            // 每隊每場得分期望值
   hitRatio:1.15,         // 安打數 ÷ 得分的係數
@@ -43,7 +50,8 @@ const CFG_LIMITS={
   seasonRounds:[1,6], allStar:[0,1], playoff:[0,1],
   qBat:[0.3,1], qPit:[0.05,1], qEraOuts:[0.5,6], qCyOuts:[0.5,8], qSawOuts:[1,12],
   careerAb:[0,1000],
-  strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], posBoost:[0,1],
+  strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], starterPitchers:[1,5], reliefPitchers:[1,6], posBoost:[0,1],
+  autoPitcher:[0,1], autoPitPitch:[30,150], autoPitInn:[1,12], autoPitLead:[1,8],
   runExp:[1,10], hitRatio:[0.5,3], pitOutsMin:[3,27], pitOutsMax:[4,27]
 };
 function cfgMin(k){const l=CFG_LIMITS[k];return l?l[0]:0;}

@@ -187,13 +187,17 @@ function mergePlayerStats(m,tgt){
   const ps=tgt||S.season.playerStats;
   for(const pid in m.stats)mergeBatLine(pid,m.stats[pid],ps);
   for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid],ps);
-  // 勝敗投手：獲勝方先發勝投、落敗方先發敗投（寫入球季累計）
+  // 勝敗投手：記給「投手對」——有換投時是真正完成投球的那位，不是先發
+  // 救援成功：獲勝方最後那位是後援、而且他上場時球隊領先 → 才算救援成功
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
     const pp=ps.pit;
-    const wId=m.starters[wSide].id,lId=m.starters[lSide].id;
+    const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
+    const wId=curOf(wSide).id,lId=curOf(lSide).id;
     if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
     if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
+    const wc=curOf(wSide);
+    if(wc&&!wc.starter&&m.pitchers[wSide].cameInLeading&&pp[wc.id])pp[wc.id].sv=(pp[wc.id].sv||0)+1;
   }
 }
 /* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */

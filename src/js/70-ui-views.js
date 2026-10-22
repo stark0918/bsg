@@ -256,7 +256,15 @@ const CFG_UI=[
     ["strScale","球隊強弱差距倍率","倍",v=>v,v=>v===0?"全聯盟一樣強":v===1?"原本":v+" 倍",0.25],
     ["strShift","全聯盟整體強度偏移","",v=>v,v=>v,1],
     ["benchBatters","板凳打者人數","人",v=>v,v=>v,1],
+    ["starterPitchers","先發投手人數","人",v=>v,v=>v,1],
+    ["reliefPitchers","後援投手人數","人",v=>v,v=>v,1],
     ["posBoost","守位能力加成","",null,v=>v?"開啟":"關閉",null,null]
+  ]],
+  ["後援上場",[
+    ["autoPitcher","自動換投","",null,v=>v?"開啟":"關閉（先發投完整場）",null,null],
+    ["autoPitPitch","先發投到多少球換後援","球",v=>v,v=>v,5],
+    ["autoPitInn","第幾局起可派守成後援","局",v=>v,v=>v,1],
+    ["autoPitLead","守成換投的最大分差","分",v=>v,v=>v,1]
   ]],
   ["比賽數值",[
     ["runExp","每隊每場得分期望","分",v=>v,v=>v,0.1],
@@ -303,7 +311,7 @@ function viewAdmin(){
   const p=S.adminPid?playerById(S.adminPid):null;
   if(p&&teamOfPlayer({id:p.id})===tid){
     const isPit=p.role!==undefined;
-    const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
+    const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense","mentality"];
     const kn={meet:"打擊",power:"力量",eye:"選球",speed:"速度",defense:"守備",mentality:"膽識",velocity:"球速",control:"控球",breaking:"變化",stamina:"體力"};
     const rows=keys.map(k=>`<div class="lurow"><span class="luord">${kn[k]}</span>
       <div class="lumain"><div class="luname"><b>${p[k]}</b></div></div>

@@ -426,6 +426,8 @@ function playPA(m,offT,defT){
   if(m.half==="bottom"&&m.inning>=9&&m.score.home>m.score.away){
     m.over=true;m.winner="home";m.walkoff=true;m.splash={t:"再見！",c:"hr"};
   }
+  // 自動換投：這個打席結束後，下一棒可能會換到新的投手
+  if(!m.over)autoPitcherChange(m);
 }
 /* 單場英雄（Player of the Game）
    候選僅取「勝利方」球員（和局時兩隊皆可），並讓打者與投手份量相當，
@@ -563,9 +565,34 @@ function doChangePitcher(m,pid){
   const old=m.pitchers[defSide].obj;
   m.usedPitchers[defSide].push(old.id);
   const npCond=rollCond();
-  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex)};
+  // 記下這位後援是領先還是落後時上來的：結算時才知道能不能拿救援成功
+  const diff=m.score[defSide]-m.score[offenseSide(m)];
+  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex),cameInLeading:diff>0};
   const condTxt=npCond==="good"?"（好調）":npCond==="bad"?"（不調）":"";
   m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球${condTxt}。`,c:"run"});
+}
+/* 自動換投：先發打到球數上限、或後段需要守成時，自動換牛棚上來。
+   配方（管理者可調）：
+     ・先發投球數 ≥ autoPitPitch → 換上「體力」最好的後援（紓壓，避免先發被投爆）
+     ・局數 ≥ autoPitInn 且守方領先 1~autoPitLead 分 → 換上「控球」最好的後援（守成）
+   換投時機是在一個打席結束後，下一棒打者才會遇到新的投手。 */
+function autoPitcherChange(m){
+  if(cfg('autoPitcher')===0)return;
+  if(!m||m.over)return;
+  const defSide=defenseSide(m);
+  const P=m.pitchers[defSide];
+  if(!P||!P.obj||!P.obj.starter)return;      // 已經是後援就不再換
+  const bp=m.bullpen[defSide];
+  if(!bp.length)return;
+  const diff=m.score[defSide]-m.score[offenseSide(m)];   // 守方分差（正＝領先）
+  const tired=(P.pitches||0)>=cfg('autoPitPitch');
+  const needClose=(m.inning>=cfg('autoPitInn'))&&(diff>=1&&diff<=cfg('autoPitLead'));
+  if(!tired&&!needClose)return;
+  // 守成型優先挑控球好的，一般換投挑體力好的
+  const key=needClose?"control":"stamina";
+  const pick=bp.slice().sort((a,b)=>(b[key]||0)-(a[key]||0))[0];
+  if(!pick)return;
+  doChangePitcher(m,pick.id);
 }
 
 /* ---------- 遊戲回合控制 ---------- */
