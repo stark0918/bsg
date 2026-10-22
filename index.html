@@ -1181,6 +1181,25 @@ function playPA(m,offT,defT){
   // 自動換投：這個打席結束後，下一棒可能會換到新的投手
   if(!m.over)autoPitcherChange(m);
 }
+/* 本場的勝負投與救援成功（賽後畫面顯示與球季成績結算共用同一套規則，兩邊才不會不一致）
+   ① 勝投：先發投滿 5 局（15 出局）且退場時領先 → 先發；否則 → 投手對
+   ② 敗投：落敗方的投手對
+   ③ 救援成功：獲勝方最後一位是後援、不是勝投投手（同一場不能兩者兼得）、
+      至少投 1 個出局，且符合：上場時領先 1~3 分／有效投球滿 3 局／9 局以後逆轉 */
+function gameDecisions(m){
+  if(!m||!m.winner)return null;
+  const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
+  const wSide=m.winner,lSide=wSide==="home"?"away":"home";
+  const sw=(m.swapInfo&&m.swapInfo[wSide])||null;
+  const w=(sw&&sw.outs>=15&&sw.lead>0)?m.starters[wSide].id:curOf(wSide).id;
+  const l=curOf(lSide).id;
+  const wc=curOf(wSide);
+  const outs=(m.pstats[wc.id]&&m.pstats[wc.id].outs)||0;
+  const lead=(m.pitchers[wSide].cameInLead||0);
+  const inn=(m.pitchers[wSide].cameInInn||0);
+  const sv=(wc&&!wc.starter&&wc.id!==w&&outs>=1&&((lead>=1&&lead<=3)||outs>=9||(lead<=0&&inn>=9)))?wc.id:null;
+  return {w:w,l:l,sv:sv};
+}
 /* 單場英雄（Player of the Game）
    候選僅取「勝利方」球員（和局時兩隊皆可），並讓打者與投手份量相當，
    避免以往投手（含敗投）幾乎必當 MVP 的問題。 */
@@ -1600,25 +1619,11 @@ function mergePlayerStats(m,tgt){
           情境C：有效投球滿 3 局（9 出局）以上
           情境B（近似）：9 局以後平手／落後上場而球隊獲勝 */
   const pp=ps.pit;
-  if(m.winner){
-    const wSide=m.winner,lSide=wSide==="home"?"away":"home";
-    const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
-    // ① 勝投
-    const wStarter=m.starters[wSide];
-    const sw=(m.swapInfo&&m.swapInfo[wSide])||null;
-    const wId=(sw&&sw.outs>=15&&sw.lead>0)?wStarter.id:curOf(wSide).id;
-    if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
-    const lId=curOf(lSide).id;
-    if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
-    // ② 救援成功（和勝投互斥）
-    const wc=curOf(wSide);
-    if(wc&&!wc.starter&&wc.id!==wId&&pp[wc.id]){
-      const outs=(m.pstats[wc.id]&&m.pstats[wc.id].outs)||0;
-      const lead=(m.pitchers[wSide].cameInLead||0);
-      const inn=(m.pitchers[wSide].cameInInn||0);
-      const svOK=outs>=1&&((lead>=1&&lead<=3)||outs>=9||(lead<=0&&inn>=9));
-      if(svOK)pp[wc.id].sv=(pp[wc.id].sv||0)+1;
-    }
+  const dec=gameDecisions(m);   // 勝負投／救援成功：跟賽後畫面用同一套規則
+  if(dec){
+    if(pp[dec.w])pp[dec.w].w=(pp[dec.w].w||0)+1;
+    if(pp[dec.l])pp[dec.l].l=(pp[dec.l].l||0)+1;
+    if(dec.sv&&pp[dec.sv])pp[dec.sv].sv=(pp[dec.sv].sv||0)+1;
   }
   // 完投：先發投手沒有被換下、且球隊投滿 9 局（總出局 27 以上）
   for(const side of ["away","home"]){
@@ -4392,10 +4397,29 @@ function viewGame(){
     const hasReg=!!nextPlayerGame(),hasPo=!!playoffNextGame();
     const nextBtn=(hasReg||hasPo)?`<button class="btn green blk" data-act="nextGame">⏭ ${hasReg?"繼續下一場":"繼續季後賽"}</button>`:"";
     const poInfo = (S.season&&S.season.playoff)?`<p class="center muted" style="font-size:12px">季後賽狀態：${S.season.playoff.champion?"已結束（總冠軍 ${teamBadge(S.season.playoff.champion)}）":(S.season.playoff.stage==="final"?"冠軍戰進行中":"準決賽進行中")}　${S.season.playoff.seeds&&S.season.playoff.seeds.indexOf(S.season.playerTeam)>=0?"（你已晉級）":""}</p>`:"";
+    const dec=m.over?gameDecisions(m):null;
+    const nmOf=pid=>{const pl=pid?playerById(pid):null;return pl?"<b>"+esc(pl.name)+"</b>（"+esc(getTeam(teamOfPlayer({id:pl.id})).short)+"）":"－";};
+    let keyStats="";
+    if(dec){
+      const hr=[],rbi=[],runs=[];
+      for(const pid in m.stats){
+        const st=m.stats[pid];if(!st)continue;
+        if((st.hr||0)>0)hr.push({pid:pid,v:st.hr});
+        if((st.rbi||0)>0)rbi.push({pid:pid,v:st.rbi});
+        if((st.r||0)>0)runs.push({pid:pid,v:st.r});
+      }
+      const top=(arr,n)=>arr.sort((a,b)=>b.v-a.v).slice(0,n).map(x=>esc(recName(x.pid))+" "+x.v).join("、");
+      const hrTxt=top(hr,3),rbiTxt=top(rbi,3),rTxt=top(runs,3);
+      keyStats='<div class="hr"></div>'
+        +'<p class="center" style="margin:0 0 4px"><b>◆ 本場關鍵表現</b></p>'
+        +'<p class="center" style="margin:0 0 4px;font-size:13px">投手：勝投 '+nmOf(dec.w)+'　敗投 '+nmOf(dec.l)+(dec.sv?'　救援 '+nmOf(dec.sv):'')+'</p>'
+        +'<p class="center" style="margin:0;font-size:13px">打者：全壘打 '+(hrTxt||'無')+'　打點 '+(rbiTxt||'無')+'　得分 '+(rTxt||'無')+'</p>';
+    }
     result=`<div class="panel" id="gameresult"><h2>${title}</h2>
       <p class="center">最終比數　<b class="bignum">${esc(getTeam(m.awayId).name)} ${m.score.away} － ${m.score.home} ${esc(getTeam(m.homeId).name)}</b></p>
       ${m.hero?`<p class="center" style="margin-top:8px">◆ Player of the Game：${teamBadge(teamOfPlayer({id:m.hero.pid}))}　<b>${esc(m.hero.name)}</b>　${m.hero.isPit?`<span class="pill on">三振 ${m.hero.s.k} 次</span>`:`<span class="pill on">安打 ${m.hero.s.h}／打點 ${m.hero.s.rbi}</span>`}</p>`:""}
       ${poInfo}
+      ${keyStats}
       ${boxScore(m)}
       <div class="hr"></div>
       ${nextBtn}
