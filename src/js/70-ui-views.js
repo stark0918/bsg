@@ -899,6 +899,21 @@ function viewRetiree(){
   const spanTxt=r.seasons
     ?`　效力 ${r.seasons} 個球季（第 ${r.debutSeason} 季出道）`
     :(hasStats?`　出道球季不明（${r.debutSeason?"":"紀錄開始前就已在聯盟，"}無法計算效力球季）`:"");
+  /* 逐季成績：用引退當時的名字過濾（pid 已被新人沿用，不能只看 pid） */
+  const rseasons=playerSeasonStats(r.pid,isPit,r.name);
+  const seasonTable=rseasons.length?`<div class="tablewrap"><table class="grid seastable">
+      <tr><th>球季</th>${isPit
+        ?`<th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壖</th><th>三振</th>`
+        :`<th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壖</th><th>三振</th><th>得分</th><th>盜壘</th>`}</tr>
+      ${rseasons.map(x=>{const q=x.s;return `<tr><td class="num sealab">${x.no}季</td>
+        ${isPit
+          ?`<td class="num">${q.g||0}</td><td class="num">${fmtIP(q.outs||0)}</td><td class="num">${q.outs?fmtERA(q.er||0,q.outs):"-.-"}</td>
+            <td class="num">${q.w||0}</td><td class="num">${q.l||0}</td><td class="num">${q.sv||0}</td>
+            <td class="num">${q.h||0}</td><td class="num">${q.bb||0}</td><td class="num">${q.k||0}</td>`
+          :`<td class="num">${q.g||0}</td><td class="num">${q.ab||0}</td><td class="num">${q.h||0}</td><td class="num">${fmtAvg(q.ab?q.h/q.ab:0)}</td>
+            <td class="num">${q.hr||0}</td><td class="num">${q.rbi||0}</td><td class="num">${q.bb||0}</td><td class="num">${q.k||0}</td>
+            <td class="num">${q.r||0}</td><td class="num">${q.sb||0}</td>`}</tr>`;}).join("")}
+      </table></div>`:"";
   return `<div class="panel"><h2>球員資料（已引退）</h2>
     <div class="matchup">
       ${playerAvatar({id:r.pid},56)}
@@ -907,6 +922,7 @@ function viewRetiree(){
       <p class="muted" style="font-size:12px;margin:0">第 ${r.no} 季引退${spanTxt}${gTxt}${asTxt}。已離開聯盟，下表為引退當時的跨季累計。</p>
     </div>
     <h3>生涯成績（跨季累計）</h3>${statsTable}
+    ${seasonTable?`<h3>逐季成績（跨季）</h3>${seasonTable}`:""}
     <h3>生涯里程碑</h3>${mileHTML}
     <h3>獲獎紀錄</h3>${awardHTML}
     <div class="abilnote">球員編號 ${esc(r.pid)}：這個位置日後由新人沿用，所以這裡只顯示引退當下留下的資料。</div>
