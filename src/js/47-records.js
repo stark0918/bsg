@@ -226,17 +226,31 @@ const CAREER_PIT_REC=[
   ["生涯救援",s=>s.sv||0,Number,CAREER_MIN_COUNT_OUTS,true]
 ];
 /* 逐季球員成績（跨季）：每季一筆，供球員資料頁的「逐季成績」表。
-   已結束的球季從 seasonDetails.playerStats 取；本季進行中的直接從 playerStats 取。 */
+   已結束的球季從 seasonDetails.playerStats 取；本季進行中的直接從 playerStats 取。
+   ★ pid 會被選秀新人沿用（同一個編號換人接手），所以每一筆都要用「名字」判斷是誰的成績，
+     否則新人會看到前任的資料。wantName 可指定要看哪個名字（已引退者用快照裡的名字）。 */
 const SEASON_BAT_KEYS=["g","ab","h","hr","rbi","bb","k","r","sb"];
 const SEASON_PIT_KEYS=["g","outs","h","r","er","bb","k","pp","w","l","sv"];
-function playerSeasonStats(pid,isPit){
+function playerSeasonStats(pid,isPit,wantName){
   const rows=[];
   const key=isPit?"pit":"bat";
   const keys=isPit?SEASON_PIT_KEYS:SEASON_BAT_KEYS;
+  const me=playerById(pid);
+  const nm=wantName||(me?me.name:null);
+  // 舊存檔的逐季資料沒存名字 → 用引退紀錄推算這段球季屬於誰
+  const span=nm?pidNameSeasonSpan(pid,nm):null;
   (CAREER.seasonDetails||[]).forEach(sd=>{
     const arr=sd.playerStats&&sd.playerStats[key]&&sd.playerStats[key][pid];
     if(!arr)return;
+    // 同一個 pid 可能換過人：只顯示名字相符的資料
+    const sn=sd.playerNames&&sd.playerNames[key]&&sd.playerNames[key][pid];
+    if(nm&&sn){
+      if(sn!==nm)return;
+    }else if(span){
+      if(sd.no<span[0]||sd.no>span[1])return;
+    }
     const s={};keys.forEach((k,i)=>s[k]=arr[i]||0);
+    if(!(s.g>0))return;          // 沒有出賽的零資料列不顯示
     rows.push({no:sd.no,team:sd.team,s});
   });
   // 本季（進行中、尚未結算）
@@ -244,7 +258,7 @@ function playerSeasonStats(pid,isPit){
   if(se&&!se.finalized){
     const ps=se.playerStats||{};
     const s=(isPit?ps.pit:ps.bat)||{};
-    if(s[pid])rows.push({no:(CAREER.seasons||0)+1,team:se.playerTeam,s:Object.assign({},s[pid]),cur:true});
+    if(s[pid]&&(s[pid].g||0)>0)rows.push({no:(CAREER.seasons||0)+1,team:se.playerTeam,s:Object.assign({},s[pid]),cur:true});
   }
   return rows;
 }

@@ -68,9 +68,17 @@ function finalizeSeason(){
   for(const pid in ps.bat){const s=ps.bat[pid];const tid=teamOfPlayer({id:pid});if(tid===me)sd.teamStats.bat[pid]={...s};}
   for(const pid in ps.pit){const s=ps.pit[pid];const tid=teamOfPlayer({id:pid});if(tid===me)sd.teamStats.pit[pid]={...s};}
   // 逐季球員成績（全聯盟，用精簡陣列省空間）：供球員資料頁的「逐季成績」表使用
+  // 同時存下當季的名字：pid 會被選秀新人沿用（同編號換人），光看 pid 分不出是誰的成績
   sd.playerStats={bat:{},pit:{}};
-  for(const pid in ps.bat)sd.playerStats.bat[pid]=BAT.map(k=>ps.bat[pid][k]||0);
-  for(const pid in ps.pit)sd.playerStats.pit[pid]=PIT.map(k=>ps.pit[pid][k]||0);
+  sd.playerNames={bat:{},pit:{}};
+  for(const pid in ps.bat){
+    sd.playerStats.bat[pid]=BAT.map(k=>ps.bat[pid][k]||0);
+    const p=playerById(pid); if(p)sd.playerNames.bat[pid]=p.name;
+  }
+  for(const pid in ps.pit){
+    sd.playerStats.pit[pid]=PIT.map(k=>ps.pit[pid][k]||0);
+    const p=playerById(pid); if(p)sd.playerNames.pit[pid]=p.name;
+  }
 
   /* 歷屆獎項：綁定選手百科與紀錄殿堂 */
   CAREER.awards=CAREER.awards||[];

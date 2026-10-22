@@ -188,6 +188,19 @@ function retireeByRid(rid){
 }
 /* 跨季累計裡的名字／球隊：在役球員用 pid，退役球員用 rid → 取引退紀錄 */
 function careerName(pid){const r=retireeByRid(pid);return r?r.name:recName(pid);}
+/* 同一個 pid 會被選秀新人沿用（同編號換人接手），所以同一個 pid 可能有多段不同的生涯。
+   這裡用引退紀錄推算「某個名字是第幾任」以及他服役的球季區間 [起,迄]，
+   舊存檔的逐季資料沒有存名字時，可以用它判斷資料歸屬。 */
+function pidNameSeasonSpan(pid,name){
+  const rets=(CAREER.retirements||[]).filter(r=>r&&r.pid===pid).sort((a,b)=>(a.no||0)-(b.no||0));
+  if(!rets.length)return null;
+  let idx=-1;
+  for(let i=0;i<rets.length;i++){ if(rets[i].name===name){idx=i;break;} }
+  if(idx<0)return null;
+  const from=idx===0?1:(rets[idx-1].no||0)+1;
+  const to=idx<rets.length-1?(rets[idx].no||0):Infinity;
+  return [from,to];
+}
 function careerTeam(pid){const r=retireeByRid(pid);return r?r.team:recTeam(pid);}
 /* 該球員的明星賽入選次數（從歷屆名單數，pid 被沿用也不怕算錯人） */
 function retireeAllstarCount(pid,name){
