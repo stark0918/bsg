@@ -196,9 +196,14 @@ function pidNameSeasonSpan(pid,name){
   if(!rets.length)return null;
   let idx=-1;
   for(let i=0;i<rets.length;i++){ if(rets[i].name===name){idx=i;break;} }
-  if(idx<0)return null;
+  if(idx<0){
+    // 這個名字不在引退紀錄裡 → 他是現任球員，服務區間是「最後一次引退之後到現在」
+    const last=rets[rets.length-1];
+    return [(last.no||0)+1,Infinity];
+  }
+  // 有引退紀錄 → 他服務到該季為止，之後的球季是下一任的
   const from=idx===0?1:(rets[idx-1].no||0)+1;
-  const to=idx<rets.length-1?(rets[idx].no||0):Infinity;
+  const to=rets[idx].no||0;
   return [from,to];
 }
 function careerTeam(pid){const r=retireeByRid(pid);return r?r.team:recTeam(pid);}
