@@ -446,6 +446,9 @@ const CONFIG_DEF={
   autoPitPitch:85,       // 先發投到多少球就換後援
   autoPitInn:8,          // 第幾局起可以派守成型後援
   autoPitLead:3,         // 守成換投時的最大分差（領先 1~3 分）
+  autoPitStamina:75,      // 完投資格：先發體力達到這個值
+  autoPitFresh:0.88,      // 完投資格：疲勞係數還要高於這個值（還投得動）
+  autoPitMax:145,         // 完投的球數上限（超過就一定換人）
   /* ── 比賽數值 ── */
   runExp:4.3,            // 每隊每場得分期望值
   hitRatio:1.15,         // 安打數 ÷ 得分的係數
@@ -471,6 +474,7 @@ const CFG_LIMITS={
   careerAb:[0,1000],
   strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], starterPitchers:[1,5], reliefPitchers:[1,6], posBoost:[0,1],
   autoPitcher:[0,1], autoPitPitch:[30,150], autoPitInn:[1,12], autoPitLead:[1,8],
+  autoPitStamina:[60,97], autoPitFresh:[0.7,1], autoPitMax:[90,200],
   runExp:[1,10], hitRatio:[0.5,3], pitOutsMin:[3,27], pitOutsMax:[4,27]
 };
 function cfgMin(k){const l=CFG_LIMITS[k];return l?l[0]:0;}
@@ -1339,6 +1343,10 @@ function autoPitcherChange(m){
   const bp=m.bullpen[defSide];
   if(!bp.length)return;
   const diff=m.score[defSide]-m.score[offenseSide(m)];   // 守方分差（正＝領先）
+  // 完投：先發體力好、還投得動，而且球數未達上限 → 不主動換投，讓他投到完場
+  const eff=pitcherEffective(P.obj,P.pitches||0,P.cond,P.carryPP||0);
+  const goodShape=(P.obj.stamina||0)>=cfg('autoPitStamina')&&eff.fatigue>=cfg('autoPitFresh');
+  if(goodShape&&(P.pitches||0)<=cfg('autoPitMax'))return;
   const tired=(P.pitches||0)>=cfg('autoPitPitch');
   const needClose=(m.inning>=cfg('autoPitInn'))&&(diff>=1&&diff<=cfg('autoPitLead'));
   if(!tired&&!needClose)return;
@@ -1487,8 +1495,11 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
   const starter=sp[ri(0,sp.length-1)];
   const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
-  const rest=27-outs;
-  const starterLine={pid:starter.id,outs:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:outs*ri(3,4),w:0,l:0,sv:0};
+  // 體力好的先發有機會完投（跟引擎的「狀況好可以完投」呼應）
+  const cgChance=clamp(((starter.stamina||70)-72)/34,0,0.45);
+  const noReliever=chance(cgChance);
+  const rest=noReliever?0:27-outs;
+  const starterLine={pid:starter.id,outs:noReliever?27:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:(noReliever?27:outs)*ri(3,4),w:0,l:0,sv:0};
   const list=[starterLine];
   let relLine=null;
   if(rest>0){
@@ -1588,9 +1599,9 @@ function mergePlayerStats(m,tgt){
           情境A：上場時領先 1~3 分並守到終場
           情境C：有效投球滿 3 局（9 出局）以上
           情境B（近似）：9 局以後平手／落後上場而球隊獲勝 */
+  const pp=ps.pit;
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
-    const pp=ps.pit;
     const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
     // ① 勝投
     const wStarter=m.starters[wSide];
@@ -1609,6 +1620,57 @@ function mergePlayerStats(m,tgt){
       if(svOK)pp[wc.id].sv=(pp[wc.id].sv||0)+1;
     }
   }
+  // 完投：先發投手沒有被換下、且球隊投滿 9 局（總出局 27 以上）
+  for(const side of ["away","home"]){
+    const tid=side==="away"?m.awayId:m.homeId;
+    const st=m.starters[side];
+    const cur=(m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||st;
+    if(!st||!cur||st.id!==cur.id)continue;          // 有換投就不算完投
+    let tot=0;
+    for(const pid in m.pstats)if(pid.indexOf(tid+"p")===0)tot+=(m.pstats[pid].outs||0);
+    if(tot>=27&&pp[st.id])pp[st.id].cg=(pp[st.id].cg||0)+1;
+  }
+}
+/* 依新規則重算本季的勝投／敗投／救援成功／完投。
+   從逐場 box 取每位投手的出局數與球隊得失分重新判定，讓舊存檔（用錯規則算出來的）也能修回來。
+   規則（近似真實棒球）：
+     ・勝投：先發投滿 5 局（15 出局）→ 勝投歸先發；否則歸投手對（box 裡最後投球的那位）
+     ・敗投：落敗方的投手對
+     ・救援成功：獲勝方投手對是後援、球隊分差 ≤ 3、且至少投 1 個出局
+     ・完投：該隊只投了一名投手（先發投完整場）且總出局 ≥ 27 */
+function recomputeSeasonDecisions(){
+  const se=S.season;
+  if(!se||!se.playerStats||!se.playerStats.pit)return 0;
+  const ps=se.playerStats.pit;
+  for(const pid in ps){ps[pid].w=0;ps[pid].l=0;ps[pid].sv=0;ps[pid].cg=0;}
+  const boxes=se.boxes||[];
+  for(let d=0;d<boxes.length;d++){
+    const day=boxes[d];if(!day)continue;
+    for(const g of day){
+      if(!g||!g.pit)continue;
+      const awR=g.a||0,hmR=g.h||0;
+      const winSide=awR>hmR?"aw":hmR>awR?"hm":null;
+      const margin=Math.abs(awR-hmR);
+      for(const side of ["aw","hm"]){
+        const tid=side==="aw"?(g.aw||""):(g.hm||"");
+        const pids=Object.keys(g.pit).filter(pid=>pid.indexOf(tid+"p")===0);
+        if(!pids.length)continue;
+        const outsOf=pid=>(g.pit[pid]&&g.pit[pid][0])||0;
+        const first=pids[0],last=pids[pids.length-1];
+        let tot=0;pids.forEach(pid=>tot+=outsOf(pid));
+        if(winSide===side){
+          const wId=outsOf(first)>=15?first:last;
+          if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
+          if(last!==first&&outsOf(last)>=3&&margin<=3&&ps[last])ps[last].sv=(ps[last].sv||0)+1;
+          if(pids.length===1&&tot>=27&&ps[first])ps[first].cg=(ps[first].cg||0)+1;
+        }else if(winSide){
+          if(ps[last])ps[last].l=(ps[last].l||0)+1;
+        }
+      }
+    }
+  }
+  saveGame();
+  return 1;
 }
 /* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */
 function mergePoStats(m){
@@ -4127,6 +4189,9 @@ function viewAdmin(){
     <div class="hr"></div><h3>危險區</h3>
     <button class="btn red blk" data-act="ask" data-arg="adminWipeRecs">清除本季單場紀錄</button>
     <div class="hr"></div>
+    <button class="btn gold blk" data-act="adminRecalcDecisions">↺ 依新規則重算本季勝負／救援／完投</button>
+    <p class="muted" style="font-size:11px">如果本季是在修正規則之前打完的，先發的勝敗數字可能不正確，用這個按一次即可重算。<b>勝／敗是精確重算；救援與完投只能用逐場資料推算，會和當初即時結算的數字略有差異。</b></p>
+    <div class="hr"></div>
     <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
 /* ----- 球季資訊 ----- */
@@ -4466,7 +4531,7 @@ function viewRoster(){
     const s=ps.pit[p.id];
     return `<tr><td class="name">${playerAvatar(p,20)}<span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td><td>${esc(p.role)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${s?s.g:0}</td>
       <td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td>
-      <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td>
+      <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?(s.cg||0):0}</td>
       <td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
   }).join("");
   return `<div class="panel">
@@ -4475,7 +4540,7 @@ function viewRoster(){
     <h3>野手</h3>
     <table class="grid"><tr><th>球員</th><th>守位</th><th>綜合</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>${batRows}</table>
     <h3>投手</h3>
-    <table class="grid"><tr><th>球員</th><th>角色</th><th>綜合</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
+    <table class="grid"><tr><th>球員</th><th>角色</th><th>綜合</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>完投</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
     <div class="hr"></div>
     <button class="btn blk" data-act="abilities">🧮 選手能力數值一覽</button>
     <button class="btn blk" data-act="backHub">← 回球季總部</button>
@@ -4560,8 +4625,8 @@ function viewPlayer(){
     roleLabel=p.role;
     bars=rbar("球速",p.velocity)+rbar("控球",p.control)+rbar("變化",p.breaking)+rbar("體力",p.stamina);
     const s=ps&&ps.pit[pid];
-    statsTable=`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>
-      <tr><td class="num">${s?s.g:0}</td><td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td><td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr></table>`;
+    statsTable=`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>完投</th><th>被安</th><th>四壞</th><th>三振</th></tr>
+      <tr><td class="num">${s?s.g:0}</td><td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td><td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?(s.cg||0):0}</td><td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr></table>`;
   }else{
     roleLabel=p.posLabel;
     bars=rbar("打擊",p.meet)+rbar("力量",p.power)+rbar("選球",p.eye)+rbar("速度",p.speed)+rbar("守備",p.defense);
@@ -4590,16 +4655,16 @@ function viewPlayer(){
       const s=r.s;
       return `<tr class="${r.cur?"me":""}">${seasonLabel(r)}
         <td class="num">${s.g||0}</td><td class="num">${fmtIP(s.outs||0)}</td><td class="num">${s.outs?fmtERA(s.er||0,s.outs):"-.-"}</td>
-        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td>
+        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td><td class="num">${s.cg||0}</td>
         <td class="num">${s.h||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td>${awCell(r.no)}</tr>`;
     }).join("");
     const t=careerMerged().pit[pid];
     const tot=t?`<tr class="me"><td class="name sealab">生涯</td>
         <td class="num">${t.g||0}</td><td class="num">${fmtIP(t.outs||0)}</td><td class="num">${t.outs?fmtERA(t.er||0,t.outs):"-.-"}</td>
-        <td class="num">${t.w||0}</td><td class="num">${t.l||0}</td><td class="num">${t.sv||0}</td>
+        <td class="num">${t.w||0}</td><td class="num">${t.l||0}</td><td class="num">${t.sv||0}</td><td class="num">${t.cg||0}</td>
         <td class="num">${t.h||0}</td><td class="num">${t.bb||0}</td><td class="num">${t.k||0}</td>
         <td class="muted awcell" style="font-size:11px">${awList.length?`🏆 共 ${awList.length} 項`:"－"}</td></tr>`:"";
-    seasonTable=seasonRows.length||t?`<div class="tablewrap"><table class="grid seastable"><tr><th>球季</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th><th>獲獎</th></tr>${rows}${tot}</table></div>`
+    seasonTable=seasonRows.length||t?`<div class="tablewrap"><table class="grid seastable"><tr><th>球季</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>完投</th><th>被安</th><th>四壞</th><th>三振</th><th>獲獎</th></tr>${rows}${tot}</table></div>`
       :`<p class="muted">尚無生涯累計（本季目前也還沒有出賽紀錄）。</p>`;
   }else{
     const rows=seasonRows.map(r=>{
@@ -5250,6 +5315,13 @@ const ACT={
     resetConfig();
     for(const ck in teamCache)delete teamCache[ck];
     flash("已還原所有設定為預設值");
+    render();
+  },
+  /* 依新規則重算本季的勝投／敗投／救援成功／完投（修正舊存檔用錯規則算出來的數字） */
+  adminRecalcDecisions(){
+    if(!S.season){flash("尚未開始球季");render();return;}
+    const n=recomputeSeasonDecisions();
+    flash(n?"已依新規則重算本季的勝負／救援／完投":"沒有可重算的資料");
     render();
   },
   /* 快速模擬到季中/季末 */

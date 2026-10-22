@@ -92,8 +92,11 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
   const starter=sp[ri(0,sp.length-1)];
   const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
-  const rest=27-outs;
-  const starterLine={pid:starter.id,outs:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:outs*ri(3,4),w:0,l:0,sv:0};
+  // 體力好的先發有機會完投（跟引擎的「狀況好可以完投」呼應）
+  const cgChance=clamp(((starter.stamina||70)-72)/34,0,0.45);
+  const noReliever=chance(cgChance);
+  const rest=noReliever?0:27-outs;
+  const starterLine={pid:starter.id,outs:noReliever?27:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:(noReliever?27:outs)*ri(3,4),w:0,l:0,sv:0};
   const list=[starterLine];
   let relLine=null;
   if(rest>0){
@@ -193,9 +196,9 @@ function mergePlayerStats(m,tgt){
           情境A：上場時領先 1~3 分並守到終場
           情境C：有效投球滿 3 局（9 出局）以上
           情境B（近似）：9 局以後平手／落後上場而球隊獲勝 */
+  const pp=ps.pit;
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
-    const pp=ps.pit;
     const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
     // ① 勝投
     const wStarter=m.starters[wSide];
@@ -214,6 +217,57 @@ function mergePlayerStats(m,tgt){
       if(svOK)pp[wc.id].sv=(pp[wc.id].sv||0)+1;
     }
   }
+  // 完投：先發投手沒有被換下、且球隊投滿 9 局（總出局 27 以上）
+  for(const side of ["away","home"]){
+    const tid=side==="away"?m.awayId:m.homeId;
+    const st=m.starters[side];
+    const cur=(m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||st;
+    if(!st||!cur||st.id!==cur.id)continue;          // 有換投就不算完投
+    let tot=0;
+    for(const pid in m.pstats)if(pid.indexOf(tid+"p")===0)tot+=(m.pstats[pid].outs||0);
+    if(tot>=27&&pp[st.id])pp[st.id].cg=(pp[st.id].cg||0)+1;
+  }
+}
+/* 依新規則重算本季的勝投／敗投／救援成功／完投。
+   從逐場 box 取每位投手的出局數與球隊得失分重新判定，讓舊存檔（用錯規則算出來的）也能修回來。
+   規則（近似真實棒球）：
+     ・勝投：先發投滿 5 局（15 出局）→ 勝投歸先發；否則歸投手對（box 裡最後投球的那位）
+     ・敗投：落敗方的投手對
+     ・救援成功：獲勝方投手對是後援、球隊分差 ≤ 3、且至少投 1 個出局
+     ・完投：該隊只投了一名投手（先發投完整場）且總出局 ≥ 27 */
+function recomputeSeasonDecisions(){
+  const se=S.season;
+  if(!se||!se.playerStats||!se.playerStats.pit)return 0;
+  const ps=se.playerStats.pit;
+  for(const pid in ps){ps[pid].w=0;ps[pid].l=0;ps[pid].sv=0;ps[pid].cg=0;}
+  const boxes=se.boxes||[];
+  for(let d=0;d<boxes.length;d++){
+    const day=boxes[d];if(!day)continue;
+    for(const g of day){
+      if(!g||!g.pit)continue;
+      const awR=g.a||0,hmR=g.h||0;
+      const winSide=awR>hmR?"aw":hmR>awR?"hm":null;
+      const margin=Math.abs(awR-hmR);
+      for(const side of ["aw","hm"]){
+        const tid=side==="aw"?(g.aw||""):(g.hm||"");
+        const pids=Object.keys(g.pit).filter(pid=>pid.indexOf(tid+"p")===0);
+        if(!pids.length)continue;
+        const outsOf=pid=>(g.pit[pid]&&g.pit[pid][0])||0;
+        const first=pids[0],last=pids[pids.length-1];
+        let tot=0;pids.forEach(pid=>tot+=outsOf(pid));
+        if(winSide===side){
+          const wId=outsOf(first)>=15?first:last;
+          if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
+          if(last!==first&&outsOf(last)>=3&&margin<=3&&ps[last])ps[last].sv=(ps[last].sv||0)+1;
+          if(pids.length===1&&tot>=27&&ps[first])ps[first].cg=(ps[first].cg||0)+1;
+        }else if(winSide){
+          if(ps[last])ps[last].l=(ps[last].l||0)+1;
+        }
+      }
+    }
+  }
+  saveGame();
+  return 1;
 }
 /* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */
 function mergePoStats(m){

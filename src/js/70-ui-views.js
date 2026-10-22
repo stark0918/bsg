@@ -330,6 +330,9 @@ function viewAdmin(){
     <div class="hr"></div><h3>危險區</h3>
     <button class="btn red blk" data-act="ask" data-arg="adminWipeRecs">清除本季單場紀錄</button>
     <div class="hr"></div>
+    <button class="btn gold blk" data-act="adminRecalcDecisions">↺ 依新規則重算本季勝負／救援／完投</button>
+    <p class="muted" style="font-size:11px">如果本季是在修正規則之前打完的，先發的勝敗數字可能不正確，用這個按一次即可重算。<b>勝／敗是精確重算；救援與完投只能用逐場資料推算，會和當初即時結算的數字略有差異。</b></p>
+    <div class="hr"></div>
     <button class="btn blk" data-act="backHub">← 回球季總部</button></div>`;
 }
 /* ----- 球季資訊 ----- */
@@ -669,7 +672,7 @@ function viewRoster(){
     const s=ps.pit[p.id];
     return `<tr><td class="name">${playerAvatar(p,20)}<span class="plink" data-act="player" data-arg="${p.id}">${esc(p.name)}</span></td><td>${esc(p.role)}</td><td class="num">${gradeBadge(p)}</td><td class="num">${s?s.g:0}</td>
       <td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td>
-      <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td>
+      <td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?(s.cg||0):0}</td>
       <td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr>`;
   }).join("");
   return `<div class="panel">
@@ -678,7 +681,7 @@ function viewRoster(){
     <h3>野手</h3>
     <table class="grid"><tr><th>球員</th><th>守位</th><th>綜合</th><th>出賽</th><th>打數</th><th>安打</th><th>打率</th><th>全壘</th><th>打點</th><th>四壞</th><th>三振</th><th>得分</th><th>盜壘</th></tr>${batRows}</table>
     <h3>投手</h3>
-    <table class="grid"><tr><th>球員</th><th>角色</th><th>綜合</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
+    <table class="grid"><tr><th>球員</th><th>角色</th><th>綜合</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>完投</th><th>被安</th><th>四壞</th><th>三振</th></tr>${pitRows}</table>
     <div class="hr"></div>
     <button class="btn blk" data-act="abilities">🧮 選手能力數值一覽</button>
     <button class="btn blk" data-act="backHub">← 回球季總部</button>
@@ -763,8 +766,8 @@ function viewPlayer(){
     roleLabel=p.role;
     bars=rbar("球速",p.velocity)+rbar("控球",p.control)+rbar("變化",p.breaking)+rbar("體力",p.stamina);
     const s=ps&&ps.pit[pid];
-    statsTable=`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th></tr>
-      <tr><td class="num">${s?s.g:0}</td><td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td><td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr></table>`;
+    statsTable=`<table class="grid"><tr><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>完投</th><th>被安</th><th>四壞</th><th>三振</th></tr>
+      <tr><td class="num">${s?s.g:0}</td><td class="num">${s?fmtIP(s.outs):"0.0"}</td><td class="num">${s?fmtERA(s.er,s.outs):"-.-"}</td><td class="num">${s?s.w:0}</td><td class="num">${s?s.l:0}</td><td class="num">${s?s.sv:0}</td><td class="num">${s?(s.cg||0):0}</td><td class="num">${s?s.h:0}</td><td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td></tr></table>`;
   }else{
     roleLabel=p.posLabel;
     bars=rbar("打擊",p.meet)+rbar("力量",p.power)+rbar("選球",p.eye)+rbar("速度",p.speed)+rbar("守備",p.defense);
@@ -793,16 +796,16 @@ function viewPlayer(){
       const s=r.s;
       return `<tr class="${r.cur?"me":""}">${seasonLabel(r)}
         <td class="num">${s.g||0}</td><td class="num">${fmtIP(s.outs||0)}</td><td class="num">${s.outs?fmtERA(s.er||0,s.outs):"-.-"}</td>
-        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td>
+        <td class="num">${s.w||0}</td><td class="num">${s.l||0}</td><td class="num">${s.sv||0}</td><td class="num">${s.cg||0}</td>
         <td class="num">${s.h||0}</td><td class="num">${s.bb||0}</td><td class="num">${s.k||0}</td>${awCell(r.no)}</tr>`;
     }).join("");
     const t=careerMerged().pit[pid];
     const tot=t?`<tr class="me"><td class="name sealab">生涯</td>
         <td class="num">${t.g||0}</td><td class="num">${fmtIP(t.outs||0)}</td><td class="num">${t.outs?fmtERA(t.er||0,t.outs):"-.-"}</td>
-        <td class="num">${t.w||0}</td><td class="num">${t.l||0}</td><td class="num">${t.sv||0}</td>
+        <td class="num">${t.w||0}</td><td class="num">${t.l||0}</td><td class="num">${t.sv||0}</td><td class="num">${t.cg||0}</td>
         <td class="num">${t.h||0}</td><td class="num">${t.bb||0}</td><td class="num">${t.k||0}</td>
         <td class="muted awcell" style="font-size:11px">${awList.length?`🏆 共 ${awList.length} 項`:"－"}</td></tr>`:"";
-    seasonTable=seasonRows.length||t?`<div class="tablewrap"><table class="grid seastable"><tr><th>球季</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>被安</th><th>四壞</th><th>三振</th><th>獲獎</th></tr>${rows}${tot}</table></div>`
+    seasonTable=seasonRows.length||t?`<div class="tablewrap"><table class="grid seastable"><tr><th>球季</th><th>出賽</th><th>局數</th><th>防禦率</th><th>勝</th><th>敗</th><th>救援</th><th>完投</th><th>被安</th><th>四壞</th><th>三振</th><th>獲獎</th></tr>${rows}${tot}</table></div>`
       :`<p class="muted">尚無生涯累計（本季目前也還沒有出賽紀錄）。</p>`;
   }else{
     const rows=seasonRows.map(r=>{
