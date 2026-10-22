@@ -185,22 +185,33 @@ function mergePlayerStats(m,tgt){
   const ps=tgt||S.season.playerStats;
   for(const pid in m.stats)mergeBatLine(pid,m.stats[pid],ps);
   for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid],ps);
-  // 勝敗投手：記給「投手對」——有換投時是真正完成投球的那位，不是先發
-  // 救援成功：獲勝方最後那位是後援、而且他上場時球隊領先 → 才算救援成功
+  /* 勝敗投手／救援成功（照真實棒球規則）
+     ① 勝投：先發投滿 5 局（15 出局）且退場時領先 → 勝投記在先發身上；
+             否則記給投手對（最後投到完場的那位）。
+     ② 救援成功：獲勝方最後一位是後援、而且他「不是」勝投投手（同一場不能兩者兼得），
+        且至少抓下 1 個出局數，並符合：
+          情境A：上場時領先 1~3 分並守到終場
+          情境C：有效投球滿 3 局（9 出局）以上
+          情境B（近似）：9 局以後平手／落後上場而球隊獲勝 */
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
     const pp=ps.pit;
     const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
-    const wId=curOf(wSide).id,lId=curOf(lSide).id;
+    // ① 勝投
+    const wStarter=m.starters[wSide];
+    const sw=(m.swapInfo&&m.swapInfo[wSide])||null;
+    const wId=(sw&&sw.outs>=15&&sw.lead>0)?wStarter.id:curOf(wSide).id;
     if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
+    const lId=curOf(lSide).id;
     if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
+    // ② 救援成功（和勝投互斥）
     const wc=curOf(wSide);
-    if(wc&&!wc.starter&&pp[wc.id]){
-      // 救援成功（真實棒球規則）：上場時領先 1~3 分，或 9 局以後平手／落後上場而球隊獲勝。
-      // 帶著 5 分以上領先上場是投手對，不算救援成功。
+    if(wc&&!wc.starter&&wc.id!==wId&&pp[wc.id]){
+      const outs=(m.pstats[wc.id]&&m.pstats[wc.id].outs)||0;
       const lead=(m.pitchers[wSide].cameInLead||0);
       const inn=(m.pitchers[wSide].cameInInn||0);
-      if((lead>=1&&lead<=3)||(lead<=0&&inn>=9))pp[wc.id].sv=(pp[wc.id].sv||0)+1;
+      const svOK=outs>=1&&((lead>=1&&lead<=3)||outs>=9||(lead<=0&&inn>=9));
+      if(svOK)pp[wc.id].sv=(pp[wc.id].sv||0)+1;
     }
   }
 }
