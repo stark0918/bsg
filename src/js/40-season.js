@@ -197,7 +197,13 @@ function mergePlayerStats(m,tgt){
     if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
     if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
     const wc=curOf(wSide);
-    if(wc&&!wc.starter&&m.pitchers[wSide].cameInLeading&&pp[wc.id])pp[wc.id].sv=(pp[wc.id].sv||0)+1;
+    if(wc&&!wc.starter&&pp[wc.id]){
+      // 救援成功（真實棒球規則）：上場時領先 1~3 分，或 9 局以後平手／落後上場而球隊獲勝。
+      // 帶著 5 分以上領先上場是投手對，不算救援成功。
+      const lead=(m.pitchers[wSide].cameInLead||0);
+      const inn=(m.pitchers[wSide].cameInInn||0);
+      if((lead>=1&&lead<=3)||(lead<=0&&inn>=9))pp[wc.id].sv=(pp[wc.id].sv||0)+1;
+    }
   }
 }
 /* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */

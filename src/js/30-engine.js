@@ -565,9 +565,9 @@ function doChangePitcher(m,pid){
   const old=m.pitchers[defSide].obj;
   m.usedPitchers[defSide].push(old.id);
   const npCond=rollCond();
-  // 記下這位後援是領先還是落後時上來的：結算時才知道能不能拿救援成功
+  // 記下這位後援上場時的分差與局數：結算時才知道能不能拿救援成功
   const diff=m.score[defSide]-m.score[offenseSide(m)];
-  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex),cameInLeading:diff>0};
+  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex),cameInLead:diff,cameInInn:m.inning};
   const condTxt=npCond==="good"?"（好調）":npCond==="bad"?"（不調）":"";
   m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球${condTxt}。`,c:"run"});
 }
