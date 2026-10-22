@@ -535,10 +535,29 @@ function viewGame(){
     const hasReg=!!nextPlayerGame(),hasPo=!!playoffNextGame();
     const nextBtn=(hasReg||hasPo)?`<button class="btn green blk" data-act="nextGame">⏭ ${hasReg?"繼續下一場":"繼續季後賽"}</button>`:"";
     const poInfo = (S.season&&S.season.playoff)?`<p class="center muted" style="font-size:12px">季後賽狀態：${S.season.playoff.champion?"已結束（總冠軍 ${teamBadge(S.season.playoff.champion)}）":(S.season.playoff.stage==="final"?"冠軍戰進行中":"準決賽進行中")}　${S.season.playoff.seeds&&S.season.playoff.seeds.indexOf(S.season.playerTeam)>=0?"（你已晉級）":""}</p>`:"";
+    const dec=m.over?gameDecisions(m):null;
+    const nmOf=pid=>{const pl=pid?playerById(pid):null;return pl?"<b>"+esc(pl.name)+"</b>（"+esc(getTeam(teamOfPlayer({id:pl.id})).short)+"）":"－";};
+    let keyStats="";
+    if(dec){
+      const hr=[],rbi=[],runs=[];
+      for(const pid in m.stats){
+        const st=m.stats[pid];if(!st)continue;
+        if((st.hr||0)>0)hr.push({pid:pid,v:st.hr});
+        if((st.rbi||0)>0)rbi.push({pid:pid,v:st.rbi});
+        if((st.r||0)>0)runs.push({pid:pid,v:st.r});
+      }
+      const top=(arr,n)=>arr.sort((a,b)=>b.v-a.v).slice(0,n).map(x=>esc(recName(x.pid))+" "+x.v).join("、");
+      const hrTxt=top(hr,3),rbiTxt=top(rbi,3),rTxt=top(runs,3);
+      keyStats='<div class="hr"></div>'
+        +'<p class="center" style="margin:0 0 4px"><b>◆ 本場關鍵表現</b></p>'
+        +'<p class="center" style="margin:0 0 4px;font-size:13px">投手：勝投 '+nmOf(dec.w)+'　敗投 '+nmOf(dec.l)+(dec.sv?'　救援 '+nmOf(dec.sv):'')+'</p>'
+        +'<p class="center" style="margin:0;font-size:13px">打者：全壘打 '+(hrTxt||'無')+'　打點 '+(rbiTxt||'無')+'　得分 '+(rTxt||'無')+'</p>';
+    }
     result=`<div class="panel" id="gameresult"><h2>${title}</h2>
       <p class="center">最終比數　<b class="bignum">${esc(getTeam(m.awayId).name)} ${m.score.away} － ${m.score.home} ${esc(getTeam(m.homeId).name)}</b></p>
       ${m.hero?`<p class="center" style="margin-top:8px">◆ Player of the Game：${teamBadge(teamOfPlayer({id:m.hero.pid}))}　<b>${esc(m.hero.name)}</b>　${m.hero.isPit?`<span class="pill on">三振 ${m.hero.s.k} 次</span>`:`<span class="pill on">安打 ${m.hero.s.h}／打點 ${m.hero.s.rbi}</span>`}</p>`:""}
       ${poInfo}
+      ${keyStats}
       ${boxScore(m)}
       <div class="hr"></div>
       ${nextBtn}

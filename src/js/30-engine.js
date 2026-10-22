@@ -429,6 +429,25 @@ function playPA(m,offT,defT){
   // 自動換投：這個打席結束後，下一棒可能會換到新的投手
   if(!m.over)autoPitcherChange(m);
 }
+/* 本場的勝負投與救援成功（賽後畫面顯示與球季成績結算共用同一套規則，兩邊才不會不一致）
+   ① 勝投：先發投滿 5 局（15 出局）且退場時領先 → 先發；否則 → 投手對
+   ② 敗投：落敗方的投手對
+   ③ 救援成功：獲勝方最後一位是後援、不是勝投投手（同一場不能兩者兼得）、
+      至少投 1 個出局，且符合：上場時領先 1~3 分／有效投球滿 3 局／9 局以後逆轉 */
+function gameDecisions(m){
+  if(!m||!m.winner)return null;
+  const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
+  const wSide=m.winner,lSide=wSide==="home"?"away":"home";
+  const sw=(m.swapInfo&&m.swapInfo[wSide])||null;
+  const w=(sw&&sw.outs>=15&&sw.lead>0)?m.starters[wSide].id:curOf(wSide).id;
+  const l=curOf(lSide).id;
+  const wc=curOf(wSide);
+  const outs=(m.pstats[wc.id]&&m.pstats[wc.id].outs)||0;
+  const lead=(m.pitchers[wSide].cameInLead||0);
+  const inn=(m.pitchers[wSide].cameInInn||0);
+  const sv=(wc&&!wc.starter&&wc.id!==w&&outs>=1&&((lead>=1&&lead<=3)||outs>=9||(lead<=0&&inn>=9)))?wc.id:null;
+  return {w:w,l:l,sv:sv};
+}
 /* 單場英雄（Player of the Game）
    候選僅取「勝利方」球員（和局時兩隊皆可），並讓打者與投手份量相當，
    避免以往投手（含敗投）幾乎必當 MVP 的問題。 */

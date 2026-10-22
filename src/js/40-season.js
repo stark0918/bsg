@@ -199,25 +199,11 @@ function mergePlayerStats(m,tgt){
           情境C：有效投球滿 3 局（9 出局）以上
           情境B（近似）：9 局以後平手／落後上場而球隊獲勝 */
   const pp=ps.pit;
-  if(m.winner){
-    const wSide=m.winner,lSide=wSide==="home"?"away":"home";
-    const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
-    // ① 勝投
-    const wStarter=m.starters[wSide];
-    const sw=(m.swapInfo&&m.swapInfo[wSide])||null;
-    const wId=(sw&&sw.outs>=15&&sw.lead>0)?wStarter.id:curOf(wSide).id;
-    if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
-    const lId=curOf(lSide).id;
-    if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
-    // ② 救援成功（和勝投互斥）
-    const wc=curOf(wSide);
-    if(wc&&!wc.starter&&wc.id!==wId&&pp[wc.id]){
-      const outs=(m.pstats[wc.id]&&m.pstats[wc.id].outs)||0;
-      const lead=(m.pitchers[wSide].cameInLead||0);
-      const inn=(m.pitchers[wSide].cameInInn||0);
-      const svOK=outs>=1&&((lead>=1&&lead<=3)||outs>=9||(lead<=0&&inn>=9));
-      if(svOK)pp[wc.id].sv=(pp[wc.id].sv||0)+1;
-    }
+  const dec=gameDecisions(m);   // 勝負投／救援成功：跟賽後畫面用同一套規則
+  if(dec){
+    if(pp[dec.w])pp[dec.w].w=(pp[dec.w].w||0)+1;
+    if(pp[dec.l])pp[dec.l].l=(pp[dec.l].l||0)+1;
+    if(dec.sv&&pp[dec.sv])pp[dec.sv].sv=(pp[dec.sv].sv||0)+1;
   }
   // 完投：先發投手沒有被換下、且球隊投滿 9 局（總出局 27 以上）
   for(const side of ["away","home"]){
