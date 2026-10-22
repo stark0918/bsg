@@ -591,6 +591,10 @@ function autoPitcherChange(m){
   const bp=m.bullpen[defSide];
   if(!bp.length)return;
   const diff=m.score[defSide]-m.score[offenseSide(m)];   // 守方分差（正＝領先）
+  // 完投：先發體力好、還投得動，而且球數未達上限 → 不主動換投，讓他投到完場
+  const eff=pitcherEffective(P.obj,P.pitches||0,P.cond,P.carryPP||0);
+  const goodShape=(P.obj.stamina||0)>=cfg('autoPitStamina')&&eff.fatigue>=cfg('autoPitFresh');
+  if(goodShape&&(P.pitches||0)<=cfg('autoPitMax'))return;
   const tired=(P.pitches||0)>=cfg('autoPitPitch');
   const needClose=(m.inning>=cfg('autoPitInn'))&&(diff>=1&&diff<=cfg('autoPitLead'));
   if(!tired&&!needClose)return;

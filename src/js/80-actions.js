@@ -194,6 +194,13 @@ const ACT={
     flash("已還原所有設定為預設值");
     render();
   },
+  /* 依新規則重算本季的勝投／敗投／救援成功／完投（修正舊存檔用錯規則算出來的數字） */
+  adminRecalcDecisions(){
+    if(!S.season){flash("尚未開始球季");render();return;}
+    const n=recomputeSeasonDecisions();
+    flash(n?"已依新規則重算本季的勝負／救援／完投":"沒有可重算的資料");
+    render();
+  },
   /* 快速模擬到季中/季末 */
   simToMid(){
     const se=S.season;

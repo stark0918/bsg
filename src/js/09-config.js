@@ -27,6 +27,9 @@ const CONFIG_DEF={
   autoPitPitch:85,       // 先發投到多少球就換後援
   autoPitInn:8,          // 第幾局起可以派守成型後援
   autoPitLead:3,         // 守成換投時的最大分差（領先 1~3 分）
+  autoPitStamina:75,      // 完投資格：先發體力達到這個值
+  autoPitFresh:0.88,      // 完投資格：疲勞係數還要高於這個值（還投得動）
+  autoPitMax:145,         // 完投的球數上限（超過就一定換人）
   /* ── 比賽數值 ── */
   runExp:4.3,            // 每隊每場得分期望值
   hitRatio:1.15,         // 安打數 ÷ 得分的係數
@@ -52,6 +55,7 @@ const CFG_LIMITS={
   careerAb:[0,1000],
   strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], starterPitchers:[1,5], reliefPitchers:[1,6], posBoost:[0,1],
   autoPitcher:[0,1], autoPitPitch:[30,150], autoPitInn:[1,12], autoPitLead:[1,8],
+  autoPitStamina:[60,97], autoPitFresh:[0.7,1], autoPitMax:[90,200],
   runExp:[1,10], hitRatio:[0.5,3], pitOutsMin:[3,27], pitOutsMax:[4,27]
 };
 function cfgMin(k){const l=CFG_LIMITS[k];return l?l[0]:0;}
