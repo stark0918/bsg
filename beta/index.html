@@ -438,7 +438,14 @@ const CONFIG_DEF={
   strScale:1,            // 球隊強弱差距倍率：0=全聯盟一樣強、1=原本、2=強弱差加倍
   strShift:0,            // 全聯盟整體強度偏移（-5 ~ +5）
   benchBatters:4,        // 板凳打者人數（先發 9 人之外）
+  starterPitchers:3,     // 先發投手人數
+  reliefPitchers:3,      // 後援投手人數
   posBoost:1,            // 守位能力加成：1=開、0=關
+  /* ── 後援上場 ── */
+  autoPitcher:1,         // 自動換投：1=開、0=關（先發打到上限或後段守成時自動換牛棚）
+  autoPitPitch:85,       // 先發投到多少球就換後援
+  autoPitInn:8,          // 第幾局起可以派守成型後援
+  autoPitLead:3,         // 守成換投時的最大分差（領先 1~3 分）
   /* ── 比賽數值 ── */
   runExp:4.3,            // 每隊每場得分期望值
   hitRatio:1.15,         // 安打數 ÷ 得分的係數
@@ -462,7 +469,8 @@ const CFG_LIMITS={
   seasonRounds:[1,6], allStar:[0,1], playoff:[0,1],
   qBat:[0.3,1], qPit:[0.05,1], qEraOuts:[0.5,6], qCyOuts:[0.5,8], qSawOuts:[1,12],
   careerAb:[0,1000],
-  strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], posBoost:[0,1],
+  strScale:[0,3], strShift:[-5,5], benchBatters:[0,8], starterPitchers:[1,5], reliefPitchers:[1,6], posBoost:[0,1],
+  autoPitcher:[0,1], autoPitPitch:[30,150], autoPitInn:[1,12], autoPitLead:[1,8],
   runExp:[1,10], hitRatio:[0.5,3], pitOutsMin:[3,27], pitOutsMax:[4,27]
 };
 function cfgMin(k){const l=CFG_LIMITS[k];return l?l[0]:0;}
@@ -786,8 +794,10 @@ function genRoster(team){
   }
   const pitchers=[];
   const ps2=teamStr(team.id);
-  for(let i=0;i<6;i++){
-    const sp=i<3;
+  const nSt=Math.max(1,Math.min(5,Number(cfg('starterPitchers'))||3));
+  const nRl=Math.max(0,Math.min(6,Number(cfg('reliefPitchers'))||3));
+  for(let i=0;i<nSt+nRl;i++){
+    const sp=i<nSt;
     let velocity=nrm(rnd,sp?62:71,8),control=nrm(rnd,sp?64:60,9),breaking=nrm(rnd,sp?62:68,9),stamina=nrm(rnd,sp?74:42,sp?7:8);
     pitchers.push({
       id:team.id+"p"+i, name:mkName(nrnd,used), role:sp?"先發":"後援", starter:sp,
@@ -1239,6 +1249,8 @@ function playPA(m,offT,defT){
   if(m.half==="bottom"&&m.inning>=9&&m.score.home>m.score.away){
     m.over=true;m.winner="home";m.walkoff=true;m.splash={t:"再見！",c:"hr"};
   }
+  // 自動換投：這個打席結束後，下一棒可能會換到新的投手
+  if(!m.over)autoPitcherChange(m);
 }
 /* 單場英雄（Player of the Game）
    候選僅取「勝利方」球員（和局時兩隊皆可），並讓打者與投手份量相當，
@@ -1376,9 +1388,34 @@ function doChangePitcher(m,pid){
   const old=m.pitchers[defSide].obj;
   m.usedPitchers[defSide].push(old.id);
   const npCond=rollCond();
-  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex)};
+  // 記下這位後援是領先還是落後時上來的：結算時才知道能不能拿救援成功
+  const diff=m.score[defSide]-m.score[offenseSide(m)];
+  m.pitchers[defSide]={obj:np,pitches:0,cond:npCond,carryPP:carryFor(np.id,m.dayIndex),cameInLeading:diff>0};
   const condTxt=npCond==="good"?"（好調）":npCond==="bad"?"（不調）":"";
   m.log.push({t:`　★ 換投！${sideName(m,defSide)} 換下「${old.name}」（${old.role}），由「${np.name}」（${np.role}）接替投球${condTxt}。`,c:"run"});
+}
+/* 自動換投：先發打到球數上限、或後段需要守成時，自動換牛棚上來。
+   配方（管理者可調）：
+     ・先發投球數 ≥ autoPitPitch → 換上「體力」最好的後援（紓壓，避免先發被投爆）
+     ・局數 ≥ autoPitInn 且守方領先 1~autoPitLead 分 → 換上「控球」最好的後援（守成）
+   換投時機是在一個打席結束後，下一棒打者才會遇到新的投手。 */
+function autoPitcherChange(m){
+  if(cfg('autoPitcher')===0)return;
+  if(!m||m.over)return;
+  const defSide=defenseSide(m);
+  const P=m.pitchers[defSide];
+  if(!P||!P.obj||!P.obj.starter)return;      // 已經是後援就不再換
+  const bp=m.bullpen[defSide];
+  if(!bp.length)return;
+  const diff=m.score[defSide]-m.score[offenseSide(m)];   // 守方分差（正＝領先）
+  const tired=(P.pitches||0)>=cfg('autoPitPitch');
+  const needClose=(m.inning>=cfg('autoPitInn'))&&(diff>=1&&diff<=cfg('autoPitLead'));
+  if(!tired&&!needClose)return;
+  // 守成型優先挑控球好的，一般換投挑體力好的
+  const key=needClose?"control":"stamina";
+  const pick=bp.slice().sort((a,b)=>(b[key]||0)-(a[key]||0))[0];
+  if(!pick)return;
+  doChangePitcher(m,pick.id);
 }
 
 /* ---------- 遊戲回合控制 ---------- */
@@ -1614,13 +1651,17 @@ function mergePlayerStats(m,tgt){
   const ps=tgt||S.season.playerStats;
   for(const pid in m.stats)mergeBatLine(pid,m.stats[pid],ps);
   for(const pid in m.pstats)mergePitLine(pid,m.pstats[pid],ps);
-  // 勝敗投手：獲勝方先發勝投、落敗方先發敗投（寫入球季累計）
+  // 勝敗投手：記給「投手對」——有換投時是真正完成投球的那位，不是先發
+  // 救援成功：獲勝方最後那位是後援、而且他上場時球隊領先 → 才算救援成功
   if(m.winner){
     const wSide=m.winner,lSide=wSide==="home"?"away":"home";
     const pp=ps.pit;
-    const wId=m.starters[wSide].id,lId=m.starters[lSide].id;
+    const curOf=side=>((m.pitchers&&m.pitchers[side]&&m.pitchers[side].obj)||m.starters[side]);
+    const wId=curOf(wSide).id,lId=curOf(lSide).id;
     if(pp[wId])pp[wId].w=(pp[wId].w||0)+1;
     if(pp[lId])pp[lId].l=(pp[lId].l||0)+1;
+    const wc=curOf(wSide);
+    if(wc&&!wc.starter&&m.pitchers[wSide].cameInLeading&&pp[wc.id])pp[wc.id].sv=(pp[wc.id].sv||0)+1;
   }
 }
 /* 季後賽球員成績：獨立累計，不寫入例行賽 playerStats／排行榜 */
@@ -4066,7 +4107,15 @@ const CFG_UI=[
     ["strScale","球隊強弱差距倍率","倍",v=>v,v=>v===0?"全聯盟一樣強":v===1?"原本":v+" 倍",0.25],
     ["strShift","全聯盟整體強度偏移","",v=>v,v=>v,1],
     ["benchBatters","板凳打者人數","人",v=>v,v=>v,1],
+    ["starterPitchers","先發投手人數","人",v=>v,v=>v,1],
+    ["reliefPitchers","後援投手人數","人",v=>v,v=>v,1],
     ["posBoost","守位能力加成","",null,v=>v?"開啟":"關閉",null,null]
+  ]],
+  ["後援上場",[
+    ["autoPitcher","自動換投","",null,v=>v?"開啟":"關閉（先發投完整場）",null,null],
+    ["autoPitPitch","先發投到多少球換後援","球",v=>v,v=>v,5],
+    ["autoPitInn","第幾局起可派守成後援","局",v=>v,v=>v,1],
+    ["autoPitLead","守成換投的最大分差","分",v=>v,v=>v,1]
   ]],
   ["比賽數值",[
     ["runExp","每隊每場得分期望","分",v=>v,v=>v,0.1],
@@ -4113,7 +4162,7 @@ function viewAdmin(){
   const p=S.adminPid?playerById(S.adminPid):null;
   if(p&&teamOfPlayer({id:p.id})===tid){
     const isPit=p.role!==undefined;
-    const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense"];
+    const keys=isPit?["velocity","control","breaking","stamina"]:["meet","power","eye","speed","defense","mentality"];
     const kn={meet:"打擊",power:"力量",eye:"選球",speed:"速度",defense:"守備",mentality:"膽識",velocity:"球速",control:"控球",breaking:"變化",stamina:"體力"};
     const rows=keys.map(k=>`<div class="lurow"><span class="luord">${kn[k]}</span>
       <div class="lumain"><div class="luname"><b>${p[k]}</b></div></div>
