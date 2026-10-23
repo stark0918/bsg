@@ -181,8 +181,17 @@ function dhSlotOf(teamId){
   if(saved!=null&&saved>=0&&saved<lu.length)return saved;
   const isMe=!!(S.season&&S.season.playerTeam===teamId);
   if(isMe)return lu.length-1;              // 自己的球隊：預設第 9 棒
-  // 對手球隊：加權隨機（打擊能力越高越可能被排去 DH）
-  const w=lu.map(b=>Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4));
+  // 對手球隊：優先從「有重複本職守位」的人裡挑 DH（通常是第 9 位外野手），
+  // 這樣 DH 不會讓某個守位開天窗；同守位再依打擊能力加權。
+  const cnt={};lu.forEach(b=>{if(b.pos)cnt[b.pos]=(cnt[b.pos]||0)+1;});
+  const hasDup=lu.some(b=>b.pos&&cnt[b.pos]>1);
+  const catchers=lu.filter(b=>b.pos==="C"||b.pos2==="C");
+  const w=lu.map(b=>{
+    let v=Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4);
+    if(catchers.length===1&&(b.pos==="C"||b.pos2==="C"))v=0;
+    if(hasDup&&b.pos&&cnt[b.pos]===1)v=0;   // 唯一本職守位的人不排 DH
+    return v;
+  });
   return weightedIndex(w);
 }
 /* 指定 DH 棒次；傳 null 或 -1 表示改回自動。 */
@@ -225,6 +234,12 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
   m.originals={away:m.lineups.away.slice(),home:m.lineups.home.slice()};  // 記錄原先發，供換人／打線對照
+  // 守位指派：每隊扣掉 DH 後，8 個守位各一人（不重複）。比賽中換人後會重算。
+  m.posAssign={};
+  ["away","home"].forEach(side=>{
+    const lu=m.lineups[side],dhIdx=m.dhSlot[side];
+    m.posAssign[side]=assignFieldPositions(lu,(dhIdx!=null&&lu[dhIdx])?lu[dhIdx].id:null).map;
+  });
   m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
   m.log.push(`　先發投手　${away.name}：${awayStarter.name}　／　${home.name}：${homeStarter.name}`);
   m.log.push(`◆ 1局上　${away.name}的進攻`);
@@ -500,6 +515,9 @@ function doPinchHit(m,auto){
   const bi=auto?ri(0,bench.length-1):0;   // 自動調度隨機挑替補，讓大家都有上場機會
   const sub=bench.splice(bi,1)[0];
   lu[idx]=sub;
+  // 換人後重算守位：新上場的球員可能和原本守位重複，交給指派函式重新排。
+  const dhIdx=m.dhSlot[offSide];
+  if(m.posAssign)m.posAssign[offSide]=assignFieldPositions(lu,(dhIdx!=null&&lu[dhIdx])?lu[dhIdx].id:null).map;
   m.log.push({t:`　代打！換下「${before.name}」（${before.posLabel}），由「${sub.name}」（${sub.posLabel}）拎著球棒上場代打。`,c:"sys"});
 }
 function doChangePitcher(m,pid){

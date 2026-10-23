@@ -123,20 +123,17 @@ const ACT={
     setDHSlot(S.season.playerTeam,null);
     const lu=buildLineup(getTeam(S.season.playerTeam));
     const idx=dhSlotOf(S.season.playerTeam);
-    flash("DH 改為自動挑選："+(lu[idx]?recName(lu[idx].id):"－")+"（守備能力最差者）");
+    flash("DH 改回自動：預設第 9 棒"+(lu[idx]?"（"+recName(lu[idx].id)+"）":""));
     render();
   },
   luAuto(){
     const team=getTeam(S.season.playerTeam);
-    const lu=buildLineup(team),bench=buildBench(team);
-    const all=[...lu,...bench];
-    // 計算每人的綜合打擊分數（近似 OPS）：打擊+力量+選球*1.2+速度*0.5
-    all.forEach(p=>{p._score=Math.round(p.meet*1.2+p.power*1.5+p.eye*1.2+p.speed*0.5);});
-    // 先發9人：依分數排序，但前2棒優先高選球+高速度，3-5棒優先高力量
-    all.sort((a,b)=>b._score-a._score);
-    const top=all.slice(0,9).map(p=>p.id);
-    setPlayerLineup(top);
-    S.luSel=null;flash("已依綜合打擊能力自動排序（前2棒優先上壘、3-5棒優先長打）");render();
+    const r=autoLineup(team);
+    setPlayerLineup(r.ids);
+    setDHSlot(S.season.playerTeam,r.dhIdx>=0?r.dhIdx:null);
+    S.luSel=null;
+    flash("已自動排出守位與打線：8 個守位各一人，DH："+(r.dhPid?recName(r.dhPid):"－")+"（第 "+(r.dhIdx+1)+" 棒）");
+    render();
   },
   allstar(){S.screen="allstar";render();},
   allstarSim(){const a=simAllstar();render();},

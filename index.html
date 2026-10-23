@@ -759,6 +759,9 @@ function genRoster(team){
   const used=new Set();
   const pos=["C","1B","2B","3B","SS","LF","CF","RF"];   // 8 個守備位置：沒有「DH 守位」了
   const benchPos=["C","SS","CF","1B"];   // 板凳球員守位（僅供顯示／換人對照，不影響能力加成）
+  // 副守位：讓打線在有人受傷／輪休或手動換人時，還有第二個比較合理的位置可排。
+  const pos2Map={C:"1B","1B":"LF","2B":"SS","3B":"1B",SS:"2B",LF:"RF",CF:"LF",RF:"LF"};
+  const benchPos2=["1B","2B","LF","LF"];
   const arch=["contact","power","speed","eye","balanced"];
   const batters=[];
   /* 第 9 位先發原本是「DH 守位」，現在 DH 改由打線上的棒次決定（任何球員都能當），
@@ -770,6 +773,7 @@ function genRoster(team){
   for(let i=0;i<totalBat;i++){
     const p=i<8?pos[i]:(i===8?ninthOF:null);
     const bp=i>=9?benchPos[(i-9)%benchPos.length]:null;
+    const p2=i<8?pos2Map[p]:(i===8?(ninthOF==="LF"?"RF":"LF"):benchPos2[(i-9)%benchPos2.length]);
     const a=rpick(arnd,arch);
     let meet=nrm(rnd,52,10),power=nrm(rnd,50,13),eye=nrm(rnd,50,11),speed=nrm(rnd,52,12),def=nrm(rnd,52,11);
     if(a==="contact"){meet+=9;eye+=3;power-=4;}
@@ -788,7 +792,8 @@ function genRoster(team){
     const s=teamStr(team.id);
     batters.push({
       id:team.id+"b"+i, name:mkName(nrnd,used),
-      pos:p||(bp||("B"+i)), posLabel:p?POS_ZH[p]:(bp?POS_ZH[bp]:"替補"), bench:i>=9,
+      pos:p||(bp||("B"+i)), posLabel:p?POS_ZH[p]:(bp?POS_ZH[bp]:"替補"),
+      pos2:p2||null, pos2Label:p2?POS_ZH[p2]:"", bench:i>=9,
       meet:Math.round(clamp(meet+s,25,96)), power:Math.round(clamp(power+s,20,96)),
       eye:Math.round(clamp(eye+s,25,96)), speed:Math.round(clamp(speed+s,20,96)),
       defense:Math.round(clamp(def+s,20,96))
@@ -821,6 +826,95 @@ function getTeam(id){
     teamCache[id]=team;
   }
   return teamCache[id];
+}
+
+/* ---------- 守位指派（自動排守位／客串判斷） ----------
+   打線上的 9 人先扣掉 DH，剩下 8 人排進 C/1B/2B/3B/SS/LF/CF/RF，每個位置剛好一人。
+   分數：本職 100、副守位 82、相鄰位置 58、其他 24；再依該守位的守備門檻、
+   球員守備力與速度（CF/SS）微調。8! = 40320 種排列直接全搜尋，取總分最高者，
+   所以排序打線、手動換人後都不會再出現兩個一壘手／兩個中外野手。 */
+const FIELD_POS=["C","1B","2B","3B","SS","LF","CF","RF"];
+const POS_GROUP={
+  C:["C"],
+  "1B":["1B","3B","LF","RF"],
+  "2B":["2B","SS","3B"],
+  "3B":["3B","1B","SS","LF"],
+  SS:["SS","2B","3B"],
+  LF:["LF","CF","RF","1B"],
+  CF:["CF","LF","RF"],
+  RF:["RF","LF","CF","1B"]
+};
+const POS_HARD={C:64,SS:60,"2B":54,"3B":52,CF:56,"1B":46,LF:44,RF:44};
+function posFitScore(p,pos){
+  if(!p)return -999;
+  const natural=p.pos===pos,alt=p.pos2===pos;
+  let base=natural?100:alt?82:((POS_GROUP[p.pos]||[]).indexOf(pos)>=0?58:24);
+  if(pos==="C"&&!natural&&!alt)base-=45;   // 捕手是專門位置，非本職客串的風險很高
+  base-=Math.max(0,(POS_HARD[pos]||50)-(p.defense||50))*0.9;
+  if(pos==="CF"||pos==="SS")base+=((p.speed||50)-50)*0.12;   // 中線守位需要速度
+  return base;
+}
+function assignFieldPositions(players,dhPid){
+  const list=(players||[]).filter(Boolean);
+  const dh=(dhPid!=null&&list.find(p=>p.id===dhPid))||(list.length>8?list[8]:null);
+  const fielders=list.filter(p=>p!==dh).slice(0,8);
+  let best=null,bestScore=-1e9;
+  const cur=new Array(fielders.length),used=new Array(8).fill(false);
+  function rec(i,score){
+    if(i>=fielders.length){if(score>bestScore){bestScore=score;best=cur.slice(0,i);}return;}
+    for(let j=0;j<8;j++){
+      if(used[j])continue;
+      used[j]=true;cur[i]=FIELD_POS[j];
+      rec(i+1,score+posFitScore(fielders[i],FIELD_POS[j]));
+      used[j]=false;
+    }
+  }
+  rec(0,0);
+  const map={};
+  if(best)fielders.forEach((p,i)=>{map[p.id]=best[i];});
+  if(dh)map[dh.id]="DH";
+  return {map,score:bestScore,dhPid:dh?dh.id:null};
+}
+/* 綜合打擊分數（近似 OPS）：打擊 1.2＋力量 1.5＋選球 1.2＋速度 0.5 */
+function offenseScore(p){return (p.meet||0)*1.2+(p.power||0)*1.5+(p.eye||0)*1.2+(p.speed||0)*0.5;}
+/* 自動排打線：先依守位重要性（C→SS→CF→2B→3B→1B→LF→RF）各挑最適合的一人，
+   再從剩下的人挑打擊最好的一位當 DH；9 人再依打擊排序，DH 不強制第 9 棒。 */
+function autoLineup(team){
+  const pool=(team&&team.batters?team.batters:[]).slice();
+  const used={},picked=[];
+  const order=["C","SS","CF","2B","3B","1B","LF","RF"];
+  order.forEach(pos=>{
+    let best=null,bv=-1e9;
+    pool.forEach(p=>{
+      if(used[p.id])return;
+      const v=posFitScore(p,pos)*0.78+offenseScore(p)*0.22+(p.pos===pos?12:0)+(p.pos2===pos?5:0);
+      if(v>bv){bv=v;best=p;}
+    });
+    if(best){used[best.id]=1;picked.push(best);}
+  });
+  let dh=null,dv=-1e9;
+  pool.forEach(p=>{
+    if(used[p.id])return;
+    const v=offenseScore(p)+(p.pos==="C"?-60:0);   // 已有主戰捕手時，板凳捕手不必優先 DH
+    if(v>dv){dv=v;dh=p;}
+  });
+  // 極端情況（自訂名單不足 8 人）補滿守備員
+  if(picked.length<8)pool.forEach(p=>{if(picked.length<8&&!used[p.id]){used[p.id]=1;picked.push(p);}});
+  if(!dh)pool.forEach(p=>{if(!dh&&!used[p.id])dh=p;});
+  // 9 人依打擊能力排序；DH 可以排在任意棒次，不強制第 9 棒。
+  const ordered=picked.slice(0,8).concat(dh?[dh]:[]).sort((a,b)=>offenseScore(b)-offenseScore(a));
+  const dhIdx=dh?ordered.indexOf(dh):-1;
+  return {ids:ordered.map(p=>p.id),dhPid:dh?dh.id:null,dhIdx,assign:assignFieldPositions(ordered,dh?dh.id:null)};
+}
+/* 驗證：每隊預設打線扣掉 DH 後，8 個守位是否剛好各一人（測試／除錯用）。 */
+function validateRosterPositions(){
+  return TEAM_DEFS.map(def=>{
+    const t=getTeam(def.id),lu=buildLineup(t),dhIdx=dhSlotOf(def.id);
+    const a=assignFieldPositions(lu,lu[dhIdx]?lu[dhIdx].id:null);
+    const seen={},dup=[];
+    Object.keys(a.map).forEach(pid=>{const pos=a.map[pid];if(pos==="DH")return;if(seen[pos])dup.push(pos);seen[pos]=1;});
+    return {team:def.id,dup,missing:FIELD_POS.filter(p=>!seen[p]),score:a.score};
+  });
 }
 /* ===================== 30-engine.js ===================== */
 /* ---------- 投打數據模型 ---------- */
@@ -1006,8 +1100,17 @@ function dhSlotOf(teamId){
   if(saved!=null&&saved>=0&&saved<lu.length)return saved;
   const isMe=!!(S.season&&S.season.playerTeam===teamId);
   if(isMe)return lu.length-1;              // 自己的球隊：預設第 9 棒
-  // 對手球隊：加權隨機（打擊能力越高越可能被排去 DH）
-  const w=lu.map(b=>Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4));
+  // 對手球隊：優先從「有重複本職守位」的人裡挑 DH（通常是第 9 位外野手），
+  // 這樣 DH 不會讓某個守位開天窗；同守位再依打擊能力加權。
+  const cnt={};lu.forEach(b=>{if(b.pos)cnt[b.pos]=(cnt[b.pos]||0)+1;});
+  const hasDup=lu.some(b=>b.pos&&cnt[b.pos]>1);
+  const catchers=lu.filter(b=>b.pos==="C"||b.pos2==="C");
+  const w=lu.map(b=>{
+    let v=Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4);
+    if(catchers.length===1&&(b.pos==="C"||b.pos2==="C"))v=0;
+    if(hasDup&&b.pos&&cnt[b.pos]===1)v=0;   // 唯一本職守位的人不排 DH
+    return v;
+  });
   return weightedIndex(w);
 }
 /* 指定 DH 棒次；傳 null 或 -1 表示改回自動。 */
@@ -1050,6 +1153,12 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
   m.originals={away:m.lineups.away.slice(),home:m.lineups.home.slice()};  // 記錄原先發，供換人／打線對照
+  // 守位指派：每隊扣掉 DH 後，8 個守位各一人（不重複）。比賽中換人後會重算。
+  m.posAssign={};
+  ["away","home"].forEach(side=>{
+    const lu=m.lineups[side],dhIdx=m.dhSlot[side];
+    m.posAssign[side]=assignFieldPositions(lu,(dhIdx!=null&&lu[dhIdx])?lu[dhIdx].id:null).map;
+  });
   m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
   m.log.push(`　先發投手　${away.name}：${awayStarter.name}　／　${home.name}：${homeStarter.name}`);
   m.log.push(`◆ 1局上　${away.name}的進攻`);
@@ -1325,6 +1434,9 @@ function doPinchHit(m,auto){
   const bi=auto?ri(0,bench.length-1):0;   // 自動調度隨機挑替補，讓大家都有上場機會
   const sub=bench.splice(bi,1)[0];
   lu[idx]=sub;
+  // 換人後重算守位：新上場的球員可能和原本守位重複，交給指派函式重新排。
+  const dhIdx=m.dhSlot[offSide];
+  if(m.posAssign)m.posAssign[offSide]=assignFieldPositions(lu,(dhIdx!=null&&lu[dhIdx])?lu[dhIdx].id:null).map;
   m.log.push({t:`　代打！換下「${before.name}」（${before.posLabel}），由「${sub.name}」（${sub.posLabel}）拎著球棒上場代打。`,c:"sys"});
 }
 function doChangePitcher(m,pid){
@@ -2984,7 +3096,7 @@ function prepareDraft(){
   const vacsByTeam=order.map(tid=>{
     const t=getTeam(tid);
     return t.batters.concat(t.pitchers).filter(p=>(p.age||26)>=38)
-      .map(v=>({teamId:tid,pid:v.id,pos:v.posLabel||v.role||"投手",kind:v.role!==undefined?"pit":"bat"}));
+      .map(v=>({teamId:tid,pid:v.id,pos:v.posLabel||v.role||"投手",pos2:v.pos2Label||"",kind:v.role!==undefined?"pit":"bat"}));
   });
   const picks=[];
   let round=0;
@@ -3037,7 +3149,7 @@ function draftCandidates(pick){
       if(aro==="contact"){meet+=11;eye+=3;power-=5;}
       if(aro==="speed"){speed+=15;defense+=3;power-=6;}
       if(aro==="balanced"){eye+=5;defense+=3;}
-      cands.push({id:pick.pid+"-c"+i,teamId:pick.teamId,name,age,posLabel:pick.pos,
+      cands.push({id:pick.pid+"-c"+i,teamId:pick.teamId,name,age,posLabel:pick.pos,pos2Label:pick.pos2||"",
         meet:Math.round(clamp(meet,30,95)),power:Math.round(clamp(power,30,95)),
         eye:Math.round(clamp(eye,30,95)),speed:Math.round(clamp(speed,25,95)),
         defense:Math.round(clamp(defense,28,95))});
@@ -3059,7 +3171,7 @@ function applyDraftRookie(pick,rookie){
   if(CAREER.milestones)delete CAREER.milestones[pick.pid];
   if(CAREER.allstarAppearances)delete CAREER.allstarAppearances[pick.pid];
   if(CAREER.debut)delete CAREER.debut[pick.pid];   // 新人沿用舊 pid：他的初登場球季就是本季（=沒有紀錄）
-  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
+  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,pos2:pick.pos2||"",age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){
   if(!S.season.draft)return;
@@ -3084,7 +3196,7 @@ function candCard(c,pick,idx){
     : ["打擊","力量","選球","速度","守備"].map((l,i)=>rbar(l,[c.meet,c.power,c.eye,c.speed,c.defense][i])).join("");
   return `<div class="panel cand">
     <div class="cand-top">${playerAvatar(c,40)}<div><div class="nm">${esc(c.name)}　<span class="grade g-${grade}">${grade}</span> <span class="pill off">${c.age} 歲</span></div>
-      <div class="meta">${esc(c.posLabel)}　·　候補</div></div></div>
+      <div class="meta">${esc(c.posLabel)}${c.pos2Label?`／副 ${esc(c.pos2Label)}`:""}　·　候補</div></div></div>
     <div class="bars">${bars}</div>
     <button class="btn gold blk" data-act="draftPick" data-arg="${idx}">★ 指名 ${esc(c.name)}</button>
   </div>`;
@@ -3095,7 +3207,7 @@ function viewDraft(){
     const sno=(typeof seasonNo==="function"?seasonNo():0);
     const start=(se.lastDraftLogStart!=null?se.lastDraftLogStart:null);
     const log=(start!=null?(se.draftLog||[]).slice(start):(se.draftLog||[]).filter(x=>x.season>=sno-1));
-    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${pidLink(x.pid,x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
+    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${pidLink(x.pid,x.name)}</td><td>${esc(x.pos)}${x.pos2?`／${esc(x.pos2)}`:""}</td><td class="num">${x.age} 歲</td></tr>`).join("");
     return `<div class="panel center"><h2>⭐ 新人選秀結束</h2>
       <p class="muted">新人們已陸續入團，下一球季就靠他們了！</p></div>
       <div class="panel"><h2>指名結果（共 ${log.length} 位）</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${rows||'<tr><td colspan="5" class="muted">本季無選秀</td></tr>'}</table>
@@ -3120,7 +3232,7 @@ function viewDraft(){
   return `<div class="panel center"><h2>⭐ 新人選秀</h2><p class="muted">例行賽戰績越差順位越前面（一輪制）。</p>${step}</div>
     <div class="panel center">
       <div class="teamcard"><div><div class="nm">${teamBadge(pick.teamId)}</div>
-      <div class="meta">指名順位：第 ${d.idx+1} 位 · 補強位置：${esc(pick.pos)}</div></div></div>
+      <div class="meta">指名順位：第 ${d.idx+1} 位 · 補強位置：${esc(pick.pos)}${pick.pos2?`／${esc(pick.pos2)}`:""}</div></div></div>
     </div>
     ${body}`;
 }
@@ -4071,6 +4183,8 @@ function startersPanel(){
   if(!g)return "";
   const me=s.playerTeam,myHome=g.home===me;
   const my=getTeam(me),lu=buildLineup(my),sp=starterOf(my,day);
+  const dhIdx=dhSlotOf(me);
+  const assign=assignFieldPositions(lu,lu[dhIdx]?lu[dhIdx].id:null);
   const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
   // 投手狀態（D2a/D2b）
   const myP={obj:sp,pitches:0,cond:rollCond(),carryPP:carryFor(sp.id,day)};
@@ -4083,7 +4197,14 @@ function startersPanel(){
   const myCond=condBadge(myEff.cond),oppCond=condBadge(oppEff.cond);
   const myFatigue=fatigueBadge(myEff),oppFatigue=fatigueBadge(oppEff);
   const myCarry=carryTxt(myP.carryPP),oppCarry=carryTxt(oppP.carryPP);
-  const rows=lu.map((b,i)=>`<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${esc(b.posLabel)}</td></tr>`).join("");
+  const rows=lu.map((b,i)=>{
+    const ap=assign.map[b.id]||b.pos;
+    const alt=ap===b.pos2;
+    const out=ap!=="DH"&&b.pos!==ap;
+    const tag=out?(alt?' <span class="pill">副守位</span>':' <span class="pill off">客串</span>'):"";
+    const txt=i===dhIdx?"指定打擊":esc(POS_ZH[ap]||b.posLabel||"");
+    return `<tr><td class="num">${i+1}</td><td class="name">${esc(b.name)}</td><td>${txt}${tag}</td></tr>`;
+  }).join("");
   return `<div class="panel">
     <h2>今日先發</h2>
     <div class="two">
@@ -4251,45 +4372,58 @@ function viewLineup(){
   const dhIdx=dhSlotOf(se.playerTeam);
   const dhManual=(CAREER.dhSlot||{})[se.playerTeam]!=null;
   const dhPlayer=lu[dhIdx];
+  const assign=assignFieldPositions(lu,dhPlayer?dhPlayer.id:null);
+  const weakRows=lu.filter((b,i)=>i!==dhIdx&&posFitScore(b,assign.map[b.id])<45);
+  const posLine=FIELD_POS.map(pos=>`${POS_ZH[pos]}：${esc((lu.find(b=>assign.map[b.id]===pos)||{}).name||"－")}`).join("　");
+  const weakNote=weakRows.length?`<div class="abilnote" style="border-color:#b5533a">⚠️ 有 ${weakRows.length} 位先發被排在非本職守位：${weakRows.map(b=>`${esc(b.name)}（${esc(POS_ZH[assign.map[b.id]]||assign.map[b.id])}）`).join("、")}。守備能力會受影響；可按下面的「自動排出守位＋打線」讓 8 個守位都由最合適的人擔任。</div>`:"";
   const dhNote=`<div class="hr"></div><h3>🎯 指定打擊（DH）</h3>
-    <p class="muted" style="font-size:12px">目前由 <b>${dhPlayer?esc(dhPlayer.name):"－"}</b>（第 ${dhIdx+1} 棒）擔任 DH，${dhManual?"（手動指定）":"（未指定：預設由第 9 棒擔任）"}。DH 是<b>打線上的一個棒次</b>，不是球員的守位——<b>任何球員</b>（內野手、外野手都行）排進那個棒次就是該場的 DH，該棒以外他就照自己的守位守備。</p>
+    <p class="muted" style="font-size:12px">目前由 <b>${dhPlayer?esc(dhPlayer.name):"－"}</b>（第 ${dhIdx+1} 棒）擔任 DH，${dhManual?"（已指定）":"（未指定：預設由第 9 棒擔任）"}。DH 是<b>打線上的一個棒次</b>，不是球員的守位——<b>任何球員</b>（內野手、外野手都行）排進那個棒次就是該場的 DH，該棒以外他就照自己的守位守備。</p>
     <div class="two">
       <button class="btn blk" data-act="luDHAuto">🤖 改回自動挑人</button>
       <button class="btn blk" data-act="backHub">← 回球季總部</button>
     </div>`;
-  const rows=lu.map((b,i)=>`<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
+  const rows=lu.map((b,i)=>{
+    const ap=assign.map[b.id]||b.pos;
+    const alt=ap===b.pos2;
+    const out=ap!=="DH"&&b.pos!==ap;
+    const tag=out?(alt?' <span class="pill">副守位</span>':' <span class="pill off">客串</span>'):"";
+    const posTxt=i===dhIdx?"指定打擊":`${esc(POS_ZH[ap]||b.posLabel||"")}${tag}`;
+    return `<div class="lurow ${i===sel?"sel":""}" data-act="luPick" data-arg="${i}">
       <span class="luord">${i+1}</span>
       <div class="lumain">
-        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${b.bench?' <span class="pill off">板凳</span>':""}${i===dhIdx?' <span class="pill on">🎯 DH</span>':""}</div>
+        <div class="luname">${esc(b.name)} ${gradeBadge(b)}${i===dhIdx?' <span class="pill on">🎯 DH</span>':""}</div>
         ${luStatLine(b)}
       </div>
-      <span class="lups">${i===dhIdx?"指定打擊":esc(b.posLabel||"")}</span>
+      <span class="lups">${posTxt}${out?`<div class="muted" style="font-size:10px">本職 ${esc(b.posLabel)}</div>`:""}</span>
       <span class="lubtns">
         <button class="btn sm ${i===dhIdx?'gold':''}" data-act="luDH" data-arg="${i}" title="指定這一位擔任指定打擊（DH）">🎯</button>
         <button class="btn sm" data-act="luUp" data-arg="${i}" ${i===0?"disabled":""}>▲</button>
         <button class="btn sm" data-act="luDown" data-arg="${i}" ${i===lu.length-1?"disabled":""}>▼</button>
       </span>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   const brows=bench.length?bench.map(b=>`<div class="lurow benchrow">
       <span class="luord">–</span>
       <div class="lumain">
         <div class="luname">${esc(b.name)} ${gradeBadge(b)}</div>
         ${luStatLine(b)}
       </div>
-      <span class="lups">${esc(b.posLabel||"")}</span>
+      <span class="lups">${esc(b.posLabel||"")}${b.pos2Label?`<div class="muted" style="font-size:10px">副 ${esc(b.pos2Label)}</div>`:""}</span>
       <button class="btn sm gold" data-act="luSwap" data-arg="${b.id}">⇄ 換入${sel>=0?"第 "+(sel+1)+" 棒":""}</button>
     </div>`).join(""):`<p class="muted">沒有可替換的球員。</p>`;
   return `<div class="panel"><h2>🧢 打線／守位編輯</h2>
-    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。每棒旁的 🎯 可指定<b>指定打擊（DH）</b>棒次。守位依球員本身位置顯示，變更後立即套用到下一場比賽。</p>
+    <p class="muted">調整打線：▲▼ 移動棒次；先點一位先發（反白），再按板凳的「換入」把他排進該棒次。每棒旁的 🎯 可指定<b>指定打擊（DH）</b>棒次。守位由系統自動分配：C/1B/2B/3B/SS/LF/CF/RF 各一人，DH 占一個棒次；被排到非本職的人會標示「客串」。</p>
     <p class="muted" style="font-size:11px">數值：<b>打</b>＝打擊　<b>力</b>＝力量　<b>選</b>＝選球　<b>走</b>＝速度　<b>守</b>＝守備；後方為本季打率（安打／打數）。</p>
     <div class="hr"></div><h3>先發打線</h3>
+    <p class="muted" style="font-size:12px">守位：${posLine}</p>
+    ${weakNote}
     <div class="lulist">${rows}</div>
     <div class="hr"></div><h3>板凳</h3>
     <div class="lulist">${brows}</div>
     ${dhNote}
     <div class="hr"></div>
     <div class="two">
-      <button class="btn blk" data-act="luAuto">🤖 自動排序打線</button>
+      <button class="btn blk" data-act="luAuto">🤖 自動排出守位＋打線</button>
       <button class="btn blk" data-act="luReset">↺ 回復預設打線</button>
       <button class="btn blk" data-act="backHub">← 回球季總部</button>
     </div></div>`;
@@ -4340,8 +4474,10 @@ function viewGame(){
   const condBadge=COND_LABEL[P.cond]||COND_LABEL.normal;
   const fatigueBadge=eff.fatigue<0.95?' <span class="pill off">疲勞</span>':' <span class="pill on">狀態佳</span>';
   const carryTxt=(P.carryPP||0)>=30?' <span class="pill off">昨日'+P.carryPP+'球連投注意</span>':(P.carryPP?' <span class="muted">昨日'+P.carryPP+'球</span>':'');
+  const bPos=(m.posAssign&&m.posAssign[offSide]&&m.posAssign[offSide][batter.id])||batter.pos;
+  const bPosTxt=bPos==="DH"?"指定打擊":(POS_ZH[bPos]||batter.posLabel);
   const matchup=`<div class="matchup">
-    <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(batter.posLabel)}</span><span class="pill on">第 ${myOrder} 棒</span>
+    <div style="margin-bottom:6px"><span class="who">🧑 ${esc(batter.name)}</span><span class="pos">${esc(bPosTxt)}</span><span class="pill on">第 ${myOrder} 棒</span>
       <span class="muted" style="font-size:12px">　打率 ${batAvg(m,batter.id)}</span></div>
     ${rbar("打擊",batter.meet)}${rbar("長打",batter.power)}${rbar("選球",batter.eye)}${rbar("走壘",batter.speed)}
     <div class="hr"></div>
@@ -4465,6 +4601,7 @@ function lineupBox(m,side){
   const orig=(m.originals&&m.originals[side])||[];
   const tid=side==="away"?m.awayId:m.homeId;   // side 是 away/home，m.awayId/m.homeId 才是球隊 id（原本比錯對象，兩邊都顯示主隊）
   const dhIdx=(m.dhSlot&&m.dhSlot[side]!=null)?m.dhSlot[side]:-1;
+  const pa=(m.posAssign&&m.posAssign[side])||{};
   const rows=lu.map((b,i)=>{
     const cls=[];
     if(onBase.has(b.id))cls.push("onbase");
@@ -4473,9 +4610,14 @@ function lineupBox(m,side){
     const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
     const mark=onBase.has(b.id)?' <span class="pill on">壘</span>':"";
     const dhMark=(i===dhIdx)?' <span class="pill on">🎯 DH</span>':"";
-    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${dhMark}${subNote}</td><td>${i===dhIdx?"指定打擊":esc(b.posLabel)}</td></tr>`;
+    const ap=pa[b.id]||b.pos;
+    const alt=ap===b.pos2;
+    const out=ap!=="DH"&&b.pos!==ap;
+    const tag=out?(alt?' <span class="pill">副守位</span>':' <span class="pill off">客串</span>'):"";
+    const posTxt=i===dhIdx?"指定打擊":`${esc(POS_ZH[ap]||b.posLabel)}${tag}`;
+    return `<tr class="${cls.join(" ")}"><td class="num">${i+1}</td><td class="name">${cur&&b.id===cur.id?"▶ ":""}${esc(b.name)}${mark}${dhMark}${subNote}</td><td>${posTxt}</td></tr>`;
   }).join("");
-  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}）</span>`).join("、");
+  const bench=m.bench[side].map(b=>`${esc(b.name)}<span class="muted">（${esc(b.posLabel)}${b.pos2Label?"／"+esc(b.pos2Label):""}）</span>`).join("、");
   const bp=m.bullpen[side].map(p=>`${esc(p.name)}<span class="muted">（${esc(p.role)}）</span>`).join("、");
   const P=m.pitchers[side].obj;
   return `<div>
@@ -4497,12 +4639,18 @@ function boxScore(m){
     const lu=m.lineups[key];
     const orig=(m.originals&&m.originals[key])||[];
     const dhIdx=(m.dhSlot&&m.dhSlot[key]!=null)?m.dhSlot[key]:-1;
+    const pa=(m.posAssign&&m.posAssign[key])||{};
     let rows=lu.map((b,i)=>{
       const s=m.stats[b.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0,r:0};
       const o=orig[i];
       const subNote=(o&&o.id!==b.id)?` <span class="muted" style="font-size:11px">（原 ${esc(o.name)}・${esc(o.posLabel)}）</span>`:"";
       const dhNote=(i===dhIdx)?` <span class="pill on">🎯 DH</span>`:"";
-      return `<tr><td class="name">${esc(b.name)}${dhNote}${subNote}</td><td>${i===dhIdx?"指定打擊":esc(b.posLabel)}</td>
+      const ap=pa[b.id]||b.pos;
+      const alt=ap===b.pos2;
+      const out=ap!=="DH"&&b.pos!==ap;
+      const tag=out?(alt?' <span class="pill">副守位</span>':' <span class="pill off">客串</span>'):"";
+      const posTxt=i===dhIdx?"指定打擊":`${esc(POS_ZH[ap]||b.posLabel)}${tag}`;
+      return `<tr><td class="name">${esc(b.name)}${dhNote}${subNote}</td><td>${posTxt}</td>
         <td class="num">${s.ab}</td><td class="num">${s.h}</td><td class="num">${s.hr}</td>
         <td class="num">${s.rbi}</td><td class="num">${s.bb}</td><td class="num">${s.k}</td></tr>`;
     }).join("");
@@ -4547,7 +4695,7 @@ function viewRoster(){
     const s=ps.bat[b.id];
     const ab=s?s.ab:0,h=s?s.h:0;
     return `<tr><td class="name">${playerAvatar(b,20)}<span class="plink" data-act="player" data-arg="${b.id}">${esc(b.name)}</span>${b.bench?' <span class="pill off">替</span>':''}</td>
-      <td>${esc(b.posLabel)}</td><td class="num">${gradeBadge(b)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
+      <td>${esc(b.posLabel)}${b.pos2Label?`<div class="muted" style="font-size:10px">副 ${esc(b.pos2Label)}</div>`:""}</td><td class="num">${gradeBadge(b)}</td><td class="num">${s?s.g:0}</td><td class="num">${ab}</td><td class="num">${h}</td>
       <td class="num">${fmtAvg(ab?h/ab:0)}</td><td class="num">${s?s.hr:0}</td><td class="num">${s?s.rbi:0}</td>
       <td class="num">${s?s.bb:0}</td><td class="num">${s?s.k:0}</td><td class="num">${s?s.r:0}</td><td class="num">${s?s.sb:0}</td></tr>`;
   }).join("");
@@ -5270,20 +5418,17 @@ const ACT={
     setDHSlot(S.season.playerTeam,null);
     const lu=buildLineup(getTeam(S.season.playerTeam));
     const idx=dhSlotOf(S.season.playerTeam);
-    flash("DH 改為自動挑選："+(lu[idx]?recName(lu[idx].id):"－")+"（守備能力最差者）");
+    flash("DH 改回自動：預設第 9 棒"+(lu[idx]?"（"+recName(lu[idx].id)+"）":""));
     render();
   },
   luAuto(){
     const team=getTeam(S.season.playerTeam);
-    const lu=buildLineup(team),bench=buildBench(team);
-    const all=[...lu,...bench];
-    // 計算每人的綜合打擊分數（近似 OPS）：打擊+力量+選球*1.2+速度*0.5
-    all.forEach(p=>{p._score=Math.round(p.meet*1.2+p.power*1.5+p.eye*1.2+p.speed*0.5);});
-    // 先發9人：依分數排序，但前2棒優先高選球+高速度，3-5棒優先高力量
-    all.sort((a,b)=>b._score-a._score);
-    const top=all.slice(0,9).map(p=>p.id);
-    setPlayerLineup(top);
-    S.luSel=null;flash("已依綜合打擊能力自動排序（前2棒優先上壘、3-5棒優先長打）");render();
+    const r=autoLineup(team);
+    setPlayerLineup(r.ids);
+    setDHSlot(S.season.playerTeam,r.dhIdx>=0?r.dhIdx:null);
+    S.luSel=null;
+    flash("已自動排出守位與打線：8 個守位各一人，DH："+(r.dhPid?recName(r.dhPid):"－")+"（第 "+(r.dhIdx+1)+" 棒）");
+    render();
   },
   allstar(){S.screen="allstar";render();},
   allstarSim(){const a=simAllstar();render();},
@@ -5558,6 +5703,7 @@ window.GK = {
   recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
+  assignFieldPositions, autoLineup, posFitScore, validateRosterPositions, FIELD_POS,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
   dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards, careerGateMin, playerSeasonStats,
   get CFG(){ return CFG; }, cfg, saveConfig, resetConfig, CONFIG_DEF, CFG_LIMITS,
