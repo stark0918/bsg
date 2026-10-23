@@ -87,10 +87,10 @@ function synthBatting(teamId,runs){
   }
   return ps;
 }
-function synthPitching(teamId,runsAllowed,oppHits,won,close){
+function synthPitching(teamId,runsAllowed,oppHits,won,close,day){
   const t=getTeam(teamId);
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
-  const starter=sp[ri(0,sp.length-1)];
+  const starter=day!=null?starterOf(t,day):sp[ri(0,sp.length-1)];
   const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
   // 體力好的先發有機會完投（跟引擎的「狀況好可以完投」呼應）
   const cgChance=clamp(((starter.stamina||70)-72)/34,0,0.45);
@@ -116,11 +116,11 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   else starterLine.l=1;
   return list;
 }
-function synthGameStats(awayId,homeId,ra,rh,merge){
+function synthGameStats(awayId,homeId,ra,rh,merge,day){
   const margin=Math.abs(ra-rh);
   const awayBat=synthBatting(awayId,ra), homeBat=synthBatting(homeId,rh);
-  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3);
-  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3);
+  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3,day);
+  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3,day);
   if(merge!==false){
     awayBat.forEach(s=>mergeBatLine(s.pid,s));
     homeBat.forEach(s=>mergeBatLine(s.pid,s));
@@ -151,17 +151,26 @@ function boxFromMatch(m){
   for(const pid in m.stats)cBat[pid]=packBat(m.stats[pid]);
   for(const pid in m.pstats)cPit[pid]=packPit(m.pstats[pid]);
   if(m.winner){
-    const wId=m.starters[m.winner].id;
-    const lId=m.starters[m.winner==="home"?"away":"home"].id;
-    const wl=cPit[wId]||(cPit[wId]=packPit({}));
-    wl[7]=1;
-    const ll=cPit[lId]||(cPit[lId]=packPit({}));
-    ll[8]=1;
+    const dec=gameDecisions(m);
+    if(dec){
+      const wl=cPit[dec.w]||(cPit[dec.w]=packPit({}));
+      wl[7]=1;
+      const ll=cPit[dec.l]||(cPit[dec.l]=packPit({}));
+      ll[8]=1;
+      if(dec.sv){const sl=cPit[dec.sv]||(cPit[dec.sv]=packPit({}));sl[9]=1;}
+    }else{
+      const wId=m.starters[m.winner].id;
+      const lId=m.starters[m.winner==="home"?"away":"home"].id;
+      const wl=cPit[wId]||(cPit[wId]=packPit({}));
+      wl[7]=1;
+      const ll=cPit[lId]||(cPit[lId]=packPit({}));
+      ll[8]=1;
+    }
   }
   return {
     st:m.po?(m.po.stage==="semi"?"準決賽":"冠軍戰"):"",
     aw:m.awayId,hm:m.homeId,a:m.score.away,h:m.score.home,
-    line:{aw:m.line.away.slice(0,12),hm:m.line.home.slice(0,12)},
+    line:{aw:m.line.away.slice(),hm:m.line.home.slice()},
     e:{aw:m.errs.away,hm:m.errs.home},
     bat:cBat,pit:cPit,win:m.winner,
     sp:{away:m.starters.away.id,home:m.starters.home.id}
@@ -282,7 +291,7 @@ function processGameEnd(m){
     x.played=true;x.score={a:r.a,h:r.b};
     applyRecord(x.away,x.home,r.a,r.b);
     logGame(m.dayIndex+1,"",x.away,x.home,r.a,r.b);
-    const L=synthGameStats(x.away,x.home,r.a,r.b);
+    const L=synthGameStats(x.away,x.home,r.a,r.b,true,m.dayIndex);
     boxes[m.dayIndex][i]=boxFromSim(x.away,x.home,r,L,"");
     checkLineRecords(L.away,x.away,when);
     checkLineRecords(L.home,x.home,when);

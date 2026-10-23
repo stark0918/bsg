@@ -943,6 +943,12 @@ function pitcherEffective(p,pitches,cond,carryPP){
 }
 /* 當日調子：好調 20%／普通 60%／不調 20% */
 function rollCond(){const r=Math.random();return r<0.2?"good":r<0.8?"normal":"bad";}
+/* 先發投手的調子：同一投手、同一天固定，讓賽前顯示與比賽實際使用一致。 */
+function starterCond(pid,day){
+  if(day==null||day==="")return rollCond();
+  const r=mulberry32(hashStr(String(pid)+":"+String(day)+":cond"))();
+  return r<0.2?"good":r<0.8?"normal":"bad";
+}
 const COND_LABEL={good:'<b style="color:#4fd39a">▲好調</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不調</b>'};
 /* 取守備方有效投球狀態（含調子＋連投） */
 function effOf(m,side){const P=m.pitchers[side];return pitcherEffective(P.obj,P.pitches,P.cond||"normal",P.carryPP||0);}
@@ -1147,7 +1153,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
     dhSlot:{away:dhSlotOf(awayId),home:dhSlotOf(homeId)},   // 兩隊的 DH 棒次（0~8）
-    pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond(),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:rollCond(),carryPP:carryFor(homeStarter.id,dayIndex)}},
+    pitchers:{away:{obj:awayStarter,pitches:0,cond:starterCond(awayStarter.id,dayIndex),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:starterCond(homeStarter.id,dayIndex),carryPP:carryFor(homeStarter.id,dayIndex)}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()
@@ -1621,10 +1627,10 @@ function synthBatting(teamId,runs){
   }
   return ps;
 }
-function synthPitching(teamId,runsAllowed,oppHits,won,close){
+function synthPitching(teamId,runsAllowed,oppHits,won,close,day){
   const t=getTeam(teamId);
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
-  const starter=sp[ri(0,sp.length-1)];
+  const starter=day!=null?starterOf(t,day):sp[ri(0,sp.length-1)];
   const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
   // 體力好的先發有機會完投（跟引擎的「狀況好可以完投」呼應）
   const cgChance=clamp(((starter.stamina||70)-72)/34,0,0.45);
@@ -1650,11 +1656,11 @@ function synthPitching(teamId,runsAllowed,oppHits,won,close){
   else starterLine.l=1;
   return list;
 }
-function synthGameStats(awayId,homeId,ra,rh,merge){
+function synthGameStats(awayId,homeId,ra,rh,merge,day){
   const margin=Math.abs(ra-rh);
   const awayBat=synthBatting(awayId,ra), homeBat=synthBatting(homeId,rh);
-  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3);
-  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3);
+  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3,day);
+  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3,day);
   if(merge!==false){
     awayBat.forEach(s=>mergeBatLine(s.pid,s));
     homeBat.forEach(s=>mergeBatLine(s.pid,s));
@@ -1685,17 +1691,26 @@ function boxFromMatch(m){
   for(const pid in m.stats)cBat[pid]=packBat(m.stats[pid]);
   for(const pid in m.pstats)cPit[pid]=packPit(m.pstats[pid]);
   if(m.winner){
-    const wId=m.starters[m.winner].id;
-    const lId=m.starters[m.winner==="home"?"away":"home"].id;
-    const wl=cPit[wId]||(cPit[wId]=packPit({}));
-    wl[7]=1;
-    const ll=cPit[lId]||(cPit[lId]=packPit({}));
-    ll[8]=1;
+    const dec=gameDecisions(m);
+    if(dec){
+      const wl=cPit[dec.w]||(cPit[dec.w]=packPit({}));
+      wl[7]=1;
+      const ll=cPit[dec.l]||(cPit[dec.l]=packPit({}));
+      ll[8]=1;
+      if(dec.sv){const sl=cPit[dec.sv]||(cPit[dec.sv]=packPit({}));sl[9]=1;}
+    }else{
+      const wId=m.starters[m.winner].id;
+      const lId=m.starters[m.winner==="home"?"away":"home"].id;
+      const wl=cPit[wId]||(cPit[wId]=packPit({}));
+      wl[7]=1;
+      const ll=cPit[lId]||(cPit[lId]=packPit({}));
+      ll[8]=1;
+    }
   }
   return {
     st:m.po?(m.po.stage==="semi"?"準決賽":"冠軍戰"):"",
     aw:m.awayId,hm:m.homeId,a:m.score.away,h:m.score.home,
-    line:{aw:m.line.away.slice(0,12),hm:m.line.home.slice(0,12)},
+    line:{aw:m.line.away.slice(),hm:m.line.home.slice()},
     e:{aw:m.errs.away,hm:m.errs.home},
     bat:cBat,pit:cPit,win:m.winner,
     sp:{away:m.starters.away.id,home:m.starters.home.id}
@@ -1816,7 +1831,7 @@ function processGameEnd(m){
     x.played=true;x.score={a:r.a,h:r.b};
     applyRecord(x.away,x.home,r.a,r.b);
     logGame(m.dayIndex+1,"",x.away,x.home,r.a,r.b);
-    const L=synthGameStats(x.away,x.home,r.a,r.b);
+    const L=synthGameStats(x.away,x.home,r.a,r.b,true,m.dayIndex);
     boxes[m.dayIndex][i]=boxFromSim(x.away,x.home,r,L,"");
     checkLineRecords(L.away,x.away,when);
     checkLineRecords(L.home,x.home,when);
@@ -1886,6 +1901,18 @@ function mkSeries(hi,lo,best){return {hi:hi,lo:lo,best:best,winsHi:0,winsLo:0,ga
 function homeIsHi(gameNo){return gameNo%2===0;}
 function seriesOver(s){return !!s.winner;}
 
+/* 球季結束的最後一段：頒獎、累計生涯、選秀、標記 pending。
+   冠軍路徑與「不辦季後賽」路徑共用，避免 playoff=0 時整段被跳過。 */
+function finishSeason(){
+  const se=S.season,po=se&&se.playoff;
+  if(!se||!po||po.stage!=="done"||se.finalized)return false;
+  computeAwards();                      // 季後頒獎
+  finalizeSeason();                     // 累計生涯、寫入跨季紀錄
+  prepareDraft();                       // 新人選秀（有退休缺口才展開）
+  CAREER.pending=true;saveCareer();saveGame();
+  return true;
+}
+
 /* 例行賽結束 → 建立季後賽籤表 */
 function ensurePlayoff(){
   const se=S.season;
@@ -1897,6 +1924,12 @@ function ensurePlayoff(){
   if(cfg('playoff')===0){
     // 管理者設定不辦季後賽：例行賽龍頭直接封王（後續流程照常走）
     se.playoff={seeds:[],semi:[],final:null,stage:"done",champion:st[0]?st[0].id:null,noPlayoff:true};
+    if(se.playoff.champion){
+      se.news=se.news||[];
+      se.news.push({day:(se.schedule||[]).length+1,text:`★ 例行賽結束：${getTeam(se.playoff.champion).name} 封王（未辦季後賽）`,special:true});
+      if(se.news.length>10)se.news.shift();
+    }
+    finishSeason();
     return;
   }
   const seeds=st.slice(0,4).map(x=>x.id);
@@ -1939,9 +1972,10 @@ function simSeriesGame(s,label){
   const winnerId=homeScore>awayScore?home:away;
   const hiScore=home===s.hi?homeScore:awayScore;
   const loScore=home===s.hi?awayScore:homeScore;
+  const dayIdx=(S.season.schedule||[]).length+1+playoffGameCount();   // 這一場開打前的季後賽場數
   s.games.push({home:home,away:away,scoreHi:hiScore,scoreLo:loScore,winner:winnerId});
   logGame(null,label||"季後賽",away,home,awayScore,homeScore);
-  const L=synthGameStats(away,home,awayScore,homeScore,false);
+  const L=synthGameStats(away,home,awayScore,homeScore,false,dayIdx);
   const bx=boxFromSim(away,home,{a:awayScore,b:homeScore},L,label||"季後賽");
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
   recordNoHitter(bx,label||"季後賽");
@@ -1954,6 +1988,7 @@ function simSeriesToEnd(s,label){let g=0;while(!s.winner&&g++<20)simSeriesGame(s
 function playoffProgress(){
   const po=S.season.playoff;
   if(!po)return;
+  if(po.stage==="done"){finishSeason();return;}   // 修復舊存檔：已完成但還沒跑季末流程
   const me=S.season.playerTeam;
   let guard=0;
   while(guard++<60){
@@ -1980,10 +2015,7 @@ function playoffProgress(){
         se.news.push({day:se.schedule.length+1,text:`★ 季後賽結束：總冠軍 ${getTeam(po.champion).name}${won?"（你率領奪冠！）":""}`,special:true});
         if(won) se.news.push({day:se.schedule.length+1,text:`🏆 恭喜！你率領 ${getTeam(me).name} 奪得本季總冠軍！`,special:true});
         if(se.news.length>10)se.news.shift();
-        computeAwards();                      // 季後頒獎
-        finalizeSeason();                     // 累計生涯、寫入跨季紀錄
-        prepareDraft();                       // 新人選秀（有退休缺口才展開）
-        CAREER.pending=true;saveCareer();saveGame();
+        finishSeason();                       // 頒獎、累計生涯、選秀、pending 共用這段
         if(won){S.flash=S.flash||`🏆 總冠軍 ${getTeam(me).name}！恭喜奪冠！`; setTimeout(()=>SFX.champ(),220);} else {S.flash=S.flash||`季後賽結束：總冠軍 ${getTeam(po.champion).name}`;}
     // 提示晉級冠軍（對玩家而言）
     if(won) S.flash = S.flash || `🏆 你率領 ${getTeam(me).name} 奪得總冠軍！`;
@@ -2507,7 +2539,7 @@ function histPlayerCareerPanel(){
     // 已引退：沒有能力值，只能顯示歷史成績與當時的球隊
     return {pid,name:careerName(pid),team:careerTeam(pid),isBat,bat:b,pit:pt,age:null,as};
   }).filter(x=>x.name);
-  players.sort((a,b)=>b.bat.g-b.bat.g || b.pit.g-a.pit.g);
+  players.sort((a,b)=>b.bat.g-a.bat.g || b.pit.g-a.pit.g);
   const rows=players.slice(0,30).map((pl,i)=>{
     const b=pl.bat, pt=pl.pit;
     const ab=b.ab||0, h=b.h||0, hr=b.hr||0, rbi=b.rbi||0, sb=b.sb||0, avg=ab?fmtAvg(h/ab):".000";
@@ -2916,7 +2948,8 @@ function detectNoHitter(b){
   const innings=Math.max(((b.line&&b.line.aw)||[]).length,((b.line&&b.line.hm)||[]).length);
   if(innings<9)return null;
   if(boxHitsTeam(b,loseTeam)!==0)return null;
-  const errsWin=(b.e&&(winSide==="away"?b.e.away:b.e.home))||0;
+  const e=b.e||{};
+  const errsWin=(winSide==="away"?(e.aw!=null?e.aw:e.away):(e.hm!=null?e.hm:e.home))||0;
   const kind=(boxWalksTeam(b,loseTeam)===0&&errsWin===0)?"perfect":"no";
   return {kind,team:winTeam,against:loseTeam,pitchers:boxPitcherNames(b,winTeam)};
 }
@@ -3654,10 +3687,23 @@ function saveGame(){
   if(!S.season)return;
   try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
 }
+/* 存檔裡至少要有的球季骨架；避免壞檔一載入就在 render／ensurePlayoff 爆掉。 */
+function validSeasonData(se){
+  if(!se||typeof se!=="object")return false;
+  if(typeof se.playerTeam!=="string"||!getTeam(se.playerTeam))return false;
+  if(!Array.isArray(se.schedule)||!se.schedule.length)return false;
+  if(!se.schedule.every(d=>Array.isArray(d)))return false;
+  if(!se.records||typeof se.records!=="object"||!se.records[se.playerTeam])return false;
+  if(se.day!=null&&(!Number.isFinite(se.day)||se.day<0||se.day>se.schedule.length))return false;
+  return true;
+}
 function loadGame(){
   try{
     const raw=localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY);
-    if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(!d||!validSeasonData(d.season))return false;
+    S.season=d.season;return true;
   }catch(e){return false;}
 }
 function hasSave(){try{return !!(localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY));}catch(e){return false;}}
@@ -3769,12 +3815,12 @@ function migrateSeasonStats(){
       const sc=gameScore(g),ra=sc.a,rh=sc.h;
       const invA=g.away===se.playerTeam,invH=g.home===se.playerTeam;
       if((!invA&&!invH)||!hasPlayerBat){
-        synthGameStats(g.away,g.home,ra,rh);
+        synthGameStats(g.away,g.home,ra,rh,true,i);
       }else{
         const oppId=invA?g.home:g.away;
         const oppRuns=invA?rh:ra,myRuns=invA?ra:rh;
         const ob=synthBatting(oppId,oppRuns);
-        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3);
+        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3,i);
         ob.forEach(s=>mergeBatLine(s.pid,s));
         op.forEach(s=>mergePitLine(s.pid,s));
         const sp=starterOf(getTeam(se.playerTeam),i);
@@ -4111,7 +4157,7 @@ function viewHub(){
     const recentPicks=s.draftLog.filter(x=>x.season===seasonNo()-1);
     const minePicks=recentPicks.filter(x=>x.teamId===s.playerTeam);
     if(minePicks.length){
-      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${minePicks.map(x=>`${x.name}(${x.pos})`).join("、")}</p><p class="muted" style="font-size:12px">完整指名結果（含其他球團）請看「新人選秀」。</p></div>`;
+      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${minePicks.map(x=>`${esc(x.name)}(${esc(x.pos)})`).join("、")}</p><p class="muted" style="font-size:12px">完整指名結果（含其他球團）請看「新人選秀」。</p></div>`;
     }else if(recentPicks.length){
       draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團本季無需補人（無退休缺口），其他球團共指名 ${recentPicks.length} 位新人。</p><p class="muted" style="font-size:12px">完整指名結果請看「新人選秀」。</p></div>`;
     }
@@ -4187,8 +4233,8 @@ function startersPanel(){
   const assign=assignFieldPositions(lu,lu[dhIdx]?lu[dhIdx].id:null);
   const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
   // 投手狀態（D2a/D2b）
-  const myP={obj:sp,pitches:0,cond:rollCond(),carryPP:carryFor(sp.id,day)};
-  const oppP={obj:osp,pitches:0,cond:rollCond(),carryPP:carryFor(osp.id,day)};
+  const myP={obj:sp,pitches:0,cond:starterCond(sp.id,day),carryPP:carryFor(sp.id,day)};
+  const oppP={obj:osp,pitches:0,cond:starterCond(osp.id,day),carryPP:carryFor(osp.id,day)};
   const myEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"away":"home");
   const oppEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"home":"away");
   const condBadge=c=>COND_LABEL[c]||COND_LABEL.normal;

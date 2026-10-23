@@ -24,6 +24,12 @@ function pitcherEffective(p,pitches,cond,carryPP){
 }
 /* 當日調子：好調 20%／普通 60%／不調 20% */
 function rollCond(){const r=Math.random();return r<0.2?"good":r<0.8?"normal":"bad";}
+/* 先發投手的調子：同一投手、同一天固定，讓賽前顯示與比賽實際使用一致。 */
+function starterCond(pid,day){
+  if(day==null||day==="")return rollCond();
+  const r=mulberry32(hashStr(String(pid)+":"+String(day)+":cond"))();
+  return r<0.2?"good":r<0.8?"normal":"bad";
+}
 const COND_LABEL={good:'<b style="color:#4fd39a">▲好調</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不調</b>'};
 /* 取守備方有效投球狀態（含調子＋連投） */
 function effOf(m,side){const P=m.pitchers[side];return pitcherEffective(P.obj,P.pitches,P.cond||"normal",P.carryPP||0);}
@@ -228,7 +234,7 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
     dhSlot:{away:dhSlotOf(awayId),home:dhSlotOf(homeId)},   // 兩隊的 DH 棒次（0~8）
-    pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond(),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:rollCond(),carryPP:carryFor(homeStarter.id,dayIndex)}},
+    pitchers:{away:{obj:awayStarter,pitches:0,cond:starterCond(awayStarter.id,dayIndex),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:starterCond(homeStarter.id,dayIndex),carryPP:carryFor(homeStarter.id,dayIndex)}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()

@@ -345,7 +345,7 @@ function histPlayerCareerPanel(){
     // 已引退：沒有能力值，只能顯示歷史成績與當時的球隊
     return {pid,name:careerName(pid),team:careerTeam(pid),isBat,bat:b,pit:pt,age:null,as};
   }).filter(x=>x.name);
-  players.sort((a,b)=>b.bat.g-b.bat.g || b.pit.g-a.pit.g);
+  players.sort((a,b)=>b.bat.g-a.bat.g || b.pit.g-a.pit.g);
   const rows=players.slice(0,30).map((pl,i)=>{
     const b=pl.bat, pt=pl.pit;
     const ab=b.ab||0, h=b.h||0, hr=b.hr||0, rbi=b.rbi||0, sb=b.sb||0, avg=ab?fmtAvg(h/ab):".000";

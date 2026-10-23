@@ -4,10 +4,23 @@ function saveGame(){
   if(!S.season)return;
   try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
 }
+/* 存檔裡至少要有的球季骨架；避免壞檔一載入就在 render／ensurePlayoff 爆掉。 */
+function validSeasonData(se){
+  if(!se||typeof se!=="object")return false;
+  if(typeof se.playerTeam!=="string"||!getTeam(se.playerTeam))return false;
+  if(!Array.isArray(se.schedule)||!se.schedule.length)return false;
+  if(!se.schedule.every(d=>Array.isArray(d)))return false;
+  if(!se.records||typeof se.records!=="object"||!se.records[se.playerTeam])return false;
+  if(se.day!=null&&(!Number.isFinite(se.day)||se.day<0||se.day>se.schedule.length))return false;
+  return true;
+}
 function loadGame(){
   try{
     const raw=localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY);
-    if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(!d||!validSeasonData(d.season))return false;
+    S.season=d.season;return true;
   }catch(e){return false;}
 }
 function hasSave(){try{return !!(localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY));}catch(e){return false;}}
@@ -119,12 +132,12 @@ function migrateSeasonStats(){
       const sc=gameScore(g),ra=sc.a,rh=sc.h;
       const invA=g.away===se.playerTeam,invH=g.home===se.playerTeam;
       if((!invA&&!invH)||!hasPlayerBat){
-        synthGameStats(g.away,g.home,ra,rh);
+        synthGameStats(g.away,g.home,ra,rh,true,i);
       }else{
         const oppId=invA?g.home:g.away;
         const oppRuns=invA?rh:ra,myRuns=invA?ra:rh;
         const ob=synthBatting(oppId,oppRuns);
-        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3);
+        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3,i);
         ob.forEach(s=>mergeBatLine(s.pid,s));
         op.forEach(s=>mergePitLine(s.pid,s));
         const sp=starterOf(getTeam(se.playerTeam),i);

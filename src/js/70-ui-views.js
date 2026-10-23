@@ -135,7 +135,7 @@ function viewHub(){
     const recentPicks=s.draftLog.filter(x=>x.season===seasonNo()-1);
     const minePicks=recentPicks.filter(x=>x.teamId===s.playerTeam);
     if(minePicks.length){
-      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${minePicks.map(x=>`${x.name}(${x.pos})`).join("、")}</p><p class="muted" style="font-size:12px">完整指名結果（含其他球團）請看「新人選秀」。</p></div>`;
+      draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團指名了：${minePicks.map(x=>`${esc(x.name)}(${esc(x.pos)})`).join("、")}</p><p class="muted" style="font-size:12px">完整指名結果（含其他球團）請看「新人選秀」。</p></div>`;
     }else if(recentPicks.length){
       draftCompleteMsg=`<div class="hr"></div><div class="panel" style="background:#1a3a2a;border-color:#4fd39a"><h3>✅ 選秀完成</h3><p>你的球團本季無需補人（無退休缺口），其他球團共指名 ${recentPicks.length} 位新人。</p><p class="muted" style="font-size:12px">完整指名結果請看「新人選秀」。</p></div>`;
     }
@@ -211,8 +211,8 @@ function startersPanel(){
   const assign=assignFieldPositions(lu,lu[dhIdx]?lu[dhIdx].id:null);
   const oppId=myHome?g.away:g.home,opp=getTeam(oppId),osp=starterOf(opp,day);
   // 投手狀態（D2a/D2b）
-  const myP={obj:sp,pitches:0,cond:rollCond(),carryPP:carryFor(sp.id,day)};
-  const oppP={obj:osp,pitches:0,cond:rollCond(),carryPP:carryFor(osp.id,day)};
+  const myP={obj:sp,pitches:0,cond:starterCond(sp.id,day),carryPP:carryFor(sp.id,day)};
+  const oppP={obj:osp,pitches:0,cond:starterCond(osp.id,day),carryPP:carryFor(osp.id,day)};
   const myEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"away":"home");
   const oppEff=effOf({pitchers:{away:myP,home:oppP}},myHome?"home":"away");
   const condBadge=c=>COND_LABEL[c]||COND_LABEL.normal;
