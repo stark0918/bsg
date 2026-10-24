@@ -83,9 +83,11 @@ function simSeriesGame(s,label){
   const L=synthGameStats(away,home,awayScore,homeScore,false,dayIdx);
   const bx=boxFromSim(away,home,{a:awayScore,b:homeScore},L,label||"季後賽");
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
+  recordPitchLoad(dayIdx,[bx]);   // 季後賽模擬場次也要記錄用球數
   recordNoHitter(bx,label||"季後賽");
   if(winnerId===s.hi)s.winsHi++;else s.winsLo++;
   if(s.winsHi>=seriesNeed(s.best)||s.winsLo>=seriesNeed(s.best))s.winner=winnerId;
+  saveGame();
 }
 function simSeriesToEnd(s,label){let g=0;while(!s.winner&&g++<20)simSeriesGame(s,label);}
 

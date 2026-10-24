@@ -220,7 +220,7 @@ function migrateSeasonStats(){
         const oppId=invA?g.home:g.away;
         const oppRuns=invA?rh:ra,myRuns=invA?ra:rh;
         const ob=synthBatting(oppId,oppRuns);
-        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3,i);
+        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3,i,myRuns===oppRuns);
         ob.forEach(s=>mergeBatLine(s.pid,s));
         op.forEach(s=>mergePitLine(s.pid,s));
         const sp=starterOf(getTeam(se.playerTeam),i);
