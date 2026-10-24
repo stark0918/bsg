@@ -233,11 +233,17 @@ function mergePlayerStats(m,tgt){
 function recomputeSeasonDecisions(){
   const se=S.season;
   if(!se||!se.playerStats||!se.playerStats.pit)return 0;
+  const boxes=se.boxes||[];
+  let hasBox=false;
+  for(const day of boxes){
+    if(!Array.isArray(day))continue;
+    if(day.some(g=>g&&g.pit&&Object.keys(g.pit).length)){hasBox=true;break;}
+  }
+  if(!hasBox)return 0;   // 沒有逐場 box 就不要把現有成績歸零
   const ps=se.playerStats.pit;
   for(const pid in ps){ps[pid].w=0;ps[pid].l=0;ps[pid].sv=0;ps[pid].cg=0;}
-  const boxes=se.boxes||[];
   for(let d=0;d<boxes.length;d++){
-    const day=boxes[d];if(!day)continue;
+    const day=boxes[d];if(!Array.isArray(day))continue;
     for(const g of day){
       if(!g||!g.pit)continue;
       const awR=g.a||0,hmR=g.h||0;
@@ -253,7 +259,7 @@ function recomputeSeasonDecisions(){
         if(winSide===side){
           const wId=outsOf(first)>=15?first:last;
           if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
-          if(last!==first&&outsOf(last)>=3&&margin<=3&&ps[last])ps[last].sv=(ps[last].sv||0)+1;
+          if(last!==first&&last!==wId&&outsOf(last)>=3&&margin<=3&&ps[last])ps[last].sv=(ps[last].sv||0)+1;
           if(pids.length===1&&tot>=27&&ps[first])ps[first].cg=(ps[first].cg||0)+1;
         }else if(winSide){
           if(ps[last])ps[last].l=(ps[last].l||0)+1;

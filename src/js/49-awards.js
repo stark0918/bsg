@@ -366,6 +366,7 @@ function simAllstar(){
   se.news=se.news||[];se.news.push({day:se.day,text:`★ 明星賽：${wName}以 ${hi}:${lo} 獲勝，MVP ${a.mvp.name}`,special:true});
   if(se.news.length>5)se.news.shift();
   S.flash=`★ 明星賽結束：${wName}獲勝，MVP ${a.mvp.name}`;
+  saveGame();
   return a;
 }
 function asRosterTable(squad){

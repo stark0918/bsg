@@ -77,7 +77,8 @@ const ACT={
   slotLoad(a){
     const n=+a,p=readSlot(n);
     if(!p){flash("槽位是空的");render();return;}
-    applyPayload(p);saveCareer();flash("已讀取槽 "+n);render();
+    if(!applyPayload(p)){flash("槽位存檔格式不符或已損壞");render();return;}
+    saveCareer();flash("已讀取槽 "+n);render();
   },
   slotDel(a){const n=+a;deleteSlotStorage(n);flash("已刪除槽 "+n);render();},
   exportSave(){flash(exportSaveFile()?"已匯出存檔檔（請確認下載）":"匯出失敗");render();},
