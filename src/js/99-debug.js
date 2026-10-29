@@ -22,6 +22,7 @@ window.GK = {
   recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
+  assignFieldPositions, autoLineup, posFitScore, validateRosterPositions, FIELD_POS,
   asReady, asPick, ensureAllstarRoster, simAllstar, viewAllstar, asStrength,
   rollCond, effOf, rollForm, batterEffective, formOf, momOf, momStat, pushMom, momBand, leverageOf, applyClutch,
   dhSlotOf, setDHSlot, pickBestDH, pickSawamura, computeAwards, careerGateMin, playerSeasonStats,

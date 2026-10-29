@@ -9,7 +9,7 @@ function prepareDraft(){
   const vacsByTeam=order.map(tid=>{
     const t=getTeam(tid);
     return t.batters.concat(t.pitchers).filter(p=>(p.age||26)>=38)
-      .map(v=>({teamId:tid,pid:v.id,pos:v.posLabel||v.role||"投手",kind:v.role!==undefined?"pit":"bat"}));
+      .map(v=>({teamId:tid,pid:v.id,pos:v.posLabel||v.role||"投手",pos2:v.pos2Label||"",kind:v.role!==undefined?"pit":"bat"}));
   });
   const picks=[];
   let round=0;
@@ -62,7 +62,7 @@ function draftCandidates(pick){
       if(aro==="contact"){meet+=11;eye+=3;power-=5;}
       if(aro==="speed"){speed+=15;defense+=3;power-=6;}
       if(aro==="balanced"){eye+=5;defense+=3;}
-      cands.push({id:pick.pid+"-c"+i,teamId:pick.teamId,name,age,posLabel:pick.pos,
+      cands.push({id:pick.pid+"-c"+i,teamId:pick.teamId,name,age,posLabel:pick.pos,pos2Label:pick.pos2||"",
         meet:Math.round(clamp(meet,30,95)),power:Math.round(clamp(power,30,95)),
         eye:Math.round(clamp(eye,30,95)),speed:Math.round(clamp(speed,25,95)),
         defense:Math.round(clamp(defense,28,95))});
@@ -84,7 +84,7 @@ function applyDraftRookie(pick,rookie){
   if(CAREER.milestones)delete CAREER.milestones[pick.pid];
   if(CAREER.allstarAppearances)delete CAREER.allstarAppearances[pick.pid];
   if(CAREER.debut)delete CAREER.debut[pick.pid];   // 新人沿用舊 pid：他的初登場球季就是本季（=沒有紀錄）
-  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,age:rookie.age,pid:pick.pid,season:seasonNo()});
+  S.season.draftLog.push({teamId:pick.teamId,name:rookie.name,pos:pick.pos,pos2:pick.pos2||"",age:rookie.age,pid:pick.pid,season:seasonNo()});
 }
 function draftJudge(){
   if(!S.season.draft)return;
@@ -109,7 +109,7 @@ function candCard(c,pick,idx){
     : ["打擊","力量","選球","速度","守備"].map((l,i)=>rbar(l,[c.meet,c.power,c.eye,c.speed,c.defense][i])).join("");
   return `<div class="panel cand">
     <div class="cand-top">${playerAvatar(c,40)}<div><div class="nm">${esc(c.name)}　<span class="grade g-${grade}">${grade}</span> <span class="pill off">${c.age} 歲</span></div>
-      <div class="meta">${esc(c.posLabel)}　·　候補</div></div></div>
+      <div class="meta">${esc(c.posLabel)}${c.pos2Label?`／副 ${esc(c.pos2Label)}`:""}　·　候補</div></div></div>
     <div class="bars">${bars}</div>
     <button class="btn gold blk" data-act="draftPick" data-arg="${idx}">★ 指名 ${esc(c.name)}</button>
   </div>`;
@@ -120,7 +120,7 @@ function viewDraft(){
     const sno=(typeof seasonNo==="function"?seasonNo():0);
     const start=(se.lastDraftLogStart!=null?se.lastDraftLogStart:null);
     const log=(start!=null?(se.draftLog||[]).slice(start):(se.draftLog||[]).filter(x=>x.season>=sno-1));
-    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${pidLink(x.pid,x.name)}</td><td>${esc(x.pos)}</td><td class="num">${x.age} 歲</td></tr>`).join("");
+    const rows=log.map((x,i)=>`<tr><td class="num">${i+1}</td><td class="name">${teamBadge(x.teamId)}</td><td class="name">${pidLink(x.pid,x.name)}</td><td>${esc(x.pos)}${x.pos2?`／${esc(x.pos2)}`:""}</td><td class="num">${x.age} 歲</td></tr>`).join("");
     return `<div class="panel center"><h2>⭐ 新人選秀結束</h2>
       <p class="muted">新人們已陸續入團，下一球季就靠他們了！</p></div>
       <div class="panel"><h2>指名結果（共 ${log.length} 位）</h2><table class="grid"><tr><th>#</th><th>球團</th><th>指名新人</th><th>位置</th><th>年齡</th></tr>${rows||'<tr><td colspan="5" class="muted">本季無選秀</td></tr>'}</table>
@@ -145,7 +145,7 @@ function viewDraft(){
   return `<div class="panel center"><h2>⭐ 新人選秀</h2><p class="muted">例行賽戰績越差順位越前面（一輪制）。</p>${step}</div>
     <div class="panel center">
       <div class="teamcard"><div><div class="nm">${teamBadge(pick.teamId)}</div>
-      <div class="meta">指名順位：第 ${d.idx+1} 位 · 補強位置：${esc(pick.pos)}</div></div></div>
+      <div class="meta">指名順位：第 ${d.idx+1} 位 · 補強位置：${esc(pick.pos)}${pick.pos2?`／${esc(pick.pos2)}`:""}</div></div></div>
     </div>
     ${body}`;
 }

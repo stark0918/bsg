@@ -89,40 +89,45 @@ function synthBatting(teamId,runs){
   }
   return ps;
 }
-function synthPitching(teamId,runsAllowed,oppHits,won,close){
+function synthPitching(teamId,runsAllowed,oppHits,won,close,day,tie){
   const t=getTeam(teamId);
   const sp=t.pitchers.filter(p=>p.starter),rp=t.pitchers.filter(p=>!p.starter);
-  const starter=sp[ri(0,sp.length-1)];
+  const starter=day!=null?starterOf(t,day):sp[ri(0,sp.length-1)];
   const outs=Math.min(27,ri(Math.max(3,cfg('pitOutsMin')),Math.max(cfg('pitOutsMin')+1,cfg('pitOutsMax'))));
   // 體力好的先發有機會完投（跟引擎的「狀況好可以完投」呼應）
   const cgChance=clamp(((starter.stamina||70)-72)/34,0,0.45);
-  const noReliever=chance(cgChance);
-  const rest=noReliever?0:27-outs;
-  const starterLine={pid:starter.id,outs:noReliever?27:outs,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:(noReliever?27:outs)*ri(3,4),w:0,l:0,sv:0};
+  const complete=chance(cgChance)||outs>=27;
+  const starterOuts=complete?27:outs;
+  const rest=complete?0:27-starterOuts;
+  const starterLine={pid:starter.id,outs:starterOuts,h:Math.round(oppHits*0.68),r:Math.round(runsAllowed*0.72),er:Math.round(runsAllowed*0.68),bb:ri(0,4),k:ri(3,9),pp:starterOuts*ri(3,4),w:0,l:0,sv:0,cg:complete?1:0};
   const list=[starterLine];
   let relLine=null;
-  if(rest>0){
-    const rel=rp.length?rp[ri(0,rp.length-1)]:starter;
+  if(rest>0&&rp.length){
+    const rel=rp[ri(0,rp.length-1)];
     relLine={pid:rel.id,outs:rest,h:Math.max(0,oppHits-starterLine.h),r:Math.max(0,runsAllowed-starterLine.r),er:Math.max(0,runsAllowed-starterLine.er),bb:ri(0,2),k:ri(1,4),pp:rest*ri(3,4),w:0,l:0,sv:0};
     list.push(relLine);
   }
   const last=list[list.length-1];
   /* 勝投：先發投滿 5 局（15 出局）且球隊贏球時，勝投記在先發身上（真實棒球規則）；
-     沒投滿 5 局才記給最後一位投手。
-     舊版一律記給後援，導致 AI 球隊的先發投手整季拿不到勝投，勝場加權的獎項（最佳投手）失真。 */
-  if(won){
-    if(starterLine.outs>=15) starterLine.w=1;
-    else last.w=1;
-    if(close&&relLine&&relLine.outs>=3&&relLine.outs<9) relLine.sv=1;
+     沒投滿 5 局才記給最後一位投手。敗投則記給落敗方最後一位投手；完投另記 CG。
+     和局不記勝敗；救援成功不可與勝投同一人，且至少 1 出局、分差 3 分內或投滿 3 局。 */
+  if(!tie){
+    if(won){
+      const wId=starterOuts>=15?starterLine.pid:last.pid;
+      if(starterOuts>=15)starterLine.w=1;
+      else last.w=1;
+      if(relLine&&relLine.pid!==wId&&relLine.outs>=1&&(close||relLine.outs>=9))relLine.sv=1;
+    }else{
+      last.l=1;
+    }
   }
-  else starterLine.l=1;
   return list;
 }
-function synthGameStats(awayId,homeId,ra,rh,merge){
-  const margin=Math.abs(ra-rh);
+function synthGameStats(awayId,homeId,ra,rh,merge,day){
+  const margin=Math.abs(ra-rh),tie=ra===rh;
   const awayBat=synthBatting(awayId,ra), homeBat=synthBatting(homeId,rh);
-  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3);
-  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3);
+  const awayPit=synthPitching(awayId,rh,homeBat.reduce((a,x)=>a+x.h,0),rh<ra,margin<=3,day,tie);
+  const homePit=synthPitching(homeId,ra,awayBat.reduce((a,x)=>a+x.h,0),ra<rh,margin<=3,day,tie);
   if(merge!==false){
     awayBat.forEach(s=>mergeBatLine(s.pid,s));
     homeBat.forEach(s=>mergeBatLine(s.pid,s));
@@ -152,18 +157,28 @@ function boxFromMatch(m){
   const cBat={},cPit={};
   for(const pid in m.stats)cBat[pid]=packBat(m.stats[pid]);
   for(const pid in m.pstats)cPit[pid]=packPit(m.pstats[pid]);
+  const inn=m.inning!=null?Math.max(9,Math.min(m.line.away.length,m.inning)):m.line.away.length;
   if(m.winner){
-    const wId=m.starters[m.winner].id;
-    const lId=m.starters[m.winner==="home"?"away":"home"].id;
-    const wl=cPit[wId]||(cPit[wId]=packPit({}));
-    wl[7]=1;
-    const ll=cPit[lId]||(cPit[lId]=packPit({}));
-    ll[8]=1;
+    const dec=gameDecisions(m);
+    if(dec){
+      const wl=cPit[dec.w]||(cPit[dec.w]=packPit({}));
+      wl[7]=1;
+      const ll=cPit[dec.l]||(cPit[dec.l]=packPit({}));
+      ll[8]=1;
+      if(dec.sv){const sl=cPit[dec.sv]||(cPit[dec.sv]=packPit({}));sl[9]=1;}
+    }else{
+      const wId=m.starters[m.winner].id;
+      const lId=m.starters[m.winner==="home"?"away":"home"].id;
+      const wl=cPit[wId]||(cPit[wId]=packPit({}));
+      wl[7]=1;
+      const ll=cPit[lId]||(cPit[lId]=packPit({}));
+      ll[8]=1;
+    }
   }
   return {
     st:m.po?(m.po.stage==="semi"?"準決賽":"冠軍戰"):"",
     aw:m.awayId,hm:m.homeId,a:m.score.away,h:m.score.home,
-    line:{aw:m.line.away.slice(0,12),hm:m.line.home.slice(0,12)},
+    line:{aw:m.line.away.slice(0,inn),hm:m.line.home.slice(0,Math.min(inn,m.line.home.length))},
     e:{aw:m.errs.away,hm:m.errs.home},
     bat:cBat,pit:cPit,win:m.winner,
     sp:{away:m.starters.away.id,home:m.starters.home.id}
@@ -221,16 +236,22 @@ function mergePlayerStats(m,tgt){
    規則（近似真實棒球）：
      ・勝投：先發投滿 5 局（15 出局）→ 勝投歸先發；否則歸投手對（box 裡最後投球的那位）
      ・敗投：落敗方的投手對
-     ・救援成功：獲勝方投手對是後援、球隊分差 ≤ 3、且至少投 1 個出局
+     ・救援成功：獲勝方投手對是後援、且至少投 1 個出局，並在分差 ≤ 3 或投滿 3 局（9 出局）時成立
      ・完投：該隊只投了一名投手（先發投完整場）且總出局 ≥ 27 */
 function recomputeSeasonDecisions(){
   const se=S.season;
   if(!se||!se.playerStats||!se.playerStats.pit)return 0;
+  const boxes=se.boxes||[];
+  let hasBox=false;
+  for(const day of boxes){
+    if(!Array.isArray(day))continue;
+    if(day.some(g=>g&&g.pit&&Object.keys(g.pit).length)){hasBox=true;break;}
+  }
+  if(!hasBox)return 0;   // 沒有逐場 box 就不要把現有成績歸零
   const ps=se.playerStats.pit;
   for(const pid in ps){ps[pid].w=0;ps[pid].l=0;ps[pid].sv=0;ps[pid].cg=0;}
-  const boxes=se.boxes||[];
   for(let d=0;d<boxes.length;d++){
-    const day=boxes[d];if(!day)continue;
+    const day=boxes[d];if(!Array.isArray(day))continue;
     for(const g of day){
       if(!g||!g.pit)continue;
       const awR=g.a||0,hmR=g.h||0;
@@ -246,11 +267,11 @@ function recomputeSeasonDecisions(){
         if(winSide===side){
           const wId=outsOf(first)>=15?first:last;
           if(ps[wId])ps[wId].w=(ps[wId].w||0)+1;
-          if(last!==first&&outsOf(last)>=3&&margin<=3&&ps[last])ps[last].sv=(ps[last].sv||0)+1;
-          if(pids.length===1&&tot>=27&&ps[first])ps[first].cg=(ps[first].cg||0)+1;
+          if(last!==first&&last!==wId&&outsOf(last)>=1&&(margin<=3||outsOf(last)>=9)&&ps[last])ps[last].sv=(ps[last].sv||0)+1;
         }else if(winSide){
           if(ps[last])ps[last].l=(ps[last].l||0)+1;
         }
+        if(pids.length===1&&tot>=27&&ps[first])ps[first].cg=(ps[first].cg||0)+1;
       }
     }
   }
@@ -284,7 +305,7 @@ function processGameEnd(m){
     x.played=true;x.score={a:r.a,h:r.b};
     applyRecord(x.away,x.home,r.a,r.b);
     logGame(m.dayIndex+1,"",x.away,x.home,r.a,r.b);
-    const L=synthGameStats(x.away,x.home,r.a,r.b);
+    const L=synthGameStats(x.away,x.home,r.a,r.b,true,m.dayIndex);
     boxes[m.dayIndex][i]=boxFromSim(x.away,x.home,r,L,"");
     checkLineRecords(L.away,x.away,when);
     checkLineRecords(L.home,x.home,when);

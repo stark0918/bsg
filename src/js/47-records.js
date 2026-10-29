@@ -379,7 +379,8 @@ function detectNoHitter(b){
   const innings=Math.max(((b.line&&b.line.aw)||[]).length,((b.line&&b.line.hm)||[]).length);
   if(innings<9)return null;
   if(boxHitsTeam(b,loseTeam)!==0)return null;
-  const errsWin=(b.e&&(winSide==="away"?b.e.away:b.e.home))||0;
+  const e=b.e||{};
+  const errsWin=(winSide==="away"?(e.aw!=null?e.aw:e.away):(e.hm!=null?e.hm:e.home))||0;
   const kind=(boxWalksTeam(b,loseTeam)===0&&errsWin===0)?"perfect":"no";
   return {kind,team:winTeam,against:loseTeam,pitchers:boxPitcherNames(b,winTeam)};
 }

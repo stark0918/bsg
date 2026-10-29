@@ -24,6 +24,12 @@ function pitcherEffective(p,pitches,cond,carryPP){
 }
 /* 當日調子：好調 20%／普通 60%／不調 20% */
 function rollCond(){const r=Math.random();return r<0.2?"good":r<0.8?"normal":"bad";}
+/* 先發投手當日調子：同一人同一天固定，讓賽前顯示與比賽實際使用一致 */
+function starterCond(pid,day){
+  if(day==null||day==="")return rollCond();
+  const r=mulberry32(hashStr(String(pid)+":"+String(day)+":cond"))();
+  return r<0.2?"good":r<0.8?"normal":"bad";
+}
 const COND_LABEL={good:'<b style="color:#4fd39a">▲好調</b>',normal:'<span class="muted">－普通</span>',bad:'<b style="color:#e06782">▼不調</b>'};
 /* 取守備方有效投球狀態（含調子＋連投） */
 function effOf(m,side){const P=m.pitchers[side];return pitcherEffective(P.obj,P.pitches,P.cond||"normal",P.carryPP||0);}
@@ -237,8 +243,17 @@ function dhSlotOf(teamId){
   if(saved!=null&&saved>=0&&saved<lu.length)return saved;
   const isMe=!!(S.season&&S.season.playerTeam===teamId);
   if(isMe)return lu.length-1;              // 自己的球隊：預設第 9 棒
-  // 對手球隊：加權隨機（打擊能力越高越可能被排去 DH）
-  const w=lu.map(b=>Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4));
+  // 對手球隊：優先從「有重複本職守位」的人裡挑 DH（通常是第 9 位外野手），
+  // 這樣 DH 不會讓某個守位開天窗；同守位再依打擊能力加權。
+  const cnt={};lu.forEach(b=>{if(b.pos)cnt[b.pos]=(cnt[b.pos]||0)+1;});
+  const hasDup=lu.some(b=>b.pos&&cnt[b.pos]>1);
+  const catchers=lu.filter(b=>b.pos==="C"||b.pos2==="C");
+  const w=lu.map(b=>{
+    let v=Math.max(1,(b.meet||50)*0.6+(b.power||50)*0.8+(b.eye||50)*0.4);
+    if(catchers.length===1&&(b.pos==="C"||b.pos2==="C"))v=0;
+    if(hasDup&&b.pos&&cnt[b.pos]===1)v=0;   // 唯一本職守位的人不排 DH
+    return v;
+  });
   return weightedIndex(w);
 }
 /* 指定 DH 棒次；傳 null 或 -1 表示改回自動。 */
@@ -275,12 +290,18 @@ function newMatch(homeId,awayId,dayIndex,homeStarter,awayStarter){
     usedPitchers:{away:[],home:[]},
     batterIdx:{away:0,home:0},
     dhSlot:{away:dhSlotOf(awayId),home:dhSlotOf(homeId)},   // 兩隊的 DH 棒次（0~8）
-    pitchers:{away:{obj:awayStarter,pitches:0,cond:rollCond(),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:rollCond(),carryPP:carryFor(homeStarter.id,dayIndex)}},
+    pitchers:{away:{obj:awayStarter,pitches:0,cond:starterCond(awayStarter.id,dayIndex),carryPP:carryFor(awayStarter.id,dayIndex)},home:{obj:homeStarter,pitches:0,cond:starterCond(homeStarter.id,dayIndex),carryPP:carryFor(homeStarter.id,dayIndex)}},
     starters:{away:awayStarter,home:homeStarter},
     stats:{},pstats:{},log:[],over:false,winner:null,walkoff:false,
     lastOff:null,lastDef:null,usedSubs:new Set()
   };
   m.originals={away:m.lineups.away.slice(),home:m.lineups.home.slice()};  // 記錄原先發，供換人／打線對照
+  // 守位指派：扣掉 DH 後讓 8 個守位各一人，不重複；換人後再重算
+  m.posAssign={};
+  ["away","home"].forEach(side=>{
+    const lu=m.lineups[side],dhIdx=m.dhSlot[side];
+    m.posAssign[side]=assignFieldPositions(lu,(dhIdx!=null&&lu[dhIdx])?lu[dhIdx].id:null).map;
+  });
   m.batterForm={};   // 打者當日手感（beta D3a；先發與替補都預先擲定，代打上場即套用）
   m.lineups.away.concat(m.bench.away,m.lineups.home,m.bench.home).forEach(b=>{m.batterForm[b.id]=rollForm();});
   m.log.push(`◆ 比賽開始　${away.name} ＠ ${home.name}（${home.stadium}）`);
@@ -573,6 +594,9 @@ function doPinchHit(m,auto){
   const bi=auto?ri(0,bench.length-1):0;   // 自動調度隨機挑替補，讓大家都有上場機會
   const sub=bench.splice(bi,1)[0];
   lu[idx]=sub;
+  // 換人後守位要重算：避免新上場的球員和別人守位重複
+  const dhIdx=m.dhSlot[offSide];
+  if(m.posAssign)m.posAssign[offSide]=assignFieldPositions(lu,(dhIdx!=null&&lu[dhIdx])?lu[dhIdx].id:null).map;
   m.log.push({t:`　代打！換下「${before.name}」（${before.posLabel}），由「${sub.name}」（${sub.posLabel}）拎著球棒上場代打。`,c:"sys"});
 }
 function doChangePitcher(m,pid){

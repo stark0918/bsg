@@ -6,6 +6,18 @@ function mkSeries(hi,lo,best){return {hi:hi,lo:lo,best:best,winsHi:0,winsLo:0,ga
 function homeIsHi(gameNo){return gameNo%2===0;}
 function seriesOver(s){return !!s.winner;}
 
+/* 球季結束的最後一段：頒獎、累計生涯、選秀、標記 pending。
+   冠軍路徑與「不辦季後賽」路徑共用，避免 playoff=0 時整段被跳過。 */
+function finishSeason(){
+  const se=S.season,po=se&&se.playoff;
+  if(!se||!po||po.stage!=="done"||se.finalized)return false;
+  computeAwards();                      // 季後頒獎
+  finalizeSeason();                     // 累計生涯、寫入跨季紀錄
+  prepareDraft();                       // 新人選秀（有退休缺口才展開）
+  CAREER.pending=true;saveCareer();saveGame();
+  return true;
+}
+
 /* 例行賽結束 → 建立季後賽籤表 */
 function ensurePlayoff(){
   const se=S.season;
@@ -17,6 +29,12 @@ function ensurePlayoff(){
   if(cfg('playoff')===0){
     // 管理者設定不辦季後賽：例行賽龍頭直接封王（後續流程照常走）
     se.playoff={seeds:[],semi:[],final:null,stage:"done",champion:st[0]?st[0].id:null,noPlayoff:true};
+    if(se.playoff.champion){
+      se.news=se.news||[];
+      se.news.push({day:(se.schedule||[]).length+1,text:`★ 例行賽結束：${getTeam(se.playoff.champion).name} 封王（未辦季後賽）`,special:true});
+      if(se.news.length>10)se.news.shift();
+    }
+    finishSeason();
     return;
   }
   const seeds=st.slice(0,4).map(x=>x.id);
@@ -59,14 +77,17 @@ function simSeriesGame(s,label){
   const winnerId=homeScore>awayScore?home:away;
   const hiScore=home===s.hi?homeScore:awayScore;
   const loScore=home===s.hi?awayScore:homeScore;
+  const dayIdx=(S.season.schedule||[]).length+1+playoffGameCount();   // 這一場開打前的季後賽場數
   s.games.push({home:home,away:away,scoreHi:hiScore,scoreLo:loScore,winner:winnerId});
   logGame(null,label||"季後賽",away,home,awayScore,homeScore);
-  const L=synthGameStats(away,home,awayScore,homeScore,false);
+  const L=synthGameStats(away,home,awayScore,homeScore,false,dayIdx);
   const bx=boxFromSim(away,home,{a:awayScore,b:homeScore},L,label||"季後賽");
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
+  recordPitchLoad(dayIdx,[bx]);   // 季後賽模擬場次也要記錄用球數
   recordNoHitter(bx,label||"季後賽");
   if(winnerId===s.hi)s.winsHi++;else s.winsLo++;
   if(s.winsHi>=seriesNeed(s.best)||s.winsLo>=seriesNeed(s.best))s.winner=winnerId;
+  saveGame();
 }
 function simSeriesToEnd(s,label){let g=0;while(!s.winner&&g++<20)simSeriesGame(s,label);}
 
@@ -74,6 +95,7 @@ function simSeriesToEnd(s,label){let g=0;while(!s.winner&&g++<20)simSeriesGame(s
 function playoffProgress(){
   const po=S.season.playoff;
   if(!po)return;
+  if(po.stage==="done"){finishSeason();return;}   // 修復舊存檔：已完成但還沒跑季末流程
   const me=S.season.playerTeam;
   let guard=0;
   while(guard++<60){
@@ -100,10 +122,7 @@ function playoffProgress(){
         se.news.push({day:se.schedule.length+1,text:`★ 季後賽結束：總冠軍 ${getTeam(po.champion).name}${won?"（你率領奪冠！）":""}`,special:true});
         if(won) se.news.push({day:se.schedule.length+1,text:`🏆 恭喜！你率領 ${getTeam(me).name} 奪得本季總冠軍！`,special:true});
         if(se.news.length>10)se.news.shift();
-        computeAwards();                      // 季後頒獎
-        finalizeSeason();                     // 累計生涯、寫入跨季紀錄
-        prepareDraft();                       // 新人選秀（有退休缺口才展開）
-        CAREER.pending=true;saveCareer();saveGame();
+        finishSeason();                       // 頒獎、累計生涯、選秀、pending 共用這段
         if(won){S.flash=S.flash||`🏆 總冠軍 ${getTeam(me).name}！恭喜奪冠！`; setTimeout(()=>SFX.champ(),220);} else {S.flash=S.flash||`季後賽結束：總冠軍 ${getTeam(po.champion).name}`;}
     // 提示晉級冠軍（對玩家而言）
     if(won) S.flash = S.flash || `🏆 你率領 ${getTeam(me).name} 奪得總冠軍！`;
@@ -135,7 +154,7 @@ function recordPlayoffResult(m){
   logGame(null,stName,m.awayId,m.homeId,m.score.away,m.score.home);
   const bx=boxFromMatch(m);
   (S.season.poBoxes||(S.season.poBoxes=[])).push(bx);
-  recordPitchLoad(m.dayIndex,[bx]);   // beta D2b：季後賽用球數也記（連戰疲勞）
+  recordPitchLoad(m.dayIndex,[bx]);   // 季後賽用球數也記（連戰疲勞）
   const nh=recordNoHitter(bx,stName+"·第"+(m.po.gameNo+1)+"戰");
   const miles=checkMilestones();
   if(!S.flash&&nh&&nh.team===S.season.playerTeam)S.flash="★ "+NH_LABELS[nh.kind]+"！"+getTeam(nh.team).name;

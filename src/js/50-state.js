@@ -4,13 +4,81 @@ function saveGame(){
   if(!S.season)return;
   try{localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:Date.now()}));localStorage.removeItem(OLD_SAVEKEY);}catch(e){}
 }
-function loadGame(){
+/* 存檔裡至少要有的球季骨架；避免壞檔一載入就在 render／ensurePlayoff 爆掉。 */
+function validSeasonGame(g){
+  return !!g&&typeof g==="object"&&!Array.isArray(g)&&
+    typeof g.away==="string"&&typeof g.home==="string"&&
+    g.away!==g.home&&!!getTeam(g.away)&&!!getTeam(g.home);
+}
+function validSeasonSeries(s){
+  return !!s&&typeof s==="object"&&!Array.isArray(s)&&
+    typeof s.hi==="string"&&typeof s.lo==="string"&&
+    !!getTeam(s.hi)&&!!getTeam(s.lo)&&
+    Number.isFinite(s.best)&&Array.isArray(s.games)&&
+    Number.isFinite(s.winsHi)&&Number.isFinite(s.winsLo)&&
+    (s.winner==null||typeof s.winner==="string");
+}
+function validSeasonData(se){
+  if(!se||typeof se!=="object"||Array.isArray(se))return false;
+  if(typeof se.playerTeam!=="string"||!getTeam(se.playerTeam))return false;
+  if(!Array.isArray(se.schedule)||!se.schedule.length)return false;
+  if(!se.schedule.every(d=>Array.isArray(d)&&d.length&&d.every(validSeasonGame)))return false;
+  if(!se.records||typeof se.records!=="object"||Array.isArray(se.records))return false;
+  const rec=se.records[se.playerTeam];
+  if(!rec||typeof rec!=="object"||Array.isArray(rec))return false;
+  if(!Number.isFinite(se.day)||!Number.isInteger(se.day)||se.day<0||se.day>se.schedule.length)return false;
+  if(se.news!=null&&!Array.isArray(se.news))return false;
+  if(se.draftLog!=null&&!Array.isArray(se.draftLog))return false;
+  if(se.gl!=null&&!Array.isArray(se.gl))return false;
+  if(se.boxes!=null&&!Array.isArray(se.boxes))return false;
+  if(se.poBoxes!=null&&!Array.isArray(se.poBoxes))return false;
+  if(se.draft!=null){
+    const d=se.draft;
+    if(!d||typeof d!=="object"||Array.isArray(d)||!Array.isArray(d.picks)||
+       !Number.isFinite(d.idx)||typeof d.done!=="boolean")return false;
+  }
+  if(se.allstar!=null){
+    const a=se.allstar;
+    if(!a||typeof a!=="object"||Array.isArray(a)||typeof a.played!=="boolean")return false;
+    if(!a.red||!a.blue||!Array.isArray(a.red.batters)||!Array.isArray(a.blue.batters))return false;
+    if(a.played){
+      if(!a.mvp||typeof a.mvp.name!=="string"||typeof a.mvp.team!=="string"||!getTeam(a.mvp.team))return false;
+      if(!a.score||!Number.isFinite(a.score.red)||!Number.isFinite(a.score.blue))return false;
+    }
+  }
+  if(se.playoff!=null){
+    const po=se.playoff;
+    if(!po||typeof po!=="object"||Array.isArray(po)||!Array.isArray(po.semi))return false;
+    if(po.stage!=="semi"&&po.stage!=="final"&&po.stage!=="done")return false;
+    if(po.semi.some(s=>!validSeasonSeries(s)))return false;
+    if(po.final!=null&&!validSeasonSeries(po.final))return false;
+    if(po.champion!=null&&(typeof po.champion!=="string"||!getTeam(po.champion)))return false;
+    if(po.seeds!=null&&!Array.isArray(po.seeds))return false;
+  }
+  return true;
+}
+function readSaveRecord(){
   try{
     const raw=localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY);
-    if(!raw)return false;const d=JSON.parse(raw);S.season=d.season;return true;
-  }catch(e){return false;}
+    if(!raw)return null;
+    const d=JSON.parse(raw);
+    return d&&validSeasonData(d.season)?d:null;
+  }catch(e){return null;}
 }
-function hasSave(){try{return !!(localStorage.getItem(SAVEKEY)||localStorage.getItem(OLD_SAVEKEY));}catch(e){return false;}}
+function loadGame(){
+  const d=readSaveRecord();
+  if(!d)return false;
+  S.season=d.season;return true;
+}
+function hasSave(){return !!readSaveRecord();}
+
+/* 匯入／槽位共用的 payload 檢查：球季必須完整，只有生涯也可接受。 */
+function validPayload(p){
+  if(!p||typeof p!=="object"||Array.isArray(p))return false;
+  if(p.season!=null&&!validSeasonData(p.season))return false;
+  if(p.career!=null&&(typeof p.career!=="object"||Array.isArray(p.career)))return false;
+  return !!(p.season||p.career);
+}
 
 /* ---------- 存檔槽與匯出／匯入 ---------- */
 const SAVE_SLOTS=3;
@@ -29,15 +97,37 @@ function readSlot(n){try{const r=localStorage.getItem(slotKey(n))||localStorage.
 function writeSlot(n,p){try{localStorage.setItem(slotKey(n),JSON.stringify(p));return true;}catch(e){return false;}}
 function deleteSlotStorage(n){try{localStorage.removeItem(slotKey(n));localStorage.removeItem(oldSlotKey(n));}catch(e){}}
 function applyPayload(p){
-  CAREER=normalizeCareer(p.career);
-  migrateRetirements();   // 匯入的舊存檔同樣補上 rid 與可救回的成績
-  S.season=p.season||null;S.match=null;S.confirm=null;
+  if(!validPayload(p))return false;
+  const oldCareer=CAREER,oldSeason=S.season,oldMatch=S.match,oldConfirm=S.confirm;
+  let oldSave=null,oldOldSave=null,oldCareerRaw=null;
   try{
-    if(S.season)localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:p.at||Date.now()}));
-    else localStorage.removeItem(SAVEKEY);
-    localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));
+    oldSave=localStorage.getItem(SAVEKEY);
+    oldOldSave=localStorage.getItem(OLD_SAVEKEY);
+    oldCareerRaw=localStorage.getItem(CAREERKEY);
   }catch(e){}
+  try{
+    CAREER=normalizeCareer(p.career);
+    migrateRetirements();   // 匯入的舊存檔同樣補上 rid 與可救回的成績
+    S.season=p.season||null;S.match=null;S.confirm=null;
+    if(S.season){
+      localStorage.setItem(SAVEKEY,JSON.stringify({season:S.season,at:p.at||Date.now()}));
+      localStorage.removeItem(OLD_SAVEKEY);
+    }else{
+      localStorage.removeItem(SAVEKEY);
+      localStorage.removeItem(OLD_SAVEKEY);
+    }
+    localStorage.setItem(CAREERKEY,JSON.stringify(CAREER));
+  }catch(e){
+    CAREER=oldCareer;S.season=oldSeason;S.match=oldMatch;S.confirm=oldConfirm;
+    try{
+      if(oldSave==null)localStorage.removeItem(SAVEKEY);else localStorage.setItem(SAVEKEY,oldSave);
+      if(oldOldSave==null)localStorage.removeItem(OLD_SAVEKEY);else localStorage.setItem(OLD_SAVEKEY,oldOldSave);
+      if(oldCareerRaw==null)localStorage.removeItem(CAREERKEY);else localStorage.setItem(CAREERKEY,oldCareerRaw);
+    }catch(_){}
+    return false;
+  }
   for(const k in teamCache)delete teamCache[k];
+  return true;
 }
 function exportSaveFile(){
   try{
@@ -54,16 +144,22 @@ function exportSaveFile(){
 function importSaveText(text){
   try{
     const p=JSON.parse(text);
-    if(!p||typeof p!=="object"||(!p.season&&!p.career))throw new Error("bad");
-    applyPayload(p);saveCareer();return payloadMeta(p);
+    if(!validPayload(p))throw new Error("bad");
+    if(!applyPayload(p))throw new Error("bad");
+    saveCareer();return payloadMeta(p);
   }catch(e){return null;}
 }
 function importSaveFile(file){
   const rd=new FileReader();
   rd.onload=()=>{
     const m=importSaveText(rd.result);
-    flash(m?"已匯入存檔："+(m.hasSeason?m.teamName:"生涯紀錄"):"匯入失敗：檔案格式不符");
-    S.screen=S.season?"hub":"title";render();
+    if(m){
+      flash("已匯入存檔："+(m.hasSeason?m.teamName:"生涯紀錄"));
+      S.screen=S.season?"hub":"title";
+    }else{
+      flash("匯入失敗：檔案格式不符");
+    }
+    render();
   };
   rd.onerror=()=>{flash("匯入失敗：讀取錯誤");render();};
   rd.readAsText(file);
@@ -119,12 +215,12 @@ function migrateSeasonStats(){
       const sc=gameScore(g),ra=sc.a,rh=sc.h;
       const invA=g.away===se.playerTeam,invH=g.home===se.playerTeam;
       if((!invA&&!invH)||!hasPlayerBat){
-        synthGameStats(g.away,g.home,ra,rh);
+        synthGameStats(g.away,g.home,ra,rh,true,i);
       }else{
         const oppId=invA?g.home:g.away;
         const oppRuns=invA?rh:ra,myRuns=invA?ra:rh;
         const ob=synthBatting(oppId,oppRuns);
-        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3);
+        const op=synthPitching(oppId,myRuns,ob.reduce((a,x)=>a+x.h,0),oppRuns>myRuns,Math.abs(myRuns-oppRuns)<=3,i,myRuns===oppRuns);
         ob.forEach(s=>mergeBatLine(s.pid,s));
         op.forEach(s=>mergePitLine(s.pid,s));
         const sp=starterOf(getTeam(se.playerTeam),i);
