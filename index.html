@@ -5416,10 +5416,16 @@ function viewStandings(){
    所有門檻都以「已賽場數 gp」等比換算，球季長度一改（例：14 天 → 21 天）門檻會自動跟著放大。 */
 function leadersQualify(){
   const gp=Math.min((S.season&&S.season.day)||0,(S.season.schedule||[]).length);
+  /* 投手門檻不能只用比例算：先發投手是輪值制，一季最多只會出賽 gp÷輪值人數 場
+     （3 人輪值＝每輪 gp/3）。比例一旦大於 1/輪值人數，長賽季會把「全體先發」
+     一起踢出門檻外——例如 6 輪 42 天 × 0.35 = 15 場，但先發最多只投 14 場，
+     排行榜與賽揚／澤村獎就只剩後援。這裡用輪值先發的實際出賽數當上限夾住。 */
+  const nSt=Math.max(1,Number(cfg('starterPitchers'))||3);
+  const rotG=Math.floor(gp/nSt);                            // 輪值先發一季至少會出賽幾場
   return {
     gp,
     bat: Math.max(3,Math.ceil(gp*cfg('qBat'))),              // 野手：須達到約 80% 出賽場次
-    pit: Math.max(3,Math.round(gp*cfg('qPit'))),             // 投手：出賽場次門檻（14 天→5 場、21 天→7 場）
+    pit: Math.max(3,Math.min(Math.round(gp*cfg('qPit')),rotG)), // 投手：出賽場次門檻（14 天→4 場、21 天→7 場、42 天→14 場）
     eraOuts: Math.min(60,Math.max(12,Math.round(gp*cfg('qEraOuts')))),  // 防禦率榜：先發 100+、終結者 30+ 出局可進榜
     cyOuts: Math.max(45,Math.round(gp*cfg('qCyOuts'))),      // 最佳投手：先發至少要投滿的局數（14 天→45、21 天→67）
     sawOuts: Math.max(90,Math.round(gp*cfg('qSawOuts')))     // 澤村賞：實質先發（完整承擔）的局數（14 天→90、21 天→134）
