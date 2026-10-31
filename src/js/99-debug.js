@@ -19,7 +19,7 @@ window.GK = {
   viewAwards, computeAwards, playerAwards,
   viewSaveManager, exportPayload, payloadMeta, readSlot, writeSlot, deleteSlotStorage,
   applyPayload, exportSaveFile, importSaveText, importSaveFile, normalizeCareer,
-  recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp,
+  recordSeasonBest, checkMilestones, detectNoHitter, recordNoHitter, playerMilestones, recTabSeasonBest, seasonBestUp, seasonBestGates,
   buildDayPaper, gameHeadline, paperBlock,
   viewLineup, buildLineup, buildBench, setPlayerLineup, defaultLineup, luStatLine,
   assignFieldPositions, autoLineup, posFitScore, validateRosterPositions, FIELD_POS,
