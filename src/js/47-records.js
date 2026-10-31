@@ -327,23 +327,34 @@ function seasonBestUp(cat,key,val,name,team,no,higher,pid){
   const cur=B[cat][key];
   if(!cur||(higher?val>cur.val:val<cur.val))B[cat][key]={val,name,team,no,pid:pid||""};
 }
+/* 單季紀錄門檻：依賽程長度縮放（14 天制為基準 ×gp/14）。
+   基準比舊版寫死值高，避免 6 輪季出現 ab=20 的 0.600 打擊率、8 局 0.00 防禦率這類小樣本霸榜；
+   救援另設較低門檻——關門人整季出局數本來就只有先發的 1/3，用同一門檻會把關門人全數排除，
+   讓 0 救援的先發投手登記紀錄。 */
+function seasonBestGates(){
+  const se=S.season;
+  const gp=(se&&se.schedule&&se.schedule.length)||14;   // 無賽程資料時用 14 天標準制
+  const k=gp/14;
+  return {avgAb:Math.round(25*k), batAb:Math.round(35*k),
+          eraOuts:Math.round(45*k), pitOuts:Math.round(40*k), svOuts:Math.round(20*k)};
+}
 function recordSeasonBest(ps,no){
   if(!ps)return;
-  // 門檻依 14 場例行賽調整（先發野手整季約 45~55 打數，先發投手約 60~90 出局數）
+  const q=seasonBestGates();
   for(const pid in (ps.bat||{})){
     const s=ps.bat[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.ab||0)>=20)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true,pid);
-    if((s.ab||0)>=30){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true,pid);
+    if((s.ab||0)>=q.avgAb)seasonBestUp("bat","avg",Math.round(s.h/s.ab*1000)/1000,nm,tm,no,true,pid);
+    if((s.ab||0)>=q.batAb){seasonBestUp("bat","hr",s.hr||0,nm,tm,no,true,pid);
       seasonBestUp("bat","rbi",s.rbi||0,nm,tm,no,true,pid);
       seasonBestUp("bat","h",s.h||0,nm,tm,no,true,pid);
       seasonBestUp("bat","sb",s.sb||0,nm,tm,no,true,pid);}
   }
   for(const pid in (ps.pit||{})){
     const s=ps.pit[pid]||{},nm=recName(pid),tm=recTeam(pid);
-    if((s.outs||0)>=21)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false,pid);
-    if((s.outs||0)>=36){seasonBestUp("pit","w",s.w||0,nm,tm,no,true,pid);
-      seasonBestUp("pit","k",s.k||0,nm,tm,no,true,pid);
-      seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true,pid);}
+    if((s.outs||0)>=q.eraOuts)seasonBestUp("pit","era",(s.er/s.outs)*27,nm,tm,no,false,pid);
+    if((s.outs||0)>=q.pitOuts){seasonBestUp("pit","w",s.w||0,nm,tm,no,true,pid);
+      seasonBestUp("pit","k",s.k||0,nm,tm,no,true,pid);}
+    if((s.outs||0)>=q.svOuts)seasonBestUp("pit","sv",s.sv||0,nm,tm,no,true,pid);
   }
 }
 const SEASON_BEST=[
@@ -404,7 +415,8 @@ function noHitterPanel(){
     <table class="grid"><tr><th>場合</th><th>球隊</th><th>投手</th><th>事蹟</th></tr>${cur||recent||'<tr><td colspan="4" class="muted">尚未出現。</td></tr>'}</table></div>`;
 }
 function recTabSeasonBest(){
-  return `<div class="panel"><p class="muted">跨季最佳單季成績（只統計已結束的球季；本季進行中的成績請看「📊 本季團隊」的暫列王座）。單季紀錄門檻（14 場制）：打擊率需 20 打席以上，其餘打擊獎需 30 打席以上；防禦率需 21 出局以上，其餘投手獎需 36 出局以上。</p></div>`
+  const g=seasonBestGates();
+  return `<div class="panel"><p class="muted">跨季最佳單季成績（只統計已結束的球季；本季進行中的成績請看「📊 本季團隊」的暫列王座）。單季紀錄門檻會依賽程長度縮放，本屆（${(S.season&&S.season.schedule&&S.season.schedule.length)||14} 天）為：打擊率需 ${g.avgAb} 打數以上，其餘打擊獎需 ${g.batAb} 打數以上；防禦率需 ${g.eraOuts} 出局以上，勝投／三振需 ${g.pitOuts} 出局以上，救援需 ${g.svOuts} 出局以上。</p></div>`
     +seasonBestTable("bat","單季打擊紀錄")+seasonBestTable("pit","單季投球紀錄")+noHitterPanel();
 }
 /* ---------- 生涯里程碑 ---------- */
